@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
 
     // Simulando un rol. Normalmente lo obtienes de login o base de datos
-    private var currentUserRole: UserRole = UserRole.EMPLOYEE
+    private var currentUserRole: UserRole = UserRole.CLIENT
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
