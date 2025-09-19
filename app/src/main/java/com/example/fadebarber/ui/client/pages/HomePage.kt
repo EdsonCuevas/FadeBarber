@@ -36,11 +36,17 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.fadebarber.data.HomeViewModel
+import com.example.fadebarber.data.model.ServiceData
+import coil.compose.AsyncImage
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(modifier: Modifier = Modifier) {
+fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel()) {
+
+    val services by viewModel.services.collectAsState() // aquí llegan de Firebase
 
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -133,37 +139,16 @@ fun HomePage(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(12.dp))
 
         // Tarjeta Servicio 1
-        ServiceCard(
-            service = ServiceData(
-                title = "Corte + Barba",
-                description = "Corte moderno y definido, pensado para resaltar el estilo personal.",
-                duration = "45 min",
-                rating = "4.5/5",
-                price = "$250 MXN",
-                imageRes = R.drawable.perfil
-            ),
-            onClick = {
-                selectedService = it
-                scope.launch { sheetState.show() }
-            }
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        ServiceCard(
-            service = ServiceData(
-                title = "Corte + Bigote",
-                description = "Corte moderno y definido, pensado para resaltar el estilo personal.",
-                duration = "45 min",
-                rating = "4.6/5",
-                price = "$230 MXN",
-                imageRes = R.drawable.perfil
-            ),
-            onClick = {
-                selectedService = it
-                scope.launch { sheetState.show() }
-            }
-        )
+        services.forEach { service ->
+            ServiceCard(
+                service = service,
+                onClick = {
+                    selectedService = it
+                    scope.launch { sheetState.show() }
+                }
+            )
+            Spacer(Modifier.height(12.dp))
+        }
 
     }
 
@@ -180,29 +165,11 @@ fun HomePage(modifier: Modifier = Modifier) {
             sheetState = sheetState,
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
-            AgendaForm(
-                service = selectedService!!,
-                onConfirm = { barbero, fecha, hora ->
-                    // Aquí iría la lógica de guardar la cita en Firebase, etc.
-                    println("Agendado: ${selectedService!!.title} con $barbero el $fecha a las $hora")
-                    scope.launch { sheetState.hide() }.invokeOnCompletion {
-                        selectedService = null
-                    }
-                }
-            )
+
         }
     }
 
 }
-
-data class ServiceData(
-    val title: String,
-    val description: String,
-    val duration: String,
-    val rating: String,
-    val price: String,
-    val imageRes: Int
-)
 
 @Composable
 fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
@@ -218,25 +185,26 @@ fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painter = painterResource(id = service.imageRes),
-                contentDescription = service.title,
-                modifier = Modifier.size(60.dp),
-                tint = Color.Unspecified
+            AsyncImage(
+                model = service.imageService,
+                contentDescription = service.nameService,
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
             )
 
             Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(service.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(service.description, fontSize = 12.sp, color = Color.Gray)
+                Text(service.nameService ?: "", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(service.descriptionService ?: "", fontSize = 12.sp, color = Color.Gray)
                 Spacer(Modifier.height(4.dp))
-                Text("⏱ ${service.duration}   ⭐ ${service.rating}", fontSize = 12.sp, color = Color.Gray)
+                Text("⏱ ${service.durationService ?: 0} min", fontSize = 12.sp, color = Color.Gray)
                 Spacer(Modifier.height(4.dp))
-                Text(service.price, fontWeight = FontWeight.Bold)
+                Text("$${service.priceService ?: 0} USD", fontWeight = FontWeight.Bold)
             }
 
-            // Botón de acción (+)
             Box(
                 modifier = Modifier
                     .size(28.dp)
@@ -246,107 +214,6 @@ fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
             ) {
                 Text("+", color = Color.White, fontWeight = FontWeight.Bold)
             }
-        }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AgendaForm(service: ServiceData, onConfirm: (String, LocalDate, LocalTime) -> Unit) {
-    var selectedBarber by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) }
-    val barberos = listOf("Carlos", "Luis", "Miguel")
-
-    // Para fecha y hora
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    var showDatePicker by remember { mutableStateOf(false) }
-
-    var selectedTime by remember { mutableStateOf(LocalTime.of(10, 0)) }
-    var showTimePicker by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(service.title, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-        Text(service.description, fontSize = 14.sp)
-        Text("⏱ ${service.duration}   ⭐ ${service.rating}")
-        Text("Precio: ${service.price}", fontWeight = FontWeight.Bold)
-
-        // Selección de barbero
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
-        ) {
-            TextField(
-                value = selectedBarber,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Selecciona un barbero") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                barberos.forEach { barber ->
-                    DropdownMenuItem(
-                        text = { Text(barber) },
-                        onClick = {
-                            selectedBarber = barber
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-
-        // Selección de fecha
-        Button(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Fecha: $selectedDate")
-        }
-
-        if (showDatePicker) {
-            DatePickerDialog(
-                onDismissRequest = { showDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = { showDatePicker = false }) {
-                        Text("OK")
-                    }
-                }
-            ) {
-                DatePicker(
-                    state = rememberDatePickerState(
-                        initialSelectedDateMillis = System.currentTimeMillis()
-                    ),
-                    showModeToggle = false
-                )
-            }
-        }
-
-        // Selección de hora
-        Button(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Hora: $selectedTime")
-        }
-
-
-        // Botón confirmar
-        Button(
-            onClick = {
-                if (selectedBarber.isNotEmpty()) {
-                    onConfirm(selectedBarber, selectedDate, selectedTime)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Agendar cita")
         }
     }
 }

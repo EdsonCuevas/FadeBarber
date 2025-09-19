@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.fadebarber" />
+                  <option name="mobileSdkAppId" value="1:109190251744:android:8cbd20033f39dd1af6fc85" />
+                  <option name="projectId" value="barbershop-dd871" />
+                  <option name="projectNumber" value="109190251744" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

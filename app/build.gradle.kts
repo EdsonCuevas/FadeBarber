@@ -52,6 +52,9 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.runtime.livedata)
 
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+
     // Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
 
