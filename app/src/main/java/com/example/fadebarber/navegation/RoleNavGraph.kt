@@ -50,14 +50,8 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
             composable("login") {
                 LoginPage(
                     viewModel = authViewModel,
-                    onLoginSuccess = {
-                        navController.navigate("home") {
-                            popUpTo("login") { inclusive = true }
-                        }
-                    },
-                    onNavigateToSignUp = {
-                        navController.navigate("signup")
-                    }
+                    onLoginSuccess = {},
+                    onNavigateToSignUp = { navController.navigate("signup") }
                 )
             }
 
@@ -65,11 +59,7 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
             composable("signup") {
                 SignUpPage(
                     viewModel = authViewModel,
-                    onLoginSuccess = {
-                        navController.navigate("home") {
-                            popUpTo("signup") { inclusive = true }
-                        }
-                    },
+                    onLoginSuccess = {},
                     onNavigateToLogin = {
                         navController.navigate("login") {
                             popUpTo("signup") { inclusive = true }
