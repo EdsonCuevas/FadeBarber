@@ -1,6 +1,5 @@
 package com.example.fadebarber.ui.client.pages
 
-import android.app.TimePickerDialog
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -8,14 +7,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fadebarber.R
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -40,19 +37,27 @@ import java.time.LocalTime
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.ServiceData
-import coil.compose.AsyncImage
+import com.example.fadebarber.data.model.HomeTab
+import com.example.fadebarber.ui.client.components.PromotionCard
+import com.example.fadebarber.ui.client.components.ServiceCard
+
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel()) {
 
+    var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
+
     val services by viewModel.services.collectAsState() // aquí llegan de Firebase
+    val promotions by viewModel.promotions.collectAsState()
+
 
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedService by remember { mutableStateOf<ServiceData?>(null) }
+
 
     Column(
         modifier = modifier
@@ -123,32 +128,75 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
         Spacer(Modifier.height(16.dp))
 
         // Tabs (simple)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+        TabRow(
+            selectedTabIndex = when (selectedTab) {
+                is HomeTab.Servicios -> 0
+                is HomeTab.Combos -> 1
+                is HomeTab.Nosotros -> 2
+            },
+            containerColor = Color(0xFFFFFFFF),
+            contentColor = Color(0xFF0A1F66),
+            indicator = { tabPositions ->
+                TabRowDefaults.Indicator(
+                    Modifier.tabIndicatorOffset(
+                        tabPositions[
+                            when (selectedTab) {
+                                is HomeTab.Servicios -> 0
+                                is HomeTab.Combos -> 1
+                                is HomeTab.Nosotros -> 2
+                            }
+                        ]
+                    ),
+                    color = Color(0xFF0A1F66), // 🔹 azul oscuro
+                    height = 3.dp              // puedes ajustar el grosor
+                )
+            }
         ) {
-            Text("Servicios", fontWeight = FontWeight.Bold)
-            Text("Combos", color = Color.Gray)
-            Text("Nosotros", color = Color.Gray)
+            listOf(HomeTab.Servicios, HomeTab.Combos, HomeTab.Nosotros).forEach { tab ->
+                Tab(
+                    selected = selectedTab::class == tab::class,
+                    onClick = { selectedTab = tab },
+                    text = { Text(tab.title) }
+                )
+            }
         }
+
 
         Spacer(Modifier.height(16.dp))
 
-        // Sección servicios
-        Text("Servicios", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-
-        Spacer(Modifier.height(12.dp))
-
-        // Tarjeta Servicio
-        services.forEach { service ->
-            ServiceCard(
-                service = service,
-                onClick = {
-                    selectedService = it
-                    scope.launch { sheetState.show() }
+        when (selectedTab) {
+            is HomeTab.Servicios -> {
+                Spacer(Modifier.height(12.dp))
+                services.forEach { service ->
+                    ServiceCard(
+                        service = service,
+                        onClick = {
+                            selectedService = it
+                            scope.launch { sheetState.show() }
+                        }
+                    )
+                    Spacer(Modifier.height(12.dp))
                 }
-            )
-            Spacer(Modifier.height(12.dp))
+            }
+
+            is HomeTab.Combos -> {
+                promotions.forEach { promo ->
+                    PromotionCard(promotion = promo) {
+                        // ⚡ aquí decides:
+                        // 1) abrir el mismo BottomSheet de agendar
+                        // 2) o abrir uno distinto especial para promos
+                        scope.launch { sheetState.show() }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
+
+
+            is HomeTab.Nosotros -> {
+                Text("Nosotros", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(12.dp))
+                Text("Aquí información de la barbería: historia, equipo, etc.")
+            }
         }
 
     }
@@ -181,52 +229,6 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
 
 }
 
-@Composable
-fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick(service) },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = service.imageService,
-                contentDescription = service.nameService,
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-
-            Spacer(Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(service.nameService ?: "", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(service.descriptionService ?: "", fontSize = 12.sp, color = Color.Gray)
-                Spacer(Modifier.height(4.dp))
-                Text("⏱ ${service.durationService ?: 0} min", fontSize = 12.sp, color = Color.Gray)
-                Spacer(Modifier.height(4.dp))
-                Text("$${service.priceService ?: 0} USD", fontWeight = FontWeight.Bold)
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF0A1F66)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("+", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
