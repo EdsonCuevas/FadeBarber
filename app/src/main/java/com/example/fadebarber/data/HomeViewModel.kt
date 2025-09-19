@@ -9,17 +9,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class HomeViewModel : ViewModel() {
+
     private val _services = MutableStateFlow<List<ServiceData>>(emptyList())
     val services: StateFlow<List<ServiceData>> = _services
 
     init {
-        fetchServices()
-    }
-
-    private fun fetchServices() {
         viewModelScope.launch {
-            val result = FirebaseRepository.getServices()
-            _services.value = result
+            _services.value = FirebaseRepository.getServices()
         }
     }
 }
