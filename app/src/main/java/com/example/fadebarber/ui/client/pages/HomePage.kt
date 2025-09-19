@@ -1,5 +1,6 @@
 package com.example.fadebarber.ui.client.pages
 
+import android.app.TimePickerDialog
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -138,7 +139,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
 
         Spacer(Modifier.height(12.dp))
 
-        // Tarjeta Servicio 1
+        // Tarjeta Servicio
         services.forEach { service ->
             ServiceCard(
                 service = service,
@@ -165,7 +166,16 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
             sheetState = sheetState,
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
-
+            AgendaForm(
+                service = selectedService!!,
+                onConfirm = { barbero, fecha, hora ->
+                    // Aquí iría la lógica de guardar la cita en Firebase, etc.
+                    println("Agendado: ${selectedService!!} con $barbero el $fecha a las $hora")
+                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                        selectedService = null
+                    }
+                }
+            )
         }
     }
 
@@ -214,6 +224,110 @@ fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
             ) {
                 Text("+", color = Color.White, fontWeight = FontWeight.Bold)
             }
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AgendaForm(service: ServiceData, onConfirm: (String, LocalDate, LocalTime) -> Unit) {
+    var selectedBarber by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    val barberos = listOf("Carlos", "Luis", "Miguel")
+
+    // Para fecha y hora
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    var selectedTime by remember { mutableStateOf(LocalTime.of(10, 0)) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(service.nameService.toString(), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Text(service.descriptionService.toString(), fontSize = 14.sp)
+        Text("⏱ ${service.durationService}   ⭐ 4.2")
+        Text("Precio: ${service.priceService}", fontWeight = FontWeight.Bold)
+
+        // Selección de barbero
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            TextField(
+                value = selectedBarber,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Selecciona un barbero") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                barberos.forEach { barber ->
+                    DropdownMenuItem(
+                        text = { Text(barber) },
+                        onClick = {
+                            selectedBarber = barber
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Selección de fecha
+        Button(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("Fecha: $selectedDate")
+        }
+
+        if (showDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("OK")
+                    }
+                }
+            ) {
+                DatePicker(
+                    state = rememberDatePickerState(
+                        initialSelectedDateMillis = System.currentTimeMillis()
+                    ),
+                    showModeToggle = false
+                )
+            }
+        }
+
+        // Selección de hora
+        Button(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("Hora: $selectedTime")
+        }
+
+        if (showTimePicker) {
+
+        }
+
+        // Botón confirmar
+        Button(
+            onClick = {
+                if (selectedBarber.isNotEmpty()) {
+                    onConfirm(selectedBarber, selectedDate, selectedTime)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Agendar cita")
         }
     }
 }
