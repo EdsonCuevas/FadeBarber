@@ -3,7 +3,6 @@ package com.example.fadebarber.navegation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.currentComposer
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.NavHost
@@ -50,14 +49,8 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
             composable("login") {
                 LoginPage(
                     viewModel = authViewModel,
-                    onLoginSuccess = {
-                        navController.navigate("home") {
-                            popUpTo("login") { inclusive = true }
-                        }
-                    },
-                    onNavigateToSignUp = {
-                        navController.navigate("signup")
-                    }
+                    onLoginSuccess = {},
+                    onNavigateToSignUp = { navController.navigate("signup") }
                 )
             }
 
@@ -65,11 +58,7 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
             composable("signup") {
                 SignUpPage(
                     viewModel = authViewModel,
-                    onLoginSuccess = {
-                        navController.navigate("home") {
-                            popUpTo("signup") { inclusive = true }
-                        }
-                    },
+                    onLoginSuccess = {},
                     onNavigateToLogin = {
                         navController.navigate("login") {
                             popUpTo("signup") { inclusive = true }
