@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.observe
 import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
 

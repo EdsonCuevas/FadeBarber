@@ -10,11 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
-import com.example.fadebarber.navegation.RoleNavGraph
-import com.example.fadebarber.navegation.UserRole
 
 @Composable
 fun LoginPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit, onNavigateToSignUp: () -> Unit) {
@@ -27,7 +24,7 @@ fun LoginPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit, onNavigateTo
     LaunchedEffect(authState.value) {
         when (authState.value) {
             is AuthState.Authenticated -> {
-                onLoginSuccess() // 🔥 Esto ya no hace navigate("home"), sino que será vacío
+                onLoginSuccess()
             }
             is AuthState.Error -> {
                 Toast.makeText(
