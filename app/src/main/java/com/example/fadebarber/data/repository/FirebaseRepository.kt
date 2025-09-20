@@ -19,7 +19,9 @@ object FirebaseRepository {
             val services = mutableListOf<ServiceData>()
             for (child in snapshot.children) {
                 val service = child.getValue(ServiceData::class.java)
-                service?.let { services.add(it) }
+                if (service?.statusService == 1) {
+                    services.add(service)
+                }
             }
             services
         } catch (e: Exception) {
@@ -34,7 +36,9 @@ object FirebaseRepository {
             val promotions = mutableListOf<PromotionData>()
             for (child in snapshot.children) {
                 val promotion = child.getValue(PromotionData::class.java)
-                promotion?.let { promotions.add(it) }
+                if (promotion?.statusPromotion == 1) {
+                    promotions.add(promotion)
+                }
             }
             promotions
         } catch (e: Exception) {

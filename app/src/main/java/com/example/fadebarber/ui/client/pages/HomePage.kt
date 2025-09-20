@@ -5,19 +5,40 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,19 +48,17 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.fadebarber.R
-import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.runtime.*
-import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.LocalTime
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.fadebarber.R
 import com.example.fadebarber.data.HomeViewModel
-import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.HomeTab
+import com.example.fadebarber.data.model.PromotionData
+import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.ui.client.components.AgendaPromoForm
+import com.example.fadebarber.ui.client.components.AgendaServiceForm
 import com.example.fadebarber.ui.client.components.PromotionCard
 import com.example.fadebarber.ui.client.components.ServiceCard
+import kotlinx.coroutines.launch
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -56,7 +75,9 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     var selectedService by remember { mutableStateOf<ServiceData?>(null) }
+    var selectedPromotion by remember { mutableStateOf<PromotionData?>(null) }
 
 
     Column(
@@ -167,27 +188,60 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
         when (selectedTab) {
             is HomeTab.Servicios -> {
                 Spacer(Modifier.height(12.dp))
-                services.forEach { service ->
-                    ServiceCard(
-                        service = service,
-                        onClick = {
-                            selectedService = it
-                            scope.launch { sheetState.show() }
+                if(services.isNotEmpty()) {
+                    services.forEach { service ->
+                        if (service.statusService == 1) {
+                            ServiceCard(
+                                service = service,
+                                onClick = {
+                                    selectedService = it
+                                    scope.launch { sheetState.show() }
+                                }
+                            )
+                            Spacer(Modifier.height(12.dp))
                         }
-                    )
-                    Spacer(Modifier.height(12.dp))
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No hay servicios en este momento",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
 
             is HomeTab.Combos -> {
-                promotions.forEach { promo ->
-                    PromotionCard(promotion = promo, allServices = services) {
-                        // ⚡ aquí decides:
-                        // 1) abrir el mismo BottomSheet de agendar
-                        // 2) o abrir uno distinto especial para promos
-                        scope.launch { sheetState.show() }
+                if(promotions.isNotEmpty()) {
+                    promotions.forEach { promo ->
+                        PromotionCard(promotion = promo, allServices = services) {
+                            selectedPromotion = promo
+                            scope.launch { sheetState.show() }
+
+                        }
+                        Spacer(Modifier.height(12.dp))
                     }
-                    Spacer(Modifier.height(12.dp))
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No hay promociones en este momento",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
 
@@ -200,6 +254,32 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
         }
 
     }
+
+    // BottomSheet de agendar cita con promoción
+    if (selectedPromotion != null) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    if (!sheetState.isVisible) {
+                        selectedPromotion = null
+                    }
+                }
+            },
+            sheetState = sheetState,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            AgendaPromoForm(
+                promotion = selectedPromotion!!,
+                onConfirm = { barbero, fecha, hora ->
+                    println("Agendado promo: ${selectedPromotion!!} con $barbero el $fecha a las $hora")
+                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                        selectedPromotion = null
+                    }
+                }
+            )
+        }
+    }
+
 
     // BottomSheet de agendar cita
     if (selectedService != null) {
@@ -214,7 +294,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
             sheetState = sheetState,
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
-            AgendaForm(
+            AgendaServiceForm(
                 service = selectedService!!,
                 onConfirm = { barbero, fecha, hora ->
                     // Aquí iría la lógica de guardar la cita en Firebase, etc.
@@ -227,109 +307,4 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
         }
     }
 
-}
-
-
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AgendaForm(service: ServiceData, onConfirm: (String, LocalDate, LocalTime) -> Unit) {
-    var selectedBarber by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) }
-    val barberos = listOf("Carlos", "Luis", "Miguel")
-
-    // Para fecha y hora
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    var showDatePicker by remember { mutableStateOf(false) }
-
-    var selectedTime by remember { mutableStateOf(LocalTime.of(10, 0)) }
-    var showTimePicker by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(service.nameService.toString(), fontWeight = FontWeight.Bold, fontSize = 20.sp)
-        Text(service.descriptionService.toString(), fontSize = 14.sp)
-        Text("⏱ ${service.durationService}   ⭐ 4.2")
-        Text("Precio: ${service.priceService}", fontWeight = FontWeight.Bold)
-
-        // Selección de barbero
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
-        ) {
-            TextField(
-                value = selectedBarber,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Selecciona un barbero") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                barberos.forEach { barber ->
-                    DropdownMenuItem(
-                        text = { Text(barber) },
-                        onClick = {
-                            selectedBarber = barber
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-
-        // Selección de fecha
-        Button(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Fecha: $selectedDate")
-        }
-
-        if (showDatePicker) {
-            DatePickerDialog(
-                onDismissRequest = { showDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = { showDatePicker = false }) {
-                        Text("OK")
-                    }
-                }
-            ) {
-                DatePicker(
-                    state = rememberDatePickerState(
-                        initialSelectedDateMillis = System.currentTimeMillis()
-                    ),
-                    showModeToggle = false
-                )
-            }
-        }
-
-        // Selección de hora
-        Button(onClick = { showTimePicker = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Hora: $selectedTime")
-        }
-
-        if (showTimePicker) {
-
-        }
-
-        // Botón confirmar
-        Button(
-            onClick = {
-                if (selectedBarber.isNotEmpty()) {
-                    onConfirm(selectedBarber, selectedDate, selectedTime)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Agendar cita")
-        }
-    }
 }
