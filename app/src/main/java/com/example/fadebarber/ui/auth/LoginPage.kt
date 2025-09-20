@@ -13,10 +13,20 @@ import androidx.compose.ui.unit.sp
 import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
 
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+
+
 @Composable
 fun LoginPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit, onNavigateToSignUp: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     val authState = viewModel.authState.observeAsState()
     val context = LocalContext.current
 
@@ -51,10 +61,23 @@ fun LoginPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit, onNavigateTo
             onValueChange = { email = it },
             label = { Text("Email") }
         )
+
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") }
+            label = { Text("Password") },
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                val image = if (passwordVisible)
+                    Icons.Default.Visibility
+                else
+                    Icons.Default.VisibilityOff
+
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(imageVector = image, contentDescription = null)
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))

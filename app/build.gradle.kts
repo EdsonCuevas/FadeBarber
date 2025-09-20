@@ -52,6 +52,7 @@ android {
      implementation(libs.androidx.foundation)
      implementation(libs.firebase.auth)
      implementation(libs.androidx.runtime.livedata)
+     implementation(libs.androidx.compose.animation.core.lint)
      testImplementation(libs.junit)
      androidTestImplementation(libs.androidx.junit)
      androidTestImplementation(libs.androidx.espresso.core)
@@ -66,4 +67,8 @@ android {
      implementation("androidx.activity:activity-compose:1.8.2")
      implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
      implementation("com.google.firebase:firebase-auth")
+     implementation("com.google.firebase:firebase-database")
+     implementation("androidx.compose.material:material-icons-extended")
+
+
  }
