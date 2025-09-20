@@ -58,7 +58,7 @@ fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
                 Text(service.nameService ?: "", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(service.descriptionService ?: "", fontSize = 12.sp, color = Color.Gray)
                 Spacer(Modifier.height(4.dp))
-                Text("⏱ ${service.durationService ?: 0} min", fontSize = 12.sp, color = Color.Gray)
+                Text("⏱ ${service.durationService ?: 0} min", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 Spacer(Modifier.height(4.dp))
                 Text("$${service.priceService ?: 0} USD", fontWeight = FontWeight.Bold)
             }

@@ -181,7 +181,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
 
             is HomeTab.Combos -> {
                 promotions.forEach { promo ->
-                    PromotionCard(promotion = promo) {
+                    PromotionCard(promotion = promo, allServices = services) {
                         // ⚡ aquí decides:
                         // 1) abrir el mismo BottomSheet de agendar
                         // 2) o abrir uno distinto especial para promos
