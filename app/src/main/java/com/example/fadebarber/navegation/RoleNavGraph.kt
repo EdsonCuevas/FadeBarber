@@ -14,6 +14,7 @@ import com.example.fadebarber.navegation.RolesNav.ClientNav
 import com.example.fadebarber.navegation.RolesNav.EmployeeNav
 import com.example.fadebarber.ui.admin.AdminScreens
 import com.example.fadebarber.ui.auth.LoginPage
+import com.example.fadebarber.ui.auth.ResetPassword
 import com.example.fadebarber.ui.auth.SignUpPage
 import com.example.fadebarber.ui.client.ClientScreens
 import com.example.fadebarber.ui.employee.EmployeeScreens
@@ -57,10 +58,28 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
                     },
                     onNavigateToSignUp = {
                         navController.navigate("signup")
+                        },
+                    onNavigateResetP = {
+                        navController.navigate("resetpassword")
                     }
                 )
             }
-
+            //Reset Password
+            composable("resetpassword") {
+                ResetPassword(
+                    viewModel = authViewModel,
+                    onResetSuccess = {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onNavigateToLogin = {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
             // Signup
             composable("signup") {
                 SignUpPage(

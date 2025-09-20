@@ -43,7 +43,11 @@ class AuthViewModel : ViewModel() {
     /**
      * Registrar un nuevo usuario en Firebase
      */
-    fun signUp(email: String, password: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+    fun signUp(
+        email: String,
+        password: String,
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) {
         viewModelScope.launch {
             auth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener { task ->
@@ -59,10 +63,25 @@ class AuthViewModel : ViewModel() {
     }
 
     /**
-     * Cerrar sesión
+     * Restablecer contraseña
      */
-    fun logout() {
-        auth.signOut()
-        _user.value = null
+    fun resetPassword(email: String, onResult: (success: Boolean, error: String?) -> Unit) {
+        val auth = FirebaseAuth.getInstance()
+        auth.sendPasswordResetEmail(email)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    onResult(true, null)
+                } else {
+                    onResult(false, task.exception?.message)
+                }
+            }
+
+        /**
+         * Cerrar sesión
+         */
+        fun logout() {
+            auth.signOut()
+            _user.value = null
+        }
     }
 }

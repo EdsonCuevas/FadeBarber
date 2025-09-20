@@ -13,7 +13,12 @@ import com.example.fadebarber.navegation.RoleNavGraph
 import com.example.fadebarber.navegation.UserRole
 
 @Composable
-fun LoginPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit,  onNavigateToSignUp: () -> Unit) {
+fun LoginPage(
+    viewModel: AuthViewModel,
+    onLoginSuccess: () -> Unit,
+    onNavigateToSignUp: () -> Unit,
+    onNavigateResetP: () -> Unit // <-- agregado
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -42,7 +47,6 @@ fun LoginPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit,  onNavigateT
         Button(
             onClick = {
                 viewModel.login(email, password)
-                // cuando Firebase notifique login, navegamos
                 onLoginSuccess()
             },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
@@ -58,5 +62,13 @@ fun LoginPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit,  onNavigateT
             Text(text = "Don´t have an account, Sign up")
         }
 
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Botón Reset Password
+        TextButton(onClick = {
+            onNavigateResetP()
+        }) {
+            Text(text = "Forgot Password?")
+        }
     }
 }
