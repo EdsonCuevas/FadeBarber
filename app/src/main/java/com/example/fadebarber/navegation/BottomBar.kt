@@ -44,11 +44,11 @@ fun BottomBar(
                     label = { Text(item.label, fontWeight = FontWeight.Bold) },
                     icon = { Icon(item.icon, contentDescription = item.label) },
                     colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color(0xFF1551FF),      // Color del icono cuando está seleccionado
+                    selectedIconColor = Color(0xFF1E3A8A),      // Color del icono cuando está seleccionado
                     unselectedIconColor = Color.White,   // Color del icono no seleccionado
                     selectedTextColor = Color.White,      // Color del label cuando está seleccionado
                     unselectedTextColor = Color.White,    // Color del label no seleccionado
-                    indicatorColor = Color(0xFF7890C4) // Color del fondo del item seleccionado
+                    indicatorColor = Color.White // Color del fondo del item seleccionado
                     )
                 )
 
