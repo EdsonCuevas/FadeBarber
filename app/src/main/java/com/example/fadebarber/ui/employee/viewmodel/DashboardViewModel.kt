@@ -1,34 +1,44 @@
-package com.example.fadebarber.ui.employee.viewmodel
+package com.example.fadebarber.data
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.fadebarber.data.model.Appointment
-import com.example.fadebarber.data.model.Date
+import androidx.lifecycle.viewModelScope
+import com.example.fadebarber.data.repository.Repository
+import com.example.fadebarber.data.model.AppointmentData
+import com.example.fadebarber.data.model.PromotionData
+import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.UserData
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class DashboardViewModel : ViewModel() {
-    private val _date = MutableLiveData(
-        Date(
-            service = "Corte de pelo + Barba",
-            client = "Alondra"
-        )
-    )
-    val date: LiveData<Date> = _date
 
+    private val _appointments = MutableStateFlow<List<AppointmentData>>(emptyList())
+    private val _services = MutableStateFlow<List<ServiceData>>(emptyList())
+    private val _users = MutableStateFlow<List<UserData>>(emptyList())
+    private  val _promotion = MutableStateFlow<List<PromotionData>>(emptyList())
+    val appointments: StateFlow<List<AppointmentData>> = _appointments
+    val services: StateFlow<List<ServiceData>> = _services
+    val users: StateFlow<List<UserData>> = _users
+    val promotion: StateFlow<List<PromotionData>> = _promotion
 
-    private val _appointments = MutableLiveData(
-        listOf(
-            Appointment(id = 1,service = "Corte de pelo", client = "María Felix", hour = "7:00pm", date = "12 Sep 2025"),
-            Appointment(id = 2,service = "Barba", client = "Juan Pérez", hour = "5:00pm", date = "12 Sep 2025"),
-            Appointment(id = 3,service = "Tinte", client = "Antonio Guzman", hour = "3:00pm", date = "12 Sep 2025"),
-            Appointment(id = 4,service = "Tinte", client = "Juan Gomez", hour = "3:00pm", date = "12 Sep 2025"),
-            Appointment(id = 5,service = "Tinte", client = "Mei Feng", hour = "3:00pm", date = "12 Sep 2025"),
-            Appointment(id = 6,service = "Tinte", client = "Ulises Flores", hour = "3:00pm", date = "12 Sep 2025"),
-            Appointment(id = 7,service = "Tinte", client = "Joshua Gonzales", hour = "3:00pm", date = "12 Sep 2025"),
-        )
-    )
-    val appointments: LiveData<List<Appointment>> = _appointments
+    init {
+        viewModelScope.launch {
+            try {
+                val appointments = Repository.getAppointments()
+                val serivices = Repository.getServices()
+                val users = Repository.getUser()
+                val promotions = Repository.getPromotion()
+                _appointments.value = appointments
+                _services.value = serivices
+                _users.value = users
+                Repository.getPromotion().collect { promociones ->
+                    _promotion.value = promociones
+                }
 
-
+            } catch (e: Exception) {
+            }
+        }
+    }
 
 }
