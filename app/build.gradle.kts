@@ -71,4 +71,33 @@ android {
      implementation("androidx.compose.material:material-icons-extended")
 
 
- }
+
+    // Firebase dependencies (without KTX - the main modules now include Kotlin extensions)
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-analytics")
+
+    // Coroutines support for Firebase
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // Hilt and Compose
+    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
+    implementation("androidx.compose.ui:ui:1.6.0")
+    implementation("androidx.compose.material3:material3:1.2.0")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation(libs.material3)
+
+    // Test dependencies
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
+
+    //estatus bar dependecia
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
+}
+
