@@ -1,5 +1,6 @@
 package com.example.fadebarber.ui.auth
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,22 +13,38 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
 
 @Composable
 //fun SingupPage(modifier: Modifier = Modifier, navController: NavController, authViewModel: AuthViewModel ) { }
 
-fun SignUpPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit,  onNavigateToLogin: () -> Unit) {
+fun SignUpPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit,  onNavigateToLogin: () -> Unit, ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val authState = viewModel.authState.observeAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(authState.value) {
+        when(authState.value){
+            is AuthState.Authenticated -> onLoginSuccess()
+            is AuthState.Error -> Toast.makeText(context,
+                (authState.value as AuthState.Error).message, Toast.LENGTH_LONG ).show()
+            else -> Unit
+
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -53,9 +70,7 @@ fun SignUpPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit,  onNavigate
 
         Button(
             onClick = {
-                viewModel.login(email, password)
-                // cuando Firebase notifique login, navegamos
-                onLoginSuccess()
+                viewModel.signup(email, password)
             },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
         ) {
