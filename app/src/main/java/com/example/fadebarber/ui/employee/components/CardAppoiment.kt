@@ -1,5 +1,6 @@
 package com.example.fadebarber.ui.employee.components
 
+import android.R.attr.fontWeight
 import android.icu.text.DateFormat
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
@@ -55,7 +56,7 @@ fun CardAppointment(
                         val promotion = promotions.find { it.id == appointment.idPromotion }
                         promotion?.let {
                             Text(
-                                text = it.namePromotion,
+                                text = it.namePromotion.toString(),
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -64,7 +65,7 @@ fun CardAppointment(
                         val service = services.find { it.id == appointment.serviceId }
                         service?.let {
                             Text(
-                                text = it.nameService,
+                                text = it.nameService.toString(),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
