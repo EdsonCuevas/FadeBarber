@@ -98,12 +98,12 @@ fun LoginPage(viewModel: AuthViewModel, onLoginSuccess: () -> Unit, onNavigateTo
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Botón Reset Password
-            TextButton(onClick = {
-                onNavigateResetP()
-            }) {
-                Text(text = "Forgot Password?")
-            }
+        }
+        // Botón Reset Password
+        TextButton(onClick = {
+            onNavigateResetP()
+        }) {
+            Text(text = "Forgot Password?")
         }
     }
 }

@@ -72,6 +72,24 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
                 )
             }
 
+            // Reset Password
+            composable("resetpassword") {
+                ResetPassword(
+                    viewModel = authViewModel,
+                    onResetSuccess = {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onNavigateToLogin = {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+
             items.forEach { item ->
                 composable(item.route) {
                     when (role) {

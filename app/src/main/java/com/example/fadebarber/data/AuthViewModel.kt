@@ -77,19 +77,18 @@ class AuthViewModel : ViewModel() {
                     onResult(false, task.exception?.message)
                 }
             }
-
-        fun signout() {
-            auth.signOut()
-            _authState.value = AuthState.Unauthenticated
-        }
-
-
     }
 
-    sealed class AuthState {
-        object Authenticated : AuthState()
-        object Unauthenticated : AuthState()
-        object Loading : AuthState()
-        data class Error(val message: String) : AuthState()
+
+    fun signout() {
+        auth.signOut()
+        _authState.value = AuthState.Unauthenticated
     }
+}
+
+sealed class AuthState {
+    object Authenticated : AuthState()
+    object Unauthenticated : AuthState()
+    object Loading : AuthState()
+    data class Error(val message: String) : AuthState()
 }
