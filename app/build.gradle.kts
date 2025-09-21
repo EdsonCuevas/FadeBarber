@@ -71,6 +71,12 @@ android {
      implementation("androidx.compose.material:material-icons-extended")
 
 
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
+
 
     // Firebase dependencies (without KTX - the main modules now include Kotlin extensions)
     implementation("com.google.firebase:firebase-auth")
@@ -86,7 +92,8 @@ android {
     implementation("androidx.compose.material3:material3:1.2.0")
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
     implementation("androidx.activity:activity-compose:1.8.2")
-    implementation(libs.material3)
+    implementation("androidx.compose.material3:material3:1.3.2")
+    implementation("com.valentinilk.shimmer:compose-shimmer:1.2.0")
 
     // Test dependencies
     testImplementation(libs.junit)
