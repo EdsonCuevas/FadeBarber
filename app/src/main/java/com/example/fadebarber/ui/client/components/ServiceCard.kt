@@ -31,13 +31,14 @@ import com.example.fadebarber.data.model.ServiceData
 
 @Composable
 fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
-    Card(
+    Card (
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .clickable { onClick(service) },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(10.dp)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -47,7 +48,7 @@ fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
                 model = service.imageService,
                 contentDescription = service.nameService,
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(80.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
             )

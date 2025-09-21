@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.fadebarber.R
 import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.HomeTab
@@ -56,6 +57,7 @@ import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.ui.client.components.AgendaPromoForm
 import com.example.fadebarber.ui.client.components.AgendaServiceForm
+import com.example.fadebarber.ui.client.components.BarberBanner
 import com.example.fadebarber.ui.client.components.PromotionCard
 import com.example.fadebarber.ui.client.components.ServiceCard
 import kotlinx.coroutines.launch
@@ -68,6 +70,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
 
     var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
 
+    val info by viewModel.info.collectAsState()
     val services by viewModel.services.collectAsState() // aquí llegan de Firebase
     val promotions by viewModel.promotions.collectAsState()
 
@@ -126,20 +129,12 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
         Spacer(Modifier.height(12.dp))
 
         // Banner
-        Image(
-            painter = painterResource(id = R.drawable.perfil), // pon tu imagen aquí
-            contentDescription = "Banner barbería",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .clip(RoundedCornerShape(12.dp))
-        )
+        BarberBanner(info?.barberBanner)
 
         Spacer(Modifier.height(16.dp))
 
         // Nombre barbería y dirección
-        Text("BARBER SHOP", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(info?.barberName.toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Text(
             "Avenida Miguel De La Madrid No.234, La Jaras",
             fontSize = 14.sp,
@@ -292,7 +287,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                 }
             },
             sheetState = sheetState,
-            dragHandle = { BottomSheetDefaults.DragHandle() }
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            containerColor = Color.White
         ) {
             AgendaServiceForm(
                 service = selectedService!!,

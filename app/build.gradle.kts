@@ -73,6 +73,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.compose.material3:material3:1.3.2")
+    implementation("com.valentinilk.shimmer:compose-shimmer:1.2.0")
 
     // Test dependencies
     testImplementation(libs.junit)

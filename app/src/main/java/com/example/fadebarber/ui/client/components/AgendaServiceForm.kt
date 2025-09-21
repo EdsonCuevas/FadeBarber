@@ -1,5 +1,6 @@
 package com.example.fadebarber.ui.client.components
 
+import android.R.attr.fontWeight
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
@@ -18,7 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,11 +70,12 @@ fun AgendaServiceForm(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Text("Agendar Cita", fontWeight = FontWeight.Bold, fontSize = 20.sp)
         // 🔹 Card de servicio
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(4.dp)
+            colors = CardDefaults.cardColors(Color.White)
         ) {
             Column(Modifier.padding(16.dp)) {
                 Text(service.nameService.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -170,9 +174,10 @@ fun AgendaServiceForm(
                 Button(
                     onClick = { selectedTime = parsedTime },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelected) Color(0xFF0A66C2) else Color.LightGray
+                        containerColor = if (isSelected) Color(0xFF0A66C2) else Color.White
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = ButtonDefaults.buttonElevation(2.dp)
                 ) {
                     Text(time, color = if (isSelected) Color.White else Color.Black)
                 }
@@ -187,9 +192,10 @@ fun AgendaServiceForm(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A66C2))
         ) {
-            Text("Continuar")
+            Text("Agendar")
         }
     }
 }
