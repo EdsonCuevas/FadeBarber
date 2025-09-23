@@ -2,7 +2,7 @@ package com.example.fadebarber.data.model
 
 data class AppointmentData(
     val id: Int = 0,
-    val idClient: Int = 0,
+    val idClient: String = "",
     val idEmployee: Int = 0,
     val idPromotion: Int = 0,
     val dateAppointment: String = "",
