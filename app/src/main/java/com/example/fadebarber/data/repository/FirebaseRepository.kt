@@ -1,7 +1,9 @@
 package com.example.fadebarber.data.repository
 
+import com.example.fadebarber.data.model.AppointmentData
 import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.model.PromotionData
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await
@@ -15,6 +17,7 @@ object FirebaseRepository {
     private val serviceRef = database.getReference("Service")
     private val promotionRef = database.getReference("Promotion")
     private val infoRef = database.getReference("Information")
+    private val userRef = database.getReference("User")
 
     suspend fun getServices(): List<ServiceData> {
         return try {
@@ -57,6 +60,36 @@ object FirebaseRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+    suspend fun getBarbers(): List<UserData> {
+        return try {
+            val snapshot = userRef.get().await()
+            val users = mutableListOf<UserData>()
+            for (child in snapshot.children) {
+                val user = child.getValue(UserData::class.java)
+                if (user?.categoryUser == 1) {
+                    users.add(user)
+                }
+            }
+            users
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun saveAppointment(appointment: AppointmentData): Boolean {
+        return try {
+            val appointmentRef = database.getReference("Appointment").push()
+            val appointmentId = appointmentRef.key ?: return false
+            val appointmentWithId = appointment.copy(id = appointmentId)
+            appointmentRef.setValue(appointmentWithId).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 }
