@@ -63,7 +63,7 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
             composable("signup") {
                 SignUpPage(
                     viewModel = authViewModel,
-                    onLoginSuccess = {},
+                    onRegisterSuccess = {},
                     onNavigateToLogin = {
                         navController.navigate("login") {
                             popUpTo("signup") { inclusive = true }

@@ -34,7 +34,6 @@ fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
     Card (
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
             .clickable { onClick(service) },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
