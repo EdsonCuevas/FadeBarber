@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.fadebarber"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -107,5 +107,8 @@ android {
 
     //estatus bar dependecia
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
+
+     // fechas
+     implementation("com.jakewharton.threetenabp:threetenabp:1.4.4")
 }
 
