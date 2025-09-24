@@ -1,7 +1,7 @@
 package com.example.fadebarber.data.model
 
 data class UserData(
-    val id: Int = 0,
+    val id: String = "",
     val nameUser: String = "",
     val correoUser: String = "",
     val categoryUser: Int = 0,

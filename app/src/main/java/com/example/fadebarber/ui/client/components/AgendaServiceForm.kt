@@ -2,6 +2,7 @@ package com.example.fadebarber.ui.client.components
 
 import android.R.attr.fontWeight
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,14 +32,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fadebarber.data.model.AppointmentData
 import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.data.repository.FirebaseRepository
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -49,20 +56,22 @@ import java.util.Locale
 @Composable
 fun AgendaServiceForm(
     service: ServiceData,
+    barbers: List<UserData>, // 👈 lo recibimos del repo
     onConfirm: (String, LocalDate, LocalTime) -> Unit
 ) {
     var selectedBarber by remember { mutableStateOf<String?>(null) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
 
-    // Mock de barberos (esto lo vas a traer de Firebase después)
-    val barbers = listOf("Edson Barber", "Ceja Barber")
     val today = LocalDate.now()
     val days = (0..6).map { today.plusDays(it.toLong()) }
 
-    // Horarios disponibles (puedes reemplazar por los que te mande backend)
     val times = listOf("5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM")
     val formatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
+
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
 
     Column(
         modifier = Modifier
@@ -71,6 +80,7 @@ fun AgendaServiceForm(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Agendar Cita", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+
         // 🔹 Card de servicio
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -86,18 +96,18 @@ fun AgendaServiceForm(
             }
         }
 
-        // 🔹 Barberos
+        // 🔹 Barberos reales desde Firebase
         Text("Selecciona un barbero", fontWeight = FontWeight.SemiBold)
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             barbers.forEach { barber ->
-                val isSelected = selectedBarber == barber
+                val isSelected = selectedBarber == barber.id
                 Card(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { selectedBarber = barber },
+                        .clickable { selectedBarber = barber.id }, // guardamos el ID
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSelected) Color(0xFF0A66C2) else Color.White
                     ),
@@ -114,14 +124,9 @@ fun AgendaServiceForm(
                             tint = if (isSelected) Color.White else Color.Gray
                         )
                         Text(
-                            barber,
+                            barber.nameUser,
                             fontSize = 14.sp,
                             color = if (isSelected) Color.White else Color.Black
-                        )
-                        Text(
-                            "⭐ 4.5/5",
-                            fontSize = 12.sp,
-                            color = if (isSelected) Color.White else Color.Gray
                         )
                     }
                 }
@@ -188,7 +193,23 @@ fun AgendaServiceForm(
         Button(
             onClick = {
                 if (selectedBarber != null && selectedTime != null) {
-                    onConfirm(selectedBarber!!, selectedDate, selectedTime!!)
+                    val appointment = AppointmentData(
+                        serviceId = service.id, // Asegúrate que tu ServiceData tenga id
+                        serviceName = service.nameService,
+                        idEmployee = selectedBarber,
+                        dateAppointment = selectedDate.toString(),
+                        time = selectedTime.toString(),
+                        clientName = "Cliente Demo",   // Luego lo jalas de perfil
+                    )
+                    scope.launch {
+                        val success = FirebaseRepository.saveAppointment(appointment)
+                        if (success) {
+                            Toast.makeText(context, "Cita agendada ✅", Toast.LENGTH_SHORT).show()
+                            onConfirm(selectedBarber!!, selectedDate, selectedTime!!)
+                        } else {
+                            Toast.makeText(context, "Error al guardar ❌", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -197,5 +218,5 @@ fun AgendaServiceForm(
         ) {
             Text("Agendar")
         }
-    }
+        }
 }
