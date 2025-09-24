@@ -14,14 +14,6 @@ class AuthViewModel : ViewModel() {
     private val _authState = MutableLiveData<AuthState>()
     val authState: LiveData<AuthState> = _authState
 
-    fun checkAuthStatus() {
-        if (auth.currentUser == null) {
-            _authState.value = AuthState.Unauthenticated
-        } else {
-            _authState.value = AuthState.Authenticated
-        }
-    }
-
     fun login(email: String, password: String) {
         if (email.isEmpty() || password.isEmpty()) {
             _authState.value = AuthState.Error("Email or password can´t be empty")
@@ -32,8 +24,18 @@ class AuthViewModel : ViewModel() {
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    if (auth.currentUser?.isEmailVerified == true) {
-                        _authState.value = AuthState.Authenticated
+                    val user = auth.currentUser
+                    if (user != null && user.isEmailVerified) {
+                        val uid = user.uid
+                        // 🔹 Buscar en Realtime Database el rol
+                        database.child(uid).get()
+                            .addOnSuccessListener { snapshot ->
+                                val role = snapshot.child("categoryUser").getValue(Int::class.java) ?: 0
+                                _authState.value = AuthState.Authenticated(role)
+                            }
+                            .addOnFailureListener { e ->
+                                _authState.value = AuthState.Error("Error al obtener rol: ${e.message}")
+                            }
                     } else {
                         _authState.value = AuthState.Error("Debes verificar tu correo para iniciar sesión")
                     }
@@ -43,6 +45,7 @@ class AuthViewModel : ViewModel() {
                 }
             }
     }
+
 
     fun signup(name: String, email: String, password: String, phone: String) {
         if (email.isEmpty() || password.isEmpty() || name.isEmpty() || phone.isEmpty()) {
@@ -116,7 +119,7 @@ class AuthViewModel : ViewModel() {
 }
 
 sealed class AuthState {
-    object Authenticated : AuthState()
+    data class Authenticated(val role: Int) : AuthState() // 0 cliente, 1 admin, 2 empleado
     object Unauthenticated : AuthState()
     object Loading : AuthState()
     object EmailSent : AuthState()
