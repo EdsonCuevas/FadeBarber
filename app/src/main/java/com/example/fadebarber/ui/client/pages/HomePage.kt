@@ -2,6 +2,11 @@ package com.example.fadebarber.ui.client.pages
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,9 +25,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -31,11 +40,14 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -48,6 +60,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.fadebarber.R
@@ -55,11 +68,14 @@ import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.HomeTab
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.ui.client.components.AgendaPromoForm
 import com.example.fadebarber.ui.client.components.AgendaServiceForm
 import com.example.fadebarber.ui.client.components.BarberBanner
 import com.example.fadebarber.ui.client.components.PromotionCard
 import com.example.fadebarber.ui.client.components.ServiceCard
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -73,7 +89,9 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
     val info by viewModel.info.collectAsState()
     val services by viewModel.services.collectAsState() // aquí llegan de Firebase
     val promotions by viewModel.promotions.collectAsState()
-
+    val barbers by produceState<List<UserData>>(initialValue = emptyList()) {
+        value = FirebaseRepository.getBarbers()
+    }
 
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -82,225 +100,287 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
     var selectedService by remember { mutableStateOf<ServiceData?>(null) }
     var selectedPromotion by remember { mutableStateOf<PromotionData?>(null) }
 
+    var showAlert by remember { mutableStateOf(false) }
+    var alertMessage by remember { mutableStateOf<String?>(null) }
+    var alertColor by remember { mutableStateOf(Color(0xFF10B981)) } // verde por default
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .verticalScroll(scrollState)
-            .padding(8.dp)
-    ) {
-        // Barra superior con buscador y carrito
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        AnimatedVisibility(
+            visible = showAlert && alertMessage != null,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .zIndex(2f)
         ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = alertColor),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (alertColor == Color(0xFF10B981))
+                                Icons.Default.CheckCircle else Icons.Default.Error,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = alertMessage ?: "",
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    TextButton(onClick = { showAlert = false }) {
+                        Text("✕", color = Color.White)
+                    }
+                }
+            }
+
+            LaunchedEffect(alertMessage) {
+                if (alertMessage != null) {
+                    delay(2000L)
+                    showAlert = false
+                }
+            }
+        }
+
+
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color.White)
+                .verticalScroll(scrollState)
+                .padding(8.dp)
+        ) {
+            // Barra superior con buscador y carrito
             Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFF1F1F1))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .weight(1f),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFFF1F1F1))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Buscar",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Search", color = Color.Gray, fontSize = 14.sp)
+                }
+
+                Spacer(Modifier.width(12.dp))
+
                 Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Buscar",
-                    tint = Color.Gray,
-                    modifier = Modifier.size(20.dp)
+                    imageVector = Icons.Default.ShoppingCart,
+                    contentDescription = "Carrito",
+                    tint = Color.Black,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable { print("XD") }
                 )
-                Spacer(Modifier.width(8.dp))
-                Text("Search", color = Color.Gray, fontSize = 14.sp)
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Icon(
-                imageVector = Icons.Default.ShoppingCart,
-                contentDescription = "Carrito",
-                tint = Color.Black,
-                modifier = Modifier
-                    .size(28.dp)
-                    .clickable { print("XD") }
+            // Banner
+            BarberBanner(info?.barberBanner)
+
+            Spacer(Modifier.height(16.dp))
+
+            // Nombre barbería y dirección
+            Text(info?.barberName.toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "Avenida Miguel De La Madrid No.234, La Jaras",
+                fontSize = 14.sp,
+                color = Color.Gray
             )
-        }
 
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
 
-        // Banner
-        BarberBanner(info?.barberBanner)
-
-        Spacer(Modifier.height(16.dp))
-
-        // Nombre barbería y dirección
-        Text(info?.barberName.toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text(
-            "Avenida Miguel De La Madrid No.234, La Jaras",
-            fontSize = 14.sp,
-            color = Color.Gray
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Tabs (simple)
-        TabRow(
-            selectedTabIndex = when (selectedTab) {
-                is HomeTab.Servicios -> 0
-                is HomeTab.Combos -> 1
-                is HomeTab.Nosotros -> 2
-            },
-            containerColor = Color(0xFFFFFFFF),
-            contentColor = Color(0xFF0A1F66),
-            indicator = { tabPositions ->
-                TabRowDefaults.Indicator(
-                    Modifier.tabIndicatorOffset(
-                        tabPositions[
-                            when (selectedTab) {
-                                is HomeTab.Servicios -> 0
-                                is HomeTab.Combos -> 1
-                                is HomeTab.Nosotros -> 2
-                            }
-                        ]
-                    ),
-                    color = Color(0xFF0A1F66), // 🔹 azul oscuro
-                    height = 3.dp              // puedes ajustar el grosor
-                )
-            }
-        ) {
-            listOf(HomeTab.Servicios, HomeTab.Combos, HomeTab.Nosotros).forEach { tab ->
-                Tab(
-                    selected = selectedTab::class == tab::class,
-                    onClick = { selectedTab = tab },
-                    text = { Text(tab.title) }
-                )
-            }
-        }
-
-
-        Spacer(Modifier.height(16.dp))
-
-        when (selectedTab) {
-            is HomeTab.Servicios -> {
-                Spacer(Modifier.height(12.dp))
-                if(services.isNotEmpty()) {
-                    services.forEach { service ->
-                        if (service.statusService == 1) {
-                            ServiceCard(
-                                service = service,
-                                onClick = {
-                                    selectedService = it
-                                    scope.launch { sheetState.show() }
+            // Tabs (simple)
+            TabRow(
+                selectedTabIndex = when (selectedTab) {
+                    is HomeTab.Servicios -> 0
+                    is HomeTab.Combos -> 1
+                    is HomeTab.Nosotros -> 2
+                },
+                containerColor = Color(0xFFFFFFFF),
+                contentColor = Color(0xFF0A1F66),
+                indicator = { tabPositions ->
+                    TabRowDefaults.Indicator(
+                        Modifier.tabIndicatorOffset(
+                            tabPositions[
+                                when (selectedTab) {
+                                    is HomeTab.Servicios -> 0
+                                    is HomeTab.Combos -> 1
+                                    is HomeTab.Nosotros -> 2
                                 }
+                            ]
+                        ),
+                        color = Color(0xFF0A1F66), // 🔹 azul oscuro
+                        height = 3.dp              // puedes ajustar el grosor
+                    )
+                }
+            ) {
+                listOf(HomeTab.Servicios, HomeTab.Combos, HomeTab.Nosotros).forEach { tab ->
+                    Tab(
+                        selected = selectedTab::class == tab::class,
+                        onClick = { selectedTab = tab },
+                        text = { Text(tab.title) }
+                    )
+                }
+            }
+
+
+            Spacer(Modifier.height(16.dp))
+
+            when (selectedTab) {
+                is HomeTab.Servicios -> {
+                    Spacer(Modifier.height(12.dp))
+                    if (services.isNotEmpty()) {
+                        services.forEach { service ->
+                            if (service.statusService == 1) {
+                                ServiceCard(
+                                    service = service,
+                                    onClick = {
+                                        selectedService = it
+                                        scope.launch { sheetState.show() }
+                                    }
+                                )
+                                Spacer(Modifier.height(12.dp))
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No hay servicios en este momento",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
                             )
+                        }
+                    }
+                }
+
+                is HomeTab.Combos -> {
+                    if (promotions.isNotEmpty()) {
+                        promotions.forEach { promo ->
+                            PromotionCard(promotion = promo, allServices = services) {
+                                selectedPromotion = promo
+                                scope.launch { sheetState.show() }
+
+                            }
                             Spacer(Modifier.height(12.dp))
                         }
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No hay servicios en este momento",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray
-                        )
-                    }
-                }
-            }
-
-            is HomeTab.Combos -> {
-                if(promotions.isNotEmpty()) {
-                    promotions.forEach { promo ->
-                        PromotionCard(promotion = promo, allServices = services) {
-                            selectedPromotion = promo
-                            scope.launch { sheetState.show() }
-
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No hay promociones en este momento",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
                         }
-                        Spacer(Modifier.height(12.dp))
                     }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No hay promociones en este momento",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray
-                        )
-                    }
+                }
+
+
+                is HomeTab.Nosotros -> {
+                    Text("Nosotros", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(12.dp))
+                    Text("Aquí información de la barbería: historia, equipo, etc.")
                 }
             }
 
+        }
 
-            is HomeTab.Nosotros -> {
-                Text("Nosotros", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(12.dp))
-                Text("Aquí información de la barbería: historia, equipo, etc.")
+        // BottomSheet de agendar cita con promoción
+        if (selectedPromotion != null) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                        if (!sheetState.isVisible) {
+                            selectedPromotion = null
+                        }
+                    }
+                },
+                sheetState = sheetState,
+                dragHandle = { BottomSheetDefaults.DragHandle() }
+            ) {
+                AgendaPromoForm(
+                    promotion = selectedPromotion!!,
+                    onConfirm = { barbero, fecha, hora ->
+                        println("Agendado promo: ${selectedPromotion!!} con $barbero el $fecha a las $hora")
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            selectedPromotion = null
+                        }
+                    }
+                )
             }
         }
 
-    }
 
-    // BottomSheet de agendar cita con promoción
-    if (selectedPromotion != null) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch { sheetState.hide() }.invokeOnCompletion {
-                    if (!sheetState.isVisible) {
-                        selectedPromotion = null
-                    }
-                }
-            },
-            sheetState = sheetState,
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
-            AgendaPromoForm(
-                promotion = selectedPromotion!!,
-                onConfirm = { barbero, fecha, hora ->
-                    println("Agendado promo: ${selectedPromotion!!} con $barbero el $fecha a las $hora")
+        // BottomSheet de agendar cita
+        if (selectedService != null) {
+            ModalBottomSheet(
+                onDismissRequest = {
                     scope.launch { sheetState.hide() }.invokeOnCompletion {
-                        selectedPromotion = null
+                        if (!sheetState.isVisible) {
+                            selectedService = null
+                        }
                     }
-                }
-            )
+                },
+                sheetState = sheetState,
+                dragHandle = { BottomSheetDefaults.DragHandle() },
+                containerColor = Color.White
+            ) {
+                AgendaServiceForm(
+                    service = selectedService!!,
+                    barbers = barbers,
+                    onConfirm = { success, message ->
+                        alertMessage = message
+                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
+                        showAlert = true
+
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            selectedService = null
+                        }
+                    }
+                )
+            }
         }
     }
-
-
-    // BottomSheet de agendar cita
-    if (selectedService != null) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch { sheetState.hide() }.invokeOnCompletion {
-                    if (!sheetState.isVisible) {
-                        selectedService = null
-                    }
-                }
-            },
-            sheetState = sheetState,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
-            containerColor = Color.White
-        ) {
-            AgendaServiceForm(
-                service = selectedService!!,
-                onConfirm = { barbero, fecha, hora ->
-                    // Aquí iría la lógica de guardar la cita en Firebase, etc.
-                    println("Agendado: ${selectedService!!} con $barbero el $fecha a las $hora")
-                    scope.launch { sheetState.hide() }.invokeOnCompletion {
-                        selectedService = null
-                    }
-                }
-            )
-        }
-    }
-
 }

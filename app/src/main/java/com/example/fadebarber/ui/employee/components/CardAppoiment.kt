@@ -82,7 +82,8 @@ fun CardAppointment(
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
-                if(appointment?.idClient != ""){
+                if(appointment.idClient != ""){
+
                     val cliente = users.find { it.id == appointment.idClient }
                     Log.d("cliente", cliente.toString())
                     cliente?.let {
