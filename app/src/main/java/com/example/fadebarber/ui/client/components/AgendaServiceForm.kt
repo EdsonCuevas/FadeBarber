@@ -197,7 +197,7 @@ fun AgendaServiceForm(
                     val appointment = AppointmentData(
                         serviceId = service.id, // Asegúrate que tu ServiceData tenga id
                         serviceName = service.nameService,
-                        idEmployee = selectedBarber,
+                        idEmployee = selectedBarber!!,
                         dateAppointment = selectedDate.toString(),
                         timeAppointment = selectedTime.toString(),
                         clientName = "Cliente Demo",   // Luego lo jalas de perfil
