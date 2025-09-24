@@ -22,8 +22,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             val authState = authViewModel.authState.observeAsState(initial = AuthState.Unauthenticated).value
             val role = when (authState) {
-                is AuthState.Authenticated -> UserRole.CLIENT  // Cambiamos a CLIENT si está logeado
-                else -> UserRole.EMPLOYEE
+                is AuthState.Authenticated -> when (authState.role) {
+                    //Anonimo a futuro 0
+                    1 -> UserRole.CLIENT
+                    2 -> UserRole.EMPLOYEE
+                    3 -> UserRole.ADMIN
+
+                    else -> UserRole.AUTH
+                }
+                else -> UserRole.AUTH
+
             }
 
             RoleNavGraph(role = role, authViewModel = authViewModel)
