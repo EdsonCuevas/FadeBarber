@@ -82,7 +82,7 @@ import kotlinx.coroutines.launch
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel()) {
+fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel(), user: UserData) {
 
     var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
 
