@@ -57,7 +57,8 @@ import java.util.Locale
 fun AgendaServiceForm(
     service: ServiceData,
     barbers: List<UserData>, // 👈 lo recibimos del repo
-    onConfirm: (String, LocalDate, LocalTime) -> Unit
+    onConfirm: (Boolean, String) -> Unit
+
 ) {
     var selectedBarber by remember { mutableStateOf<String?>(null) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
@@ -198,16 +199,15 @@ fun AgendaServiceForm(
                         serviceName = service.nameService,
                         idEmployee = selectedBarber,
                         dateAppointment = selectedDate.toString(),
-                        time = selectedTime.toString(),
+                        timeAppointment = selectedTime.toString(),
                         clientName = "Cliente Demo",   // Luego lo jalas de perfil
                     )
                     scope.launch {
                         val success = FirebaseRepository.saveAppointment(appointment)
                         if (success) {
-                            Toast.makeText(context, "Cita agendada ✅", Toast.LENGTH_SHORT).show()
-                            onConfirm(selectedBarber!!, selectedDate, selectedTime!!)
+                            onConfirm(true, "Cita agendada")
                         } else {
-                            Toast.makeText(context, "Error al guardar ❌", Toast.LENGTH_SHORT).show()
+                            onConfirm(false, "Error al guardar ❌ Intenta de nuevo")
                         }
                     }
                 }
