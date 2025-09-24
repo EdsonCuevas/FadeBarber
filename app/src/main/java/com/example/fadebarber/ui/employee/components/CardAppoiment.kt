@@ -83,6 +83,7 @@ fun CardAppointment(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 if(appointment.idClient != ""){
+
                     val cliente = users.find { it.id == appointment.idClient }
                     Log.d("cliente", cliente.toString())
                     cliente?.let {
@@ -110,33 +111,6 @@ fun CardAppointment(
                     color = Color.Gray,
                     fontWeight = FontWeight.Bold
                 )
-               /*
-                if(appointment.idPromotion != 0){
-                    val promotion = promotions.find { it.id == appointment.idPromotion }
-                    promotion?.servicePromotion?.forEach { serviceId ->
-                        val service = services.find { it.id == serviceId }
-                        service?.let {
-                            Text(
-                                text = "- ${it.nameService}",
-                                fontSize = 12.sp,
-                                color = Color.Gray,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                }else {
-                    val service = services.find { it.id == appointment.serviceId }
-                    service?.let {
-                        Text(
-                            text = "- ${it.nameService}",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                }*/
 
             }
         }
