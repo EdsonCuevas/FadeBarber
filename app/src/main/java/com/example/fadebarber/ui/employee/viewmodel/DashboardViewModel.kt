@@ -2,43 +2,30 @@ package com.example.fadebarber.data
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.fadebarber.data.repository.Repository
 import com.example.fadebarber.data.model.AppointmentData
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.fadebarber.data.repository.Repository
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.stateIn
 
 class DashboardViewModel : ViewModel() {
 
-    private val _appointments = MutableStateFlow<List<AppointmentData>>(emptyList())
-    private val _services = MutableStateFlow<List<ServiceData>>(emptyList())
-    private val _users = MutableStateFlow<List<UserData>>(emptyList())
-    private  val _promotion = MutableStateFlow<List<PromotionData>>(emptyList())
-    val appointments: StateFlow<List<AppointmentData>> = _appointments
-    val services: StateFlow<List<ServiceData>> = _services
-    val users: StateFlow<List<UserData>> = _users
-    val promotion: StateFlow<List<PromotionData>> = _promotion
+    val appointments: StateFlow<List<AppointmentData>> =
+        Repository.getAppointments()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    init {
-        viewModelScope.launch {
-            try {
-                val appointments = Repository.getAppointments()
-                val serivices = Repository.getServices()
-                val users = Repository.getUser()
-                val promotions = Repository.getPromotion()
-                _appointments.value = appointments
-                _services.value = serivices
-                _users.value = users
-                Repository.getPromotion().collect { promociones ->
-                    _promotion.value = promociones
-                }
+    val services: StateFlow<List<ServiceData>> =
+        Repository.getServices()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-            } catch (e: Exception) {
-            }
-        }
-    }
+    val users: StateFlow<List<UserData>> =
+        Repository.getUsers()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val promotions: StateFlow<List<PromotionData>> =
+        Repository.getPromotions()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 }
