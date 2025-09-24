@@ -55,6 +55,7 @@ import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.HomeTab
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.ui.client.components.AgendaPromoForm
 import com.example.fadebarber.ui.client.components.AgendaServiceForm
 import com.example.fadebarber.ui.client.components.BarberBanner
@@ -66,7 +67,7 @@ import kotlinx.coroutines.launch
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel()) {
+fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel(), user: UserData) {
 
     var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
 
