@@ -9,6 +9,7 @@ import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.navegation.RoleNavGraph
 import com.example.fadebarber.navegation.UserRole
+import com.jakewharton.threetenabp.AndroidThreeTen
 
 class MainActivity : ComponentActivity() {
 
@@ -16,12 +17,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AndroidThreeTen.init(this)
 
         setContent {
             val authState = authViewModel.authState.observeAsState(initial = AuthState.Unauthenticated).value
             val role = when (authState) {
                 is AuthState.Authenticated -> UserRole.CLIENT  // Cambiamos a CLIENT si está logeado
-                else -> UserRole.AUTH
+                else -> UserRole.EMPLOYEE
             }
 
             RoleNavGraph(role = role, authViewModel = authViewModel)
