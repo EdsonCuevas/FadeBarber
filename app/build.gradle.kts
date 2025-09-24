@@ -82,6 +82,7 @@ android {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-database")
     implementation("com.google.firebase:firebase-analytics")
+     implementation("com.google.firebase:firebase-firestore")
 
     // Coroutines support for Firebase
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
@@ -106,5 +107,7 @@ android {
 
     //estatus bar dependecia
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
-}
+     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+ }
 

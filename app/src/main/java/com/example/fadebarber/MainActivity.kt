@@ -21,9 +21,11 @@ class MainActivity : ComponentActivity() {
             val authState = authViewModel.authState.observeAsState(initial = AuthState.Unauthenticated).value
             val role = when (authState) {
                 is AuthState.Authenticated -> when (authState.role) {
-                    0 -> UserRole.CLIENT
-                    1 -> UserRole.EMPLOYEE
-                    2 -> UserRole.ADMIN
+                    //Anonimo a futuro 0
+                    1 -> UserRole.CLIENT
+                    2 -> UserRole.EMPLOYEE
+                    3 -> UserRole.ADMIN
+
                     else -> UserRole.AUTH
                 }
                 else -> UserRole.AUTH
