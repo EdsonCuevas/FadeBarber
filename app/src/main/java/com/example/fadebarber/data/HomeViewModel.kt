@@ -6,6 +6,7 @@ import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.PromotionData
+import com.example.fadebarber.data.model.UserData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -14,6 +15,8 @@ class HomeViewModel : ViewModel() {
 
     private val _services = MutableStateFlow<List<ServiceData>>(emptyList())
     private val _promotions = MutableStateFlow<List<PromotionData>>(emptyList())
+
+    private val _barbers = MutableStateFlow<List<UserData>>(emptyList())
     private val _info = MutableStateFlow<BarberInfo?>(null)
 
     val services: StateFlow<List<ServiceData>> = _services
@@ -25,6 +28,7 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             _services.value = FirebaseRepository.getServices()
             _promotions.value = FirebaseRepository.getPromotions()
+            _barbers.value = FirebaseRepository.getBarbers()
             _info.value = FirebaseRepository.getBarberInfo()
         }
     }

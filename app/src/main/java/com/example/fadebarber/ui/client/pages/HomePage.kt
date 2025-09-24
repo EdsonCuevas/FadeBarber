@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -55,6 +56,8 @@ import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.HomeTab
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.ui.client.components.AgendaPromoForm
 import com.example.fadebarber.ui.client.components.AgendaServiceForm
 import com.example.fadebarber.ui.client.components.BarberBanner
@@ -73,7 +76,9 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
     val info by viewModel.info.collectAsState()
     val services by viewModel.services.collectAsState() // aquí llegan de Firebase
     val promotions by viewModel.promotions.collectAsState()
-
+    val barbers by produceState<List<UserData>>(initialValue = emptyList()) {
+        value = FirebaseRepository.getBarbers()
+    }
 
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -292,12 +297,10 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
         ) {
             AgendaServiceForm(
                 service = selectedService!!,
-                onConfirm = { barbero, fecha, hora ->
-                    // Aquí iría la lógica de guardar la cita en Firebase, etc.
-                    println("Agendado: ${selectedService!!} con $barbero el $fecha a las $hora")
-                    scope.launch { sheetState.hide() }.invokeOnCompletion {
-                        selectedService = null
-                    }
+                barbers = barbers,
+                onConfirm = { barberId, date, time ->
+                    // aquí guardas en Appointment
+                    println("Agendado con $barberId el $date a las $time")
                 }
             )
         }
