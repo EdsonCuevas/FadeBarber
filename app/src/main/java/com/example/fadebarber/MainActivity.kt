@@ -20,7 +20,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val authState = authViewModel.authState.observeAsState(initial = AuthState.Unauthenticated).value
             val role = when (authState) {
-                is AuthState.Authenticated -> UserRole.CLIENT  // Cambiamos a CLIENT si está logeado
+                is AuthState.Authenticated -> when (authState.role) {
+                    0 -> UserRole.CLIENT
+                    1 -> UserRole.EMPLOYEE
+                    2 -> UserRole.ADMIN
+                    else -> UserRole.AUTH
+                }
                 else -> UserRole.AUTH
             }
 
