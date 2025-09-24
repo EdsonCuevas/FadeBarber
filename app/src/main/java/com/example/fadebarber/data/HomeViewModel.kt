@@ -17,6 +17,8 @@ class HomeViewModel : ViewModel() {
 
     private val _services = MutableStateFlow<List<ServiceData>>(emptyList())
     private val _promotions = MutableStateFlow<List<PromotionData>>(emptyList())
+
+    private val _barbers = MutableStateFlow<List<UserData>>(emptyList())
     private val _info = MutableStateFlow<BarberInfo?>(null)
     private val _currentUser = MutableStateFlow<UserData?>(null)
 
@@ -32,6 +34,7 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             _services.value = FirebaseRepository.getServices()
             _promotions.value = FirebaseRepository.getPromotions()
+            _barbers.value = FirebaseRepository.getBarbers()
             _info.value = FirebaseRepository.getBarberInfo()
             loadCurrentUser()
         }

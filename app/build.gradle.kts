@@ -69,6 +69,7 @@ android {
      implementation("com.google.firebase:firebase-auth")
      implementation("com.google.firebase:firebase-database")
      implementation("androidx.compose.material:material-icons-extended")
+     implementation("com.airbnb.android:lottie-compose:6.3.0")
 
 
     implementation("io.coil-kt:coil-compose:2.6.0")
@@ -107,7 +108,9 @@ android {
 
     //estatus bar dependecia
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
-     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
- }
-
+ 
+     // fechas
+     implementation("com.jakewharton.threetenabp:threetenabp:1.4.4")
+   }
