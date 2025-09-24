@@ -69,6 +69,7 @@ android {
      implementation("com.google.firebase:firebase-auth")
      implementation("com.google.firebase:firebase-database")
      implementation("androidx.compose.material:material-icons-extended")
+     implementation("com.airbnb.android:lottie-compose:6.3.0")
 
 
     implementation("io.coil-kt:coil-compose:2.6.0")

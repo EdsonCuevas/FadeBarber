@@ -11,5 +11,5 @@ data class AppointmentData(
     val clientName: String = "",
     val serviceName: String? = "",
     val nameUser: String = "",
-    val time: String = ""
+    val timeAppointment: String = ""
 )
