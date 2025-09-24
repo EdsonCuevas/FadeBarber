@@ -1,6 +1,4 @@
 package com.example.fadebarber.data.model
-
-
 data class AppointmentData(
     val id: String = "",
     val idClient: String = "",
