@@ -1,5 +1,6 @@
 package com.example.fadebarber.ui.employee.components
 
+import android.R.attr.fontWeight
 import android.icu.text.DateFormat
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
@@ -55,7 +56,7 @@ fun CardAppointment(
                         val promotion = promotions.find { it.id == appointment.idPromotion }
                         promotion?.let {
                             Text(
-                                text = it.namePromotion,
+                                text = it.namePromotion.toString(),
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -64,7 +65,7 @@ fun CardAppointment(
                         val service = services.find { it.id == appointment.serviceId }
                         service?.let {
                             Text(
-                                text = it.nameService,
+                                text = it.nameService.toString(),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -81,7 +82,7 @@ fun CardAppointment(
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
-                if(appointment.idClient != 0){
+                if(appointment?.idClient != ""){
                     val cliente = users.find { it.id == appointment.idClient }
                     Log.d("cliente", cliente.toString())
                     cliente?.let {
@@ -109,33 +110,6 @@ fun CardAppointment(
                     color = Color.Gray,
                     fontWeight = FontWeight.Bold
                 )
-               /*
-                if(appointment.idPromotion != 0){
-                    val promotion = promotions.find { it.id == appointment.idPromotion }
-                    promotion?.servicePromotion?.forEach { serviceId ->
-                        val service = services.find { it.id == serviceId }
-                        service?.let {
-                            Text(
-                                text = "- ${it.nameService}",
-                                fontSize = 12.sp,
-                                color = Color.Gray,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                }else {
-                    val service = services.find { it.id == appointment.serviceId }
-                    service?.let {
-                        Text(
-                            text = "- ${it.nameService}",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                }*/
 
             }
         }
