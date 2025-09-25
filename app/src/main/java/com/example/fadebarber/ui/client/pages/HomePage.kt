@@ -330,12 +330,18 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                     }
                 },
                 sheetState = sheetState,
-                dragHandle = { BottomSheetDefaults.DragHandle() }
+                dragHandle = { BottomSheetDefaults.DragHandle() },
+                containerColor = Color.White
             ) {
                 AgendaPromoForm(
                     promotion = selectedPromotion!!,
-                    onConfirm = { barbero, fecha, hora ->
-                        println("Agendado promo: ${selectedPromotion!!} con $barbero el $fecha a las $hora")
+                    barbers = barbers,
+                    userId = user.id,
+                    onConfirm = { success, message ->
+                        alertMessage = message
+                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
+                        showAlert = true
+
                         scope.launch { sheetState.hide() }.invokeOnCompletion {
                             selectedPromotion = null
                         }
