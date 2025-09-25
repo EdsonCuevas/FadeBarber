@@ -370,6 +370,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                 AgendaServiceForm(
                     service = selectedService!!,
                     barbers = barbers,
+                    userId = user.id,
                     onConfirm = { success, message ->
                         alertMessage = message
                         alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)

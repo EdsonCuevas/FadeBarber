@@ -41,7 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.fadebarber.data.model.AppointmentData
+import com.example.fadebarber.data.model.AppointmentService
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.repository.FirebaseRepository
@@ -57,6 +57,7 @@ import java.util.Locale
 fun AgendaServiceForm(
     service: ServiceData,
     barbers: List<UserData>, // 👈 lo recibimos del repo
+    userId: String,
     onConfirm: (Boolean, String) -> Unit
 
 ) {
@@ -194,13 +195,13 @@ fun AgendaServiceForm(
         Button(
             onClick = {
                 if (selectedBarber != null && selectedTime != null) {
-                    val appointment = AppointmentData(
-                        serviceId = service.id, // Asegúrate que tu ServiceData tenga id
-                        serviceName = service.nameService,
+                    val appointment = AppointmentService(
+                        serviceId = service.id,
+                        idClient = userId,
                         idEmployee = selectedBarber!!,
                         dateAppointment = selectedDate.toString(),
                         timeAppointment = selectedTime.toString(),
-                        clientName = "Cliente Demo",   // Luego lo jalas de perfil
+                        statusAppointment = 1
                     )
                     scope.launch {
                         val success = FirebaseRepository.saveAppointment(appointment)
