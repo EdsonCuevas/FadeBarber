@@ -1,6 +1,6 @@
 package com.example.fadebarber.data.repository
 
-import com.example.fadebarber.data.model.AppointmentData
+import com.example.fadebarber.data.model.AppointmentService
 import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
@@ -69,7 +69,7 @@ object FirebaseRepository {
             val users = mutableListOf<UserData>()
             for (child in snapshot.children) {
                 val user = child.getValue(UserData::class.java)
-                if (user?.categoryUser == 1) {
+                if (user?.categoryUser == 2 && user.statusUser == 1) {
                     users.add(user)
                 }
             }
@@ -80,7 +80,7 @@ object FirebaseRepository {
         }
     }
 
-    suspend fun saveAppointment(appointment: AppointmentData): Boolean {
+    suspend fun saveAppointment(appointment: AppointmentService): Boolean {
         return try {
             val appointmentRef = database.getReference("Appointment").push()
             val appointmentId = appointmentRef.key ?: return false
