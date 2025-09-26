@@ -1,5 +1,6 @@
 package com.example.fadebarber.data.repository
 
+import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.AppointmentPromotion
 import com.example.fadebarber.data.model.AppointmentService
 import com.example.fadebarber.data.model.BarberInfo
@@ -81,7 +82,7 @@ object FirebaseRepository {
         }
     }
 
-    suspend fun saveAppointment(appointmentService: AppointmentService): Boolean {
+    suspend fun saveAppointment(appointmentService: AppointmentClientData): Boolean {
         return try {
             val appointmentRef = database.getReference("Appointment").push()
             val appointmentId = appointmentRef.key ?: return false
@@ -94,11 +95,11 @@ object FirebaseRepository {
         }
     }
 
-    suspend fun saveAppointment(appointmentPromotion: AppointmentPromotion): Boolean {
+    suspend fun saveAppointment(appointmentService: AppointmentService): Boolean {
         return try {
             val appointmentRef = database.getReference("Appointment").push()
             val appointmentId = appointmentRef.key ?: return false
-            val appointmentWithId = appointmentPromotion.copy(id = appointmentId)
+            val appointmentWithId = appointmentService.copy(id = appointmentId)
             appointmentRef.setValue(appointmentWithId).await()
             true
         } catch (e: Exception) {
