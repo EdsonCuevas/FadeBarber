@@ -70,7 +70,7 @@ import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.repository.FirebaseRepository
-import com.example.fadebarber.ui.client.components.AgendaPromoForm
+import com.example.fadebarber.ui.client.components.AgendaCartForm
 import com.example.fadebarber.ui.client.components.AgendaServiceForm
 import com.example.fadebarber.ui.client.components.BarberBanner
 import com.example.fadebarber.ui.client.components.PromotionCard
@@ -106,6 +106,12 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
     var alertColor by remember { mutableStateOf(Color(0xFF10B981)) } // verde por default
 
     var searchQuery by remember { mutableStateOf("") }
+
+    var cartItems by remember { mutableStateOf<List<Any>>(emptyList()) } // puede contener ServiceData o PromotionData
+    var showCart by remember { mutableStateOf(false) }
+
+    var showCartAgenda by remember { mutableStateOf(false) }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -176,6 +182,16 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    imageVector = Icons.Default.ShoppingCart,
+                    contentDescription = "Carrito",
+                    tint = Color.Black,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable { showCart = true } // 🔹 Abrir carrito
+                )
+
+
                 SearchBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -259,8 +275,10 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                             ServiceCard(
                                 service = service,
                                 onClick = {
-                                    selectedService = it
-                                    scope.launch { sheetState.show() }
+                                    cartItems = cartItems + service
+                                    alertMessage = "${service.nameService} agregado al carrito 🛒"
+                                    alertColor = Color(0xFF10B981)
+                                    showAlert = true
                                 }
                             )
                             Spacer(Modifier.height(12.dp))
@@ -286,9 +304,10 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                     if (filteredPromos.isNotEmpty()) {
                         filteredPromos.forEach { promo ->
                             PromotionCard(promotion = promo, allServices = services) {
-                                selectedPromotion = promo
-                                scope.launch { sheetState.show() }
-
+                                cartItems = cartItems + promo
+                                alertMessage = "${promo.namePromotion} agregado al carrito 🛒"
+                                alertColor = Color(0xFF10B981)
+                                showAlert = true
                             }
                             Spacer(Modifier.height(12.dp))
                         }
@@ -333,20 +352,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                 dragHandle = { BottomSheetDefaults.DragHandle() },
                 containerColor = Color.White
             ) {
-                AgendaPromoForm(
-                    promotion = selectedPromotion!!,
-                    barbers = barbers,
-                    userId = user.id,
-                    onConfirm = { success, message ->
-                        alertMessage = message
-                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
-                        showAlert = true
 
-                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                            selectedPromotion = null
-                        }
-                    }
-                )
             }
         }
 
@@ -381,5 +387,48 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                 )
             }
         }
+
+        if (showCartAgenda) {
+            ModalBottomSheet(
+                onDismissRequest = { showCartAgenda = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = Color.White
+            ) {
+                AgendaCartForm(
+                    items = cartItems,
+                    barbers = barbers,
+                    userId = user.id,
+                    onConfirm = { success, message ->
+                        alertMessage = message
+                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
+                        showAlert = true
+                        showCart = false
+                        showCartAgenda = false
+                        cartItems = emptyList() // 🔹 limpiar carrito tras agendar
+                    }
+                )
+            }
+        }
+
+
+        if (showCart) {
+            ModalBottomSheet(
+                onDismissRequest = { showCart = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = Color.White
+            ) {
+                CartPage(
+                    items = cartItems,
+                    onClose = { showCart = false },
+                    onRemove = { item -> cartItems = cartItems - item },
+                    onAgendar = {
+                        showCartAgenda = true
+                    }
+                )
+            }
+        }
+
+
+
     }
 }
