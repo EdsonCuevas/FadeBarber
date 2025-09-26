@@ -8,5 +8,7 @@ data class AppointmentClientData (
     val idPromotion: List<Int?>,
     val dateAppointment: String = "",
     val timeAppointment: String = "",
+    val methodPayment:String = "",
+    val totalPrice:Int = 0,
     val statusAppointment: Int = 0,
 )
