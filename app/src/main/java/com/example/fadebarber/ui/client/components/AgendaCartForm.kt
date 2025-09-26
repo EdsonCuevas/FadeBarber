@@ -1,7 +1,10 @@
 package com.example.fadebarber.ui.client.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -14,12 +17,21 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MenuItemColors
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,6 +69,8 @@ fun AgendaCartForm(
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
 
+    var selectedPayment by remember { mutableStateOf("Efectivo") }
+
     val today = LocalDate.now()
     val days = (0..6).map { today.plusDays(it.toLong()) }
 
@@ -65,6 +79,14 @@ fun AgendaCartForm(
 
     val scope = rememberCoroutineScope()
 
+    val total = items.sumOf {
+        when (it) {
+            is ServiceData -> it.priceService ?: 0
+            is PromotionData -> it.pricePromotion ?: 0
+            else -> 0
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -72,34 +94,6 @@ fun AgendaCartForm(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Agendar Carrito", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-
-        // 🔹 Mostrar todos los items del carrito
-        items.forEach { item ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(Color.White)
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    when (item) {
-                        is ServiceData -> {
-                            Text(item.nameService.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Spacer(Modifier.height(4.dp))
-                            Text("⏱ ${item.durationService} min")
-                            Spacer(Modifier.height(4.dp))
-                            Text("💵 ${item.priceService} MXN", fontWeight = FontWeight.Bold)
-                        }
-                        is PromotionData -> {
-                            Text(item.namePromotion.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Spacer(Modifier.height(4.dp))
-                            Text("Incluye varios servicios")
-                            Spacer(Modifier.height(4.dp))
-                            Text("💵 ${item.pricePromotion} MXN", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
 
         // 🔹 Selección de barbero
         Text("Selecciona un barbero", fontWeight = FontWeight.SemiBold)
@@ -194,6 +188,76 @@ fun AgendaCartForm(
             }
         }
 
+        // 🔹 Método de pago + Total
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // SelectBox (Dropdown estilizado)
+            var expanded by remember { mutableStateOf(false) }
+            Box {
+                OutlinedButton(
+                    onClick = { expanded = true },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0A66C2))
+                ) {
+                    if (selectedPayment == "Efectivo") Icon(Icons.Default.AttachMoney, contentDescription = null, tint = Color(0xFF0A66C2))
+                    else if (selectedPayment == "Tarjeta") Icon(Icons.Default.CreditCard, contentDescription = null, tint = Color(0xFF0A66C2))
+                    Spacer(Modifier.width(8.dp))
+                    Text(selectedPayment)
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier
+                        .background(Color.White, shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFFE0E0E0), shape = RoundedCornerShape(12.dp))
+                        .width(150.dp)
+                ) {
+                    listOf("Efectivo", "Tarjeta").forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (option == "Tarjeta") Icons.Default.CreditCard else Icons.Default.AttachMoney,
+                                        contentDescription = null,
+                                        tint = if (selectedPayment == option) Color(0xFF0A66C2) else Color.Gray
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        option,
+                                        fontWeight = if (selectedPayment == option) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selectedPayment == option) Color(0xFF0A66C2) else Color.Black
+                                    )
+                                }
+                            },
+                            onClick = {
+                                selectedPayment = option
+                                expanded = false
+                            },
+                            modifier = Modifier
+                                .background(
+                                    if (selectedPayment == option) Color(0xFFE3F2FD) else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Total
+            Text(
+                text = "Total: $${total} MXN",
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                color = Color(0xFF0A66C2)
+            )
+        }
+
         // 🔹 Confirmar agendado de TODO el carrito
         Button(
             onClick = {
@@ -203,6 +267,10 @@ fun AgendaCartForm(
                         val serviceIds = items.filterIsInstance<ServiceData>().map { it.id }
                         val promoIds = items.filterIsInstance<PromotionData>().map { it.id }
 
+                        // separar precios
+                        val servicePrice = items.filterIsInstance<ServiceData>().sumOf { it.priceService }
+                        val promotionPrice = items.filterIsInstance<PromotionData>().sumOf { it.pricePromotion }
+
                         val appointment = AppointmentClientData(
                             idClient = userId,
                             idEmployee = selectedBarber!!,
@@ -210,6 +278,8 @@ fun AgendaCartForm(
                             idPromotion = promoIds,
                             dateAppointment = selectedDate.toString(),
                             timeAppointment = selectedTime.toString(),
+                            methodPayment = selectedPayment,
+                            totalPrice = servicePrice + promotionPrice,
                             statusAppointment = 1
                         )
 
