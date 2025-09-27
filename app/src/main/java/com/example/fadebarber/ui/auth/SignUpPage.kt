@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,10 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Visibility
@@ -38,7 +42,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -67,6 +73,7 @@ fun SignUpPage(
 
     val authState = viewModel.authState.observeAsState()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     // Validaciones
     val nameRegex = "^[A-Za-záéíóúÁÉÍÓÚñÑ\\s]{2,50}$".toRegex()
@@ -99,9 +106,11 @@ fun SignUpPage(
                 registerSuccess = false
             }
             is AuthState.Loading -> {
-                // No hacer nada aquí, solo para evitar el else
             }
-            else -> Unit
+            is AuthState.Unauthenticated -> {
+            }
+            null -> {
+            }
         }
     }
 
@@ -142,33 +151,32 @@ fun SignUpPage(
                         color = Color(0xFF64748B),
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Si no lo encuentras, revisa la bandeja de spam.",
-                        fontSize = 16.sp,
-                        color = Color(0xFF64748B),
-                        textAlign = TextAlign.Center
-                    )
                     Spacer(modifier = Modifier.height(32.dp))
-                    // Botón con el estilo de la paleta de colores
                     Button(
-                        onClick = { onNavigateToLogin() }, // Redirige al login en lugar de onRegisterSuccess()
+                        onClick = { onNavigateToLogin() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0A66C2) // Color azul de la paleta
+                            containerColor = Color(0xFF0A66C2)
                         )
                     ) {
                         Text("Ir a iniciar sesión", fontSize = 16.sp)
                     }
                 }
             } else {
-                // Pantalla de registro (formulario)
+                // Pantalla de registro (formulario con scroll)
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .pointerInput(Unit) {
+                            detectTapGestures {
+                                focusManager.clearFocus()
+                            }
+                        }
+                        .imePadding()
                         .padding(32.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally

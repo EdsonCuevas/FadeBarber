@@ -2,15 +2,19 @@ package com.example.fadebarber.ui.auth
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -34,7 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -61,6 +67,7 @@ fun LoginPage(
     val scope = rememberCoroutineScope()
     val authState = viewModel.authState.observeAsState()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     // Regex de validaciones
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
@@ -69,7 +76,7 @@ fun LoginPage(
     val isEmailValid = emailRegex.matches(email)
     val isPasswordValid = passwordRegex.matches(password)
 
-    // Escuchar cambios en el estado de autenticación con un efecto que evita duplicados
+    // Escuchar cambios en el estado de autenticación
     LaunchedEffect(authState.value) {
         when (val state = authState.value) {
             is AuthState.Authenticated -> {
@@ -79,38 +86,37 @@ fun LoginPage(
             }
             is AuthState.Error -> {
                 isProcessing = false
-                // Solo actualizar el error si no está vacío y no es un estado de carga
-                if (state.message.isNotEmpty()) {
-                    errorMessage = state.message
-                    // Limpiar el error después de un tiempo
-                    launch {
-                        kotlinx.coroutines.delay(3000)
-                        errorMessage = null
-                    }
+                errorMessage = state.message
+                scope.launch {
+                    kotlinx.coroutines.delay(3000)
+                    errorMessage = null
                 }
             }
             is AuthState.Loading -> {
                 isProcessing = true
-                // Limpiar error temporalmente durante la carga
                 errorMessage = null
             }
             is AuthState.EmailSent -> {
-                // Este estado no debería afectar el login, lo ignoramos
             }
             is AuthState.Unauthenticated -> {
-                // Este estado no debería afectar el login, lo ignoramos
             }
             null -> {
-                // Estado inicial o null, no hacer nada
+
             }
         }
     }
 
-    // Formulario de login
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(32.dp)
+            .pointerInput(Unit) {
+                detectTapGestures {
+                    focusManager.clearFocus()
+                }
+            }
+            .imePadding(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -128,7 +134,6 @@ fun LoginPage(
             value = email,
             onValueChange = {
                 email = it
-                // Limpiar error cuando el usuario comienza a escribir
                 if (errorMessage != null) errorMessage = null
             },
             label = { Text("Correo electrónico") },
@@ -166,7 +171,6 @@ fun LoginPage(
             value = password,
             onValueChange = {
                 password = it
-                // Limpiar error cuando el usuario comienza a escribir
                 if (errorMessage != null) errorMessage = null
             },
             label = { Text("Contraseña") },
@@ -211,7 +215,7 @@ fun LoginPage(
         AnimatedContent(targetState = errorMessage != null) { showError ->
             if (showError) {
                 Text(
-                    text = errorMessage ?: "",
+                    text = errorMessage ?: "Error de autenticación",
                     color = Color.Red,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
@@ -227,8 +231,6 @@ fun LoginPage(
         // BOTÓN LOGIN
         Button(
             onClick = {
-                // Limpiar errores locales antes de intentar login
-                errorMessage = null
                 if (isEmailValid && isPasswordValid) {
                     viewModel.login(email, password)
                 } else {
@@ -263,7 +265,6 @@ fun LoginPage(
 
         TextButton(
             onClick = {
-                // Limpiar estado antes de navegar
                 errorMessage = null
                 viewModel.prepareForSignUp()
                 onNavigateToSignUp()
