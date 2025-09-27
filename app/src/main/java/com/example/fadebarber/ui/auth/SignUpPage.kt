@@ -4,31 +4,52 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
 
-@OptIn(ExperimentalAnimationApi::class)
+@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpPage(
     viewModel: AuthViewModel,
@@ -47,19 +68,42 @@ fun SignUpPage(
     val authState = viewModel.authState.observeAsState()
     val context = LocalContext.current
 
+    // Validaciones
+    val nameRegex = "^[A-Za-záéíóúÁÉÍÓÚñÑ\\s]{2,50}$".toRegex()
+    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
+    val phoneRegex = "^[0-9]{7,15}$".toRegex()
+
+    val isNameValid = nameRegex.matches(name)
+    val isEmailValid = emailRegex.matches(email)
+    val isPhoneValid = phoneRegex.matches(phone)
+
+    // Validaciones de contraseña detalladas
+    val hasMinLength = password.length >= 8
+    val hasUppercase = password.any { it.isUpperCase() }
+    val hasLowercase = password.any { it.isLowerCase() }
+    val hasDigit = password.any { it.isDigit() }
+    val hasSpecialChar = password.any { it == '!' || it == '?' }
+    val isPasswordValid = hasMinLength && hasUppercase && hasLowercase && hasDigit && hasSpecialChar
+    val isPasswordMatchValid = password == confirmPassword
+
     LaunchedEffect(authState.value) {
-        when(authState.value) {
-            is AuthState.Authenticated -> registerSuccess = true
+        when(val state = authState.value) {
+            is AuthState.Authenticated -> {
+                registerSuccess = true
+            }
             is AuthState.EmailSent -> {
-                Toast.makeText(context, "Se ha enviado un correo de verificación", Toast.LENGTH_LONG).show()
+                registerSuccess = true
             }
             is AuthState.Error -> {
                 Toast.makeText(context, (authState.value as AuthState.Error).message, Toast.LENGTH_LONG).show()
+                registerSuccess = false
+            }
+            is AuthState.Loading -> {
+                // No hacer nada aquí, solo para evitar el else
             }
             else -> Unit
         }
     }
-
 
     Box(
         modifier = Modifier
@@ -93,20 +137,31 @@ fun SignUpPage(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Bienvenido a FadeBarber.",
+                        text = "Se ha enviado un correo de verificación a tu email.",
+                        fontSize = 16.sp,
+                        color = Color(0xFF64748B),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Si no lo encuentras, revisa la bandeja de spam.",
                         fontSize = 16.sp,
                         color = Color(0xFF64748B),
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(32.dp))
+                    // Botón con el estilo de la paleta de colores
                     Button(
-                        onClick = { onRegisterSuccess() },
+                        onClick = { onNavigateToLogin() }, // Redirige al login en lugar de onRegisterSuccess()
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF0A66C2) // Color azul de la paleta
+                        )
                     ) {
-                        Text("Continuar", fontSize = 16.sp)
+                        Text("Ir a iniciar sesión", fontSize = 16.sp)
                     }
                 }
             } else {
@@ -128,14 +183,37 @@ fun SignUpPage(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Nombre
+                    // Nombre completo
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
                         label = { Text("Nombre completo") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = when {
+                                name.isEmpty() -> Color.Gray
+                                isNameValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            unfocusedBorderColor = when {
+                                name.isEmpty() -> Color.Gray
+                                isNameValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            focusedLabelColor = Color(0xFF0EA5E9),
+                            unfocusedLabelColor = Color.Gray
+                        )
                     )
+                    if (name.isNotEmpty() && !isNameValid) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Ingrese un nombre válido (solo letras y espacios)",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -148,8 +226,31 @@ fun SignUpPage(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Number
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = when {
+                                phone.isEmpty() -> Color.Gray
+                                isPhoneValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            unfocusedBorderColor = when {
+                                phone.isEmpty() -> Color.Gray
+                                isPhoneValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            focusedLabelColor = Color(0xFF0EA5E9),
+                            unfocusedLabelColor = Color.Gray
                         )
                     )
+                    if (phone.isNotEmpty() && !isPhoneValid) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Ingrese un número válido (7-15 dígitos)",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -159,8 +260,31 @@ fun SignUpPage(
                         onValueChange = { email = it },
                         label = { Text("Correo electrónico") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = when {
+                                email.isEmpty() -> Color.Gray
+                                isEmailValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            unfocusedBorderColor = when {
+                                email.isEmpty() -> Color.Gray
+                                isEmailValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            focusedLabelColor = Color(0xFF0EA5E9),
+                            unfocusedLabelColor = Color.Gray
+                        )
                     )
+                    if (email.isNotEmpty() && !isEmailValid) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Ingrese un email válido",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -177,8 +301,54 @@ fun SignUpPage(
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(imageVector = icon, contentDescription = null)
                             }
-                        }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = when {
+                                password.isEmpty() -> Color.Gray
+                                isPasswordValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            unfocusedBorderColor = when {
+                                password.isEmpty() -> Color.Gray
+                                isPasswordValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            focusedLabelColor = Color(0xFF0EA5E9),
+                            unfocusedLabelColor = Color.Gray
+                        )
                     )
+
+                    // Validaciones visuales
+                    if (password.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(modifier = Modifier.align(Alignment.Start)) {
+                            Text(
+                                text = "• Al menos 8 caracteres.",
+                                fontSize = 12.sp,
+                                color = if (hasMinLength) Color(0xFF34D399) else Color.Red
+                            )
+                            Text(
+                                text = "• Al menos 1 Mayúscula.",
+                                fontSize = 12.sp,
+                                color = if (hasUppercase) Color(0xFF34D399) else Color.Red
+                            )
+                            Text(
+                                text = "• Al menos 1 Minúscula.",
+                                fontSize = 12.sp,
+                                color = if (hasLowercase) Color(0xFF34D399) else Color.Red
+                            )
+                            Text(
+                                text = "• Al menos 1 Número.",
+                                fontSize = 12.sp,
+                                color = if (hasDigit) Color(0xFF34D399) else Color.Red
+                            )
+                            Text(
+                                text = "• Al menos 1 carácter especial (! o ?).",
+                                fontSize = 12.sp,
+                                color = if (hasSpecialChar) Color(0xFF34D399) else Color.Red
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -195,21 +365,49 @@ fun SignUpPage(
                             IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                                 Icon(imageVector = icon, contentDescription = null)
                             }
-                        }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = when {
+                                confirmPassword.isEmpty() -> Color.Gray
+                                isPasswordMatchValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            unfocusedBorderColor = when {
+                                confirmPassword.isEmpty() -> Color.Gray
+                                isPasswordMatchValid -> Color(0xFF34D399)
+                                else -> Color.Red
+                            },
+                            focusedLabelColor = Color(0xFF0EA5E9),
+                            unfocusedLabelColor = Color.Gray
+                        )
                     )
-
+                    if (confirmPassword.isNotEmpty() && !isPasswordMatchValid) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Las contraseñas no coinciden",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
                         onClick = {
-                            if (password != confirmPassword) {
+                            if (!isPasswordMatchValid) {
                                 Toast.makeText(context, "Las contraseñas no coinciden", Toast.LENGTH_SHORT).show()
-                            } else if (!password.matches(Regex("^[A-Za-z0-9!?]{8,}$"))) {
+                            } else if (!isPasswordValid) {
                                 Toast.makeText(
                                     context,
-                                    "La contraseña debe tener al menos 8 caracteres y solo letras, números o ! ?",
+                                    "La contraseña no cumple con los requisitos",
                                     Toast.LENGTH_LONG
                                 ).show()
+                            } else if (!isNameValid) {
+                                Toast.makeText(context, "Nombre no válido", Toast.LENGTH_SHORT).show()
+                            } else if (!isEmailValid) {
+                                Toast.makeText(context, "Email no válido", Toast.LENGTH_SHORT).show()
+                            } else if (!isPhoneValid) {
+                                Toast.makeText(context, "Teléfono no válido", Toast.LENGTH_SHORT).show()
                             } else {
                                 viewModel.signup(name, email, password, phone)
                             }
@@ -223,14 +421,10 @@ fun SignUpPage(
                         Text("Crear cuenta", fontSize = 16.sp)
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     TextButton(onClick = { onNavigateToLogin() }) {
-                        Text(
-                            text = "¿Ya tienes cuenta? Inicia sesión",
-                            fontSize = 14.sp,
-                            color = Color(0xFF0EA5E9)
-                        )
+                        Text("Ir a iniciar sesión", fontSize = 14.sp, color = Color(0xFF0EA5E9))
                     }
                 }
             }
