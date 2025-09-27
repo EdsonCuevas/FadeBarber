@@ -1,6 +1,6 @@
 package com.example.fadebarber.data.repository
 
-import com.example.fadebarber.data.model.AppointmentData
+import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
@@ -21,10 +21,10 @@ object Repository {
     private val userRef = database.getReference("User")
     private val promotionRef = database.getReference("Promotion")
 
-    fun getAppointments(): Flow<List<AppointmentData>> = callbackFlow {
+    fun getAppointments(): Flow<List<AppointmentClientData>> = callbackFlow {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val appointments = snapshot.children.mapNotNull { it.getValue(AppointmentData::class.java) }
+                val appointments = snapshot.children.mapNotNull { it.getValue(AppointmentClientData::class.java) }
                 trySend(appointments)
             }
 
