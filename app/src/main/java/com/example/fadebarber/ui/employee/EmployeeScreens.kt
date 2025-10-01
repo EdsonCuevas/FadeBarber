@@ -1,4 +1,10 @@
 package com.example.fadebarber.ui.employee
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.fadebarber.data.DashboardViewModel
+import com.example.fadebarber.ui.employee.pages.CuentaV2
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,7 +17,6 @@ import androidx.navigation.NavController
 import androidx.compose.runtime.livedata.observeAsState
 import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
-import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.ui.employee.pages.CitaPage
 import com.example.fadebarber.ui.employee.pages.CuentaPage
 import com.example.fadebarber.ui.employee.pages.DashboardPage
@@ -55,7 +60,6 @@ fun EmployeeScreens(
                 }
             }
         }
-
         "account" -> CuentaPage()
         "date" -> CitaPage()
     }
