@@ -1,6 +1,8 @@
 package com.example.fadebarber.data.repository
 
-import com.example.fadebarber.data.model.AppointmentData
+import com.example.fadebarber.data.model.AppointmentClientData
+import com.example.fadebarber.data.model.AppointmentPromotion
+import com.example.fadebarber.data.model.AppointmentService
 import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
@@ -69,7 +71,7 @@ object FirebaseRepository {
             val users = mutableListOf<UserData>()
             for (child in snapshot.children) {
                 val user = child.getValue(UserData::class.java)
-                if (user?.categoryUser == 1) {
+                if (user?.categoryUser == 2 && user.statusUser == 1) {
                     users.add(user)
                 }
             }
@@ -80,11 +82,11 @@ object FirebaseRepository {
         }
     }
 
-    suspend fun saveAppointment(appointment: AppointmentData): Boolean {
+    suspend fun saveAppointment(appointmentService: AppointmentClientData): Boolean {
         return try {
             val appointmentRef = database.getReference("Appointment").push()
             val appointmentId = appointmentRef.key ?: return false
-            val appointmentWithId = appointment.copy(id = appointmentId)
+            val appointmentWithId = appointmentService.copy(id = appointmentId)
             appointmentRef.setValue(appointmentWithId).await()
             true
         } catch (e: Exception) {
@@ -92,4 +94,18 @@ object FirebaseRepository {
             false
         }
     }
+
+    suspend fun saveAppointment(appointmentService: AppointmentService): Boolean {
+        return try {
+            val appointmentRef = database.getReference("Appointment").push()
+            val appointmentId = appointmentRef.key ?: return false
+            val appointmentWithId = appointmentService.copy(id = appointmentId)
+            appointmentRef.setValue(appointmentWithId).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
 }

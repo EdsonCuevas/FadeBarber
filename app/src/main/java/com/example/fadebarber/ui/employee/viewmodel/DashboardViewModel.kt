@@ -2,18 +2,49 @@ package com.example.fadebarber.data
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.fadebarber.data.model.AppointmentData
+import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.repository.Repository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class DashboardViewModel : ViewModel() {
+    private val auth = FirebaseAuth.getInstance()
+    private val database = FirebaseDatabase.getInstance().getReference("User")
+    private val _currentUser = MutableStateFlow<UserData?>(null)
 
-    val appointments: StateFlow<List<AppointmentData>> =
+    val currentUser: StateFlow<UserData?> = _currentUser
+
+    fun loadCurrentUser() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        currentUser?.let { user ->
+            database.child(user.uid)
+                .get()
+                .addOnSuccessListener { dataSnapshot ->
+                    if (dataSnapshot.exists()) {
+                        val userData = dataSnapshot.getValue(UserData::class.java)
+                        userData?.let {
+                            _currentUser.value = it
+                            android.util.Log.d("DashboardViewModel", "User data loaded: ${it.nameUser}")
+                        }
+                    } else {
+                        android.util.Log.w("DashboardViewModel", "No user data found")
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    android.util.Log.e("DashboardViewModel", "Error loading user data", exception)
+                }
+        }
+    }
+
+    val appointments: StateFlow<List<AppointmentClientData>> =
         Repository.getAppointments()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -28,4 +59,10 @@ class DashboardViewModel : ViewModel() {
     val promotions: StateFlow<List<PromotionData>> =
         Repository.getPromotions()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        viewModelScope.launch {
+            loadCurrentUser()
+        }
+    }
 }
