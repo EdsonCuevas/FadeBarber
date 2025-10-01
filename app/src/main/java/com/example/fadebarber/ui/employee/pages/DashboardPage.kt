@@ -3,50 +3,66 @@ package com.example.fadebarber.ui.employee.pages
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.R
 import com.example.fadebarber.data.DashboardViewModel
-import com.example.fadebarber.data.model.AppointmentData
+import com.example.fadebarber.data.model.AppointmentClientData
+import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.ui.employee.components.BlinkingDot
 import com.example.fadebarber.ui.employee.components.CardAppointment
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import kotlinx.coroutines.launch
-import formatDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardPage(
     modifier: Modifier = Modifier,
+    user: UserData,
     viewModel: DashboardViewModel = viewModel()
 ) {
 
     val scrollState = rememberScrollState()
-    var selectedAppointment by remember { mutableStateOf<AppointmentData?>(null) }
+    var selectedAppointment by remember { mutableStateOf<AppointmentClientData?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -68,13 +84,8 @@ fun DashboardPage(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(Color(0xFF0A1F66), Color(0xFF2D9CDB)),
-                    start = Offset(0f, 0f),
-                    end = Offset.Infinite
-                )
-            ),
+            .background(Color.White)
+            ,
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start
     ) {
@@ -83,28 +94,47 @@ fun DashboardPage(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .background(Color(0xFF3B5BA7)),
             verticalAlignment = Alignment.Top
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.perfil),
-                contentDescription = "Imagen de perfil",
+            Row(
                 modifier = Modifier
-                    .size(120.dp)
-                    .shadow(shape = RoundedCornerShape(16.dp), elevation = 6.dp)
-                    .clip(RoundedCornerShape(16.dp)),
-                contentScale = ContentScale.Crop
-            )
+                .fillMaxWidth()
+                .padding(24.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.perfil),
+                    contentDescription = "Imagen de perfil",
+                    modifier = Modifier
+                        .size(120.dp)
+                        .shadow(shape = RoundedCornerShape(16.dp), elevation = 6.dp)
+                        .clip(RoundedCornerShape(16.dp)),
+                    contentScale = ContentScale.Crop
+                )
 
-            Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-            Column {
-                Text("Hola de nuevo", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text("Alfredo", fontSize = 20.sp, color = Color.White)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(painter = painterResource(id = R.drawable.ic_start), contentDescription = "Estrella", tint = Color.Unspecified, modifier = Modifier.size(15.dp))
-                    Text(text = "4/5", color = Color.White, modifier = Modifier.padding(start = 4.dp))
+                Column {
+                    Text(
+                        "Hola, ${user.nameUser}",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_start),
+                            contentDescription = "Estrella",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = "4/5",
+                            color = Color.White,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -121,34 +151,56 @@ fun DashboardPage(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
-                    .height(200.dp),
+                    .height(120.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2563EB)),
                 onClick = { }
             ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Cita En Curso", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        BlinkingDot(size = 12.dp)
+                val hasOngoingAppointment = appointments?.any { it.statusAppointment == 2 } == true
+
+                if (hasOngoingAppointment) {
+                    appointments?.forEach { appointment ->
+                        if (appointment.statusAppointment == 2) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Cita En Curso", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    BlinkingDot(size = 12.dp)
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+                                services?.forEach { service ->
+                                    if (appointment.serviceId.contains(service.id)) {
+                                        Text(service.nameService ?: "Sin servicio", fontSize = 16.sp, color = Color.White)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+                                users?.forEach { user ->
+                                    if (appointment.idClient == user.id) {
+                                        Text(user.nameUser ?: "Sin cliente", fontSize = 16.sp, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text("Corte De Cabello", fontSize = 20.sp, color = Color.White)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text("Edson", fontSize = 18.sp, color = Color.White)
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {},
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
-                    ) {
-                        Text("Abrir")
+                } else {
+                    // Solo se muestra una vez si no hay citas
+                    Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("No hay citas", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            BlinkingDot(size = 12.dp)
+                        }
                     }
                 }
+
+
             }
         }
 
@@ -157,7 +209,7 @@ fun DashboardPage(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.Top
         ){
-            Text("Citas De Hoy", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(start = 20.dp))
+            Text("Citas De Hoy", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.padding(start = 20.dp))
         }
 
         /** LISTADO DE CITAS **/
@@ -167,17 +219,21 @@ fun DashboardPage(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            appointments.filter { it.statusAppointment != 0 }.forEach { appointment ->
-                CardAppointment(
-                    appointment = appointment,
-                    services = services,
-                    users = users,
-                    promotions = promotions,
-                    onAppointmentClick = {
-                        selectedAppointment = it
-                        scope.launch { sheetState.show() }
-                    }
-                )
+            if(appointments.isNotEmpty()) {
+                appointments.filter { it.statusAppointment != 0 }.forEach { appointment ->
+                    CardAppointment(
+                        appointment = appointment,
+                        services = services,
+                        users = users,
+                        promotions = promotions,
+                        onAppointmentClick = {
+                            selectedAppointment = it
+                            scope.launch { sheetState.show() }
+                        }
+                    )
+                }
+            } else {
+                Text("No hay citas disponibles", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -200,13 +256,17 @@ fun DashboardPage(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Título del servicio o promoción
-                            if (appointment.idPromotion != 0) {
-                                promotions.find { it.id == appointment.idPromotion }?.let { promo ->
-                                    Text(promo.namePromotion ?: "Sin promoción", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            if (appointment.idPromotion.isNotEmpty()) {
+                                promotions?.forEach { promotion ->
+                                    if(appointment.idPromotion.contains(promotion.id)){
+                                        Text(promotion.namePromotion ?: "Sin promoción", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             } else {
-                                services.find { it.id == appointment.serviceId }?.let { service ->
-                                    Text(service.nameService ?: "Sin servicio", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                services?.forEach { service ->
+                                    if(appointment.idPromotion.contains(service.id)){
+                                        Text(service.nameService ?: "Sin servicio", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
 
@@ -225,17 +285,24 @@ fun DashboardPage(
 
 
                         // Descripción del servicio/promoción
-                        if (appointment.idPromotion != 0) {
-                            promotions.find { it.id == appointment.idPromotion }?.let { p ->
-                                val servicesText = p.servicePromotion?.mapNotNull { serviceId ->
+                        if (appointment.idPromotion.isNotEmpty()) {
+                            promotions?.forEach { promotion ->
+                                val servicesText = promotion.servicePromotion?.mapNotNull { serviceId ->
                                     services.find { it.id == serviceId }?.nameService
                                 }?.joinToString(", ")
                                 Text(servicesText ?: "", fontSize = 14.sp, color = Color.Gray)
                             }
                         } else {
-                            services.find { it.id == appointment.serviceId }?.let { s ->
-                                Text(s.descriptionService ?: "", fontSize = 14.sp, color = Color.Gray)
+                            services?.forEach { service ->
+                                if(appointment.serviceId.contains(service.id)) {
+                                    Text(
+                                        service.descriptionService ?: "",
+                                        fontSize = 14.sp,
+                                        color = Color.Gray
+                                    )
+                                }
                             }
+
                         }
 
                         // Datos del cliente
@@ -248,10 +315,10 @@ fun DashboardPage(
                                 .padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text("Nombre: ${user?.nameUser ?: appointment.nameUser}")
+                           /* Text("Nombre: ${user?.nameUser ?: appointment.nameUser}")
                             Text("Correo: ${user?.correoUser ?: appointment.correoUser}")
                             Text("Teléfono: ${user?.phoneNumberUser ?: appointment.phoneNumberUser}")
-                            Text("Fecha: ${formatDate(appointment.dateAppointment) ?: ""}")
+                            Text("Fecha: ${formatDate(appointment.dateAppointment) ?: ""}")*/
                         }
 
                         // Total del servicio
@@ -264,12 +331,10 @@ fun DashboardPage(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text("Total del Servicio", color = Color(0xFF16A34A))
-                            val totalPrice = if (appointment.idPromotion != 0) {
-                                promotions.find { it.id == appointment.idPromotion }?.pricePromotion?.toDouble() ?: 0.0
-                            } else {
-                                services.find { it.id == appointment.serviceId }?.priceService?.toDouble() ?: 0.0
+
+                            selectedAppointment?.let { selectedAppointment ->
+                                Text("$ ${selectedAppointment.totalPrice} MXN", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Color(0xFF16A34A))
                             }
-                            Text("$ ${"%.2f".format(totalPrice)} MXN", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Color(0xFF16A34A))
                         }
 
                         // Estado de la cita

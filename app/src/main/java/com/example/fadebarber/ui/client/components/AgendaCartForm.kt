@@ -1,9 +1,5 @@
 package com.example.fadebarber.ui.client.components
 
-import android.R.attr.fontWeight
-import android.os.Build
-import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,12 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,11 +30,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fadebarber.data.model.AppointmentClientData
+import com.example.fadebarber.data.model.AppointmentPromotion
 import com.example.fadebarber.data.model.AppointmentService
+import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.repository.FirebaseRepository
@@ -51,15 +46,12 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AgendaServiceForm(
-    service: ServiceData,
-    barbers: List<UserData>, // 👈 lo recibimos del repo
+fun AgendaCartForm(
+    items: List<Any>, // Puede contener ServiceData o PromotionData
+    barbers: List<UserData>,
     userId: String,
     onConfirm: (Boolean, String) -> Unit
-
 ) {
     var selectedBarber by remember { mutableStateOf<String?>(null) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
@@ -72,8 +64,6 @@ fun AgendaServiceForm(
     val formatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
 
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-
 
     Column(
         modifier = Modifier
@@ -81,24 +71,37 @@ fun AgendaServiceForm(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Agendar Cita", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Text("Agendar Carrito", fontWeight = FontWeight.Bold, fontSize = 20.sp)
 
-        // 🔹 Card de servicio
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(Color.White)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text(service.nameService.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Spacer(Modifier.height(4.dp))
-                Text("⏱ ${service.durationService} min")
-                Spacer(Modifier.height(4.dp))
-                Text("💵 ${service.priceService} MXN", fontWeight = FontWeight.Bold)
+        // 🔹 Mostrar todos los items del carrito
+        items.forEach { item ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(Color.White)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    when (item) {
+                        is ServiceData -> {
+                            Text(item.nameService.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(Modifier.height(4.dp))
+                            Text("⏱ ${item.durationService} min")
+                            Spacer(Modifier.height(4.dp))
+                            Text("💵 ${item.priceService} MXN", fontWeight = FontWeight.Bold)
+                        }
+                        is PromotionData -> {
+                            Text(item.namePromotion.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(Modifier.height(4.dp))
+                            Text("Incluye varios servicios")
+                            Spacer(Modifier.height(4.dp))
+                            Text("💵 ${item.pricePromotion} MXN", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
 
-        // 🔹 Barberos reales desde Firebase
+        // 🔹 Selección de barbero
         Text("Selecciona un barbero", fontWeight = FontWeight.SemiBold)
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -109,7 +112,7 @@ fun AgendaServiceForm(
                 Card(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { selectedBarber = barber.id }, // guardamos el ID
+                        .clickable { selectedBarber = barber.id },
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSelected) Color(0xFF0A66C2) else Color.White
                     ),
@@ -191,22 +194,28 @@ fun AgendaServiceForm(
             }
         }
 
-        // 🔹 Confirmar
+        // 🔹 Confirmar agendado de TODO el carrito
         Button(
             onClick = {
                 if (selectedBarber != null && selectedTime != null) {
-                    val appointment = AppointmentService(
-                        serviceId = service.id,
-                        idClient = userId,
-                        idEmployee = selectedBarber!!,
-                        dateAppointment = selectedDate.toString(),
-                        timeAppointment = selectedTime.toString(),
-                        statusAppointment = 1
-                    )
                     scope.launch {
+                        // separar ids
+                        val serviceIds = items.filterIsInstance<ServiceData>().map { it.id }
+                        val promoIds = items.filterIsInstance<PromotionData>().map { it.id }
+
+                        val appointment = AppointmentClientData(
+                            idClient = userId,
+                            idEmployee = selectedBarber!!,
+                            serviceId = serviceIds,
+                            idPromotion = promoIds,
+                            dateAppointment = selectedDate.toString(),
+                            timeAppointment = selectedTime.toString(),
+                            statusAppointment = 1
+                        )
+
                         val success = FirebaseRepository.saveAppointment(appointment)
                         if (success) {
-                            onConfirm(true, "Cita agendada")
+                            onConfirm(true, "Cita agendada con ${serviceIds.size} servicios y ${promoIds.size} promos 🎉")
                         } else {
                             onConfirm(false, "Error al guardar ❌ Intenta de nuevo")
                         }
@@ -217,7 +226,7 @@ fun AgendaServiceForm(
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A66C2))
         ) {
-            Text("Agendar")
+            Text("Agendar Carrito")
         }
-        }
+    }
 }
