@@ -17,6 +17,10 @@ import com.example.fadebarber.ui.auth.LoginPage
 import com.example.fadebarber.ui.auth.SignUpPage
 import com.example.fadebarber.ui.client.ClientScreens
 import com.example.fadebarber.ui.employee.EmployeeScreens
+import androidx.compose.runtime.LaunchedEffect
+import com.example.fadebarber.data.AuthState
+import android.util.Log
+import androidx.compose.runtime.livedata.observeAsState
 
 
 enum class UserRole {CLIENT, EMPLOYEE, ADMIN, AUTH}
@@ -24,7 +28,18 @@ enum class UserRole {CLIENT, EMPLOYEE, ADMIN, AUTH}
 @Composable
 fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
     val navController = rememberNavController()
+    val authState = authViewModel.authState.observeAsState()
 
+    // Observar el estado de autenticación para navegar al login cuando se cierre sesión
+    LaunchedEffect(authState.value) {
+        Log.d("RoleNavGraph", "AuthState cambió a: ${authState.value}, Role actual: $role")
+        if (authState.value is AuthState.Unauthenticated && role != UserRole.AUTH) {
+            Log.d("RoleNavGraph", "Navegando al login...")
+            navController.navigate("login") {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
     val items = when(role) {
         UserRole.CLIENT -> ClientNav.items
         UserRole.EMPLOYEE -> EmployeeNav.items
@@ -94,7 +109,7 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
                 composable(item.route) {
                     when (role) {
                         UserRole.CLIENT -> ClientScreens(item.route)
-                        UserRole.EMPLOYEE -> EmployeeScreens(item.route)
+                        UserRole.EMPLOYEE -> EmployeeScreens(item.route, navController)
                         UserRole.ADMIN -> AdminScreens(item.route)
                         else -> {}
                     }
