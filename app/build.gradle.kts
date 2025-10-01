@@ -109,7 +109,12 @@ android {
     //estatus bar dependecia
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
-
+// Firebase Cloud Messaging
+     implementation("com.google.firebase:firebase-messaging:23.4.0")
+// Para trabajar con JSON (si no la tienes)
+     implementation("org.json:json:20230618")
+// WorkManager (opcional, para notificaciones más avanzadas)
+     implementation("androidx.work:work-runtime-ktx:2.9.0")
  
      // fechas
      implementation("com.jakewharton.threetenabp:threetenabp:1.4.4")
