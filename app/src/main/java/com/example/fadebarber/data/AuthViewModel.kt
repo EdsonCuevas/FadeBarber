@@ -9,9 +9,13 @@ import com.example.fadebarber.data.model.UserData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+
+
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -22,6 +26,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _authState = MutableLiveData<AuthState>()
     val authState: LiveData<AuthState> = _authState
+
+    private val _errorEvent = MutableSharedFlow<Event<String>>()
+    val errorEvent = _errorEvent.asSharedFlow()
 
     init {
         checkAuthStatus()
@@ -61,7 +68,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun login(email: String, password: String) {
         if (email.isEmpty() || password.isEmpty()) {
-            _authState.value = AuthState.Error("Email or password can’t be empty")
+            _authState.value = AuthState.Error("Los campos correo electrónico y contraseña no pueden estar vacíos")
             return
         }
 
@@ -89,14 +96,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         _authState.value = AuthState.Error("Debes verificar tu correo para iniciar sesión")
                     }
                 } else {
-                    _authState.value = AuthState.Error(task.exception?.message ?: "Something went wrong")
+                    // Filtrar el mensaje original de Firebase
+                    val errorMessage = when (task.exception?.message) {
+                        "The supplied auth credential is incorrect, malformed or has expired." ->
+                            "Correo o contraseña incorrectos"
+                        "There is no user record corresponding to this identifier. The user may have been deleted." ->
+                            "No existe una cuenta con este correo"
+                        else -> "Credenciales incorrectas"
+                    }
+
+                    _authState.value = AuthState.Error(errorMessage)
                 }
             }
     }
 
     fun signup(name: String, email: String, password: String, phone: String) {
         if (email.isEmpty() || password.isEmpty() || name.isEmpty() || phone.isEmpty()) {
-            _authState.value = AuthState.Error("All fields must be filled")
+            _authState.value = AuthState.Error("Todos los campos deben de ser llenados.")
             return
         }
 
@@ -127,19 +143,19 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                         } else {
                                             _authState.value = AuthState.Error(
                                                 emailTask.exception?.message
-                                                    ?: "Error enviando correo"
+                                                    ?: "Error enviando correo de verificación"
                                             )
                                         }
                                     }
                             }
                             .addOnFailureListener { e ->
-                                _authState.value = AuthState.Error(e.message ?: "Error saving user")
+                                _authState.value = AuthState.Error(e.message ?: "Error al guardar el usuario")
                             }
                     } else {
-                        _authState.value = AuthState.Error("User ID not found")
+                        _authState.value = AuthState.Error("No se encontró el ID del usuario")
                     }
                 } else {
-                    _authState.value = AuthState.Error(task.exception?.message ?: "Something went wrong")
+                    _authState.value = AuthState.Error(task.exception?.message ?: "Algo salió mal")
                 }
             }
     }
@@ -162,6 +178,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _authState.postValue(AuthState.Unauthenticated)
         }
     }
+
+    fun resetAuthState() {
+        _authState.value = AuthState.Unauthenticated
+    }
+
+    // Nuevo método para limpiar estado antes de ir al registro
+    fun prepareForSignUp() {
+        _authState.value = AuthState.Unauthenticated
+    }
 }
 
 sealed class AuthState {
@@ -170,4 +195,30 @@ sealed class AuthState {
     object Loading : AuthState()
     object EmailSent : AuthState()
     data class Error(val message: String) : AuthState()
+}
+
+
+class Event<T> {
+    private var content: T? = null
+    private var hasBeenHandled = false
+
+    constructor(content: T) {
+        this.content = content
+    }
+
+    fun getContentIfNotHandled(): T? {
+        return if (hasBeenHandled) {
+            null
+        } else {
+            hasBeenHandled = true
+            content
+        }
+    }
+
+    fun peekContent(): T? = content
+
+    fun consumeContent() {
+        hasBeenHandled = true
+        content = null
+    }
 }

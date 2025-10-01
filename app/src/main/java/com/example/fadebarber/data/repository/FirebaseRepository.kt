@@ -1,6 +1,8 @@
 package com.example.fadebarber.data.repository
 
-import com.example.fadebarber.data.model.AppointmentData
+import com.example.fadebarber.data.model.AppointmentClientData
+import com.example.fadebarber.data.model.AppointmentPromotion
+import com.example.fadebarber.data.model.AppointmentService
 import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
@@ -14,6 +16,7 @@ object FirebaseRepository {
     private val database =
         FirebaseDatabase.getInstance("https://barbershop-dd871-default-rtdb.firebaseio.com/")
 
+    private val appointmentRef = database.getReference("Appointment")
     private val serviceRef = database.getReference("Service")
     private val promotionRef = database.getReference("Promotion")
     private val infoRef = database.getReference("Information")
@@ -69,7 +72,7 @@ object FirebaseRepository {
             val users = mutableListOf<UserData>()
             for (child in snapshot.children) {
                 val user = child.getValue(UserData::class.java)
-                if (user?.categoryUser == 1) {
+                if (user?.categoryUser == 2 && user.statusUser == 1) {
                     users.add(user)
                 }
             }
@@ -80,11 +83,43 @@ object FirebaseRepository {
         }
     }
 
-    suspend fun saveAppointment(appointment: AppointmentData): Boolean {
+    suspend fun getAppointmentsByBarberAndDate(barberId: String, date: String): List<AppointmentClientData> {
+        return try {
+            val snapshot = appointmentRef.get().await()
+            val list = mutableListOf<AppointmentClientData>()
+            for (child in snapshot.children) {
+                val appt = child.getValue(AppointmentClientData::class.java)
+                if (appt != null && appt.idEmployee == barberId && appt.dateAppointment == date) {
+                    list.add(appt)
+                }
+            }
+            list
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+
+
+    suspend fun saveAppointment(appointment: AppointmentClientData): Boolean {
+        return try {
+            val ref = appointmentRef.push()
+            val id = ref.key ?: return false
+            val withId = appointment.copy(id = id)
+            ref.setValue(withId).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun saveAppointment(appointmentService: AppointmentService): Boolean {
         return try {
             val appointmentRef = database.getReference("Appointment").push()
             val appointmentId = appointmentRef.key ?: return false
-            val appointmentWithId = appointment.copy(id = appointmentId)
+            val appointmentWithId = appointmentService.copy(id = appointmentId)
             appointmentRef.setValue(appointmentWithId).await()
             true
         } catch (e: Exception) {
@@ -92,4 +127,5 @@ object FirebaseRepository {
             false
         }
     }
+
 }

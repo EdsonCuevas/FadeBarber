@@ -70,10 +70,11 @@ import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.repository.FirebaseRepository
-import com.example.fadebarber.ui.client.components.AgendaPromoForm
+import com.example.fadebarber.ui.client.components.AgendaCartForm
 import com.example.fadebarber.ui.client.components.AgendaServiceForm
 import com.example.fadebarber.ui.client.components.BarberBanner
 import com.example.fadebarber.ui.client.components.PromotionCard
+import com.example.fadebarber.ui.client.components.SearchBar
 import com.example.fadebarber.ui.client.components.ServiceCard
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -103,6 +104,14 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
     var showAlert by remember { mutableStateOf(false) }
     var alertMessage by remember { mutableStateOf<String?>(null) }
     var alertColor by remember { mutableStateOf(Color(0xFF10B981)) } // verde por default
+
+    var searchQuery by remember { mutableStateOf("") }
+
+    var cartItems by remember { mutableStateOf<List<Any>>(emptyList()) } // puede contener ServiceData o PromotionData
+    var showCart by remember { mutableStateOf(false) }
+
+    var showCartAgenda by remember { mutableStateOf(false) }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -167,41 +176,42 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                 .verticalScroll(scrollState)
                 .padding(8.dp)
         ) {
-            // Barra superior con buscador y carrito
+            // Barra superior con buscador
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFFF1F1F1))
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                        .weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Buscar",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Search", color = Color.Gray, fontSize = 14.sp)
-                }
-
-                Spacer(Modifier.width(12.dp))
-
                 Icon(
                     imageVector = Icons.Default.ShoppingCart,
                     contentDescription = "Carrito",
                     tint = Color.Black,
                     modifier = Modifier
                         .size(28.dp)
-                        .clickable { print("XD") }
+                        .clickable { showCart = true } // 🔹 Abrir carrito
+                )
+
+
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = "Buscar servicios o promociones"
                 )
             }
+
+            // Servicios
+            val filteredServices = services.filter { service ->
+                searchQuery.isBlank() ||
+                        service.nameService!!.contains(searchQuery, ignoreCase = true) ||
+                        service.descriptionService!!.contains(searchQuery, ignoreCase = true)
+            }
+
+            // Promociones
+            val filteredPromos = promotions.filter { promo ->
+                searchQuery.isBlank() ||
+                        promo.namePromotion!!.contains(searchQuery, ignoreCase = true)
+            }
+
 
             Spacer(Modifier.height(12.dp))
 
@@ -224,7 +234,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
             TabRow(
                 selectedTabIndex = when (selectedTab) {
                     is HomeTab.Servicios -> 0
-                    is HomeTab.Combos -> 1
+                    is HomeTab.Promociones -> 1
                     is HomeTab.Nosotros -> 2
                 },
                 containerColor = Color(0xFFFFFFFF),
@@ -235,7 +245,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                             tabPositions[
                                 when (selectedTab) {
                                     is HomeTab.Servicios -> 0
-                                    is HomeTab.Combos -> 1
+                                    is HomeTab.Promociones -> 1
                                     is HomeTab.Nosotros -> 2
                                 }
                             ]
@@ -245,7 +255,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                     )
                 }
             ) {
-                listOf(HomeTab.Servicios, HomeTab.Combos, HomeTab.Nosotros).forEach { tab ->
+                listOf(HomeTab.Servicios, HomeTab.Promociones, HomeTab.Nosotros).forEach { tab ->
                     Tab(
                         selected = selectedTab::class == tab::class,
                         onClick = { selectedTab = tab },
@@ -260,18 +270,18 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
             when (selectedTab) {
                 is HomeTab.Servicios -> {
                     Spacer(Modifier.height(12.dp))
-                    if (services.isNotEmpty()) {
-                        services.forEach { service ->
-                            if (service.statusService == 1) {
-                                ServiceCard(
-                                    service = service,
-                                    onClick = {
-                                        selectedService = it
-                                        scope.launch { sheetState.show() }
-                                    }
-                                )
-                                Spacer(Modifier.height(12.dp))
-                            }
+                    if (filteredServices.isNotEmpty()) {
+                        filteredServices.forEach { service ->
+                            ServiceCard(
+                                service = service,
+                                onClick = {
+                                    cartItems = cartItems + service
+                                    alertMessage = "${service.nameService} agregado al carrito 🛒"
+                                    alertColor = Color(0xFF10B981)
+                                    showAlert = true
+                                }
+                            )
+                            Spacer(Modifier.height(12.dp))
                         }
                     } else {
                         Box(
@@ -290,13 +300,14 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                     }
                 }
 
-                is HomeTab.Combos -> {
-                    if (promotions.isNotEmpty()) {
-                        promotions.forEach { promo ->
+                is HomeTab.Promociones -> {
+                    if (filteredPromos.isNotEmpty()) {
+                        filteredPromos.forEach { promo ->
                             PromotionCard(promotion = promo, allServices = services) {
-                                selectedPromotion = promo
-                                scope.launch { sheetState.show() }
-
+                                cartItems = cartItems + promo
+                                alertMessage = "${promo.namePromotion} agregado al carrito 🛒"
+                                alertColor = Color(0xFF10B981)
+                                showAlert = true
                             }
                             Spacer(Modifier.height(12.dp))
                         }
@@ -338,17 +349,10 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                     }
                 },
                 sheetState = sheetState,
-                dragHandle = { BottomSheetDefaults.DragHandle() }
+                dragHandle = { BottomSheetDefaults.DragHandle() },
+                containerColor = Color.White
             ) {
-                AgendaPromoForm(
-                    promotion = selectedPromotion!!,
-                    onConfirm = { barbero, fecha, hora ->
-                        println("Agendado promo: ${selectedPromotion!!} con $barbero el $fecha a las $hora")
-                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                            selectedPromotion = null
-                        }
-                    }
-                )
+
             }
         }
 
@@ -370,6 +374,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                 AgendaServiceForm(
                     service = selectedService!!,
                     barbers = barbers,
+                    userId = user.id,
                     onConfirm = { success, message ->
                         alertMessage = message
                         alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
@@ -382,5 +387,48 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                 )
             }
         }
+
+        if (showCartAgenda) {
+            ModalBottomSheet(
+                onDismissRequest = { showCartAgenda = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = Color.White
+            ) {
+                AgendaCartForm(
+                    items = cartItems,
+                    barbers = barbers,
+                    userId = user.id,
+                    onConfirm = { success, message ->
+                        alertMessage = message
+                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
+                        showAlert = true
+                        showCart = false
+                        showCartAgenda = false
+                        cartItems = emptyList() // 🔹 limpiar carrito tras agendar
+                    }
+                )
+            }
+        }
+
+
+        if (showCart) {
+            ModalBottomSheet(
+                onDismissRequest = { showCart = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = Color.White
+            ) {
+                CartPage(
+                    items = cartItems,
+                    onClose = { showCart = false },
+                    onRemove = { item -> cartItems = cartItems - item },
+                    onAgendar = {
+                        showCartAgenda = true
+                    }
+                )
+            }
+        }
+
+
+
     }
 }

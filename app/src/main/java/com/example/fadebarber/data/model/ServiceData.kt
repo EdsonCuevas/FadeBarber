@@ -6,6 +6,6 @@ data class ServiceData(
     val id: Int? = null,
     val imageService: String? = null,
     val nameService: String? = null,
-    val priceService: Int? = null,
+    val priceService: Int = 0,
     val statusService: Int? = null
 )
