@@ -67,7 +67,7 @@ fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF0A1F66)),
+                    .background(Color(0xFF0A66C2)),
                 contentAlignment = Alignment.Center
             ) {
                 Text("+", color = Color.White, fontWeight = FontWeight.Bold)
