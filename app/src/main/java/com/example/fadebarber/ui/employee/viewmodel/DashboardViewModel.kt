@@ -22,18 +22,28 @@ class DashboardViewModel : ViewModel() {
 
     val currentUser: StateFlow<UserData?> = _currentUser
 
-
-    private fun loadCurrentUser() {
-        val uid = auth.currentUser?.uid ?: return
-        database.child(uid).get()
-            .addOnSuccessListener { snapshot ->
-                val user = snapshot.getValue(UserData::class.java)
-                _currentUser.value = user
-            }
-            .addOnFailureListener {
-                _currentUser.value = null
-            }
+    fun loadCurrentUser() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        currentUser?.let { user ->
+            database.child(user.uid)
+                .get()
+                .addOnSuccessListener { dataSnapshot ->
+                    if (dataSnapshot.exists()) {
+                        val userData = dataSnapshot.getValue(UserData::class.java)
+                        userData?.let {
+                            _currentUser.value = it
+                            android.util.Log.d("DashboardViewModel", "User data loaded: ${it.nameUser}")
+                        }
+                    } else {
+                        android.util.Log.w("DashboardViewModel", "No user data found")
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    android.util.Log.e("DashboardViewModel", "Error loading user data", exception)
+                }
+        }
     }
+
     val appointments: StateFlow<List<AppointmentClientData>> =
         Repository.getAppointments()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
