@@ -165,9 +165,7 @@ fun CuentaV2(
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = editableEmail, fontSize = 14.sp, color = Color.Gray)
-                Text(text = editablePhone, fontSize = 14.sp, color = Color.Gray)
-            }
+                }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -334,11 +332,11 @@ fun CuentaV2(
             // -------------------
             // Información Personal
             // -------------------
-            InfoPersonalSection(
+            /*InfoPersonalSection(
                 editableName = editableName,
                 editableEmail = editableEmail,
                 editablePhone = editablePhone
-            )
+            )*/
 
             Spacer(modifier = Modifier.height(8.dp))
 

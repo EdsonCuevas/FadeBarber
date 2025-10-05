@@ -33,11 +33,10 @@ fun EmployeeScreens(
     val authViewModel: AuthViewModel = viewModel()
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
+    val authState = authViewModel.authState.observeAsState()
 
     when (route) {
         "dashboard" -> {
-            val authState = authViewModel.authState.observeAsState()
-
             when {
                 authState.value is AuthState.Unauthenticated -> {
                     // Si no está autenticado, navegar al login
@@ -63,9 +62,30 @@ fun EmployeeScreens(
             }
         }
         "account" -> CuentaV2()
-        "date" -> CitaPage()
+        "date" -> {
+            when {
+                authState.value is AuthState.Unauthenticated -> {
+                    // Si no está autenticado, navegar al login
+                    LaunchedEffect(Unit) {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+                user != null -> {
+                    CitaPage(user = user, viewModel = viewModel)
+                }
+                else -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("CARGANDO...", fontSize = 20.sp)
+                    }
+                }
+            }
+        }
     }
 }
-
-
-
