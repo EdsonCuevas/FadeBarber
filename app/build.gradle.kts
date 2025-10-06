@@ -54,6 +54,7 @@ android {
      implementation(libs.androidx.runtime.livedata)
      implementation(libs.androidx.compose.animation.core.lint)
      implementation(libs.androidx.core.i18n)
+     implementation(libs.places)
      testImplementation(libs.junit)
      androidTestImplementation(libs.androidx.junit)
      androidTestImplementation(libs.androidx.espresso.core)

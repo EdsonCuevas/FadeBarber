@@ -17,13 +17,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -46,8 +47,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.R
 import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.data.model.AppointmentClientData
+import com.example.fadebarber.data.model.UserData
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import org.threeten.bp.LocalDate
+import org.threeten.bp.LocalTime
 import org.threeten.bp.format.DateTimeFormatter
 import java.util.Locale
 
@@ -55,18 +58,17 @@ import java.util.Locale
 @Composable
 fun CitaPage(
     modifier: Modifier = Modifier,
+    user: UserData,
     viewModel: DashboardViewModel = viewModel()
 ) {
-    val scrollState = rememberScrollState()
-
     var selectedAppointment by remember { mutableStateOf<AppointmentClientData?>(null) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    var selectedTime by remember { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val appointments by viewModel.appointments.collectAsState(initial = emptyList())
     val services by viewModel.services.collectAsState(initial = emptyList())
     val users by viewModel.users.collectAsState(initial = emptyList())
+    val promotions by viewModel.promotions.collectAsState(initial = emptyList())
 
     val systemUiController = rememberSystemUiController()
     SideEffect {
@@ -79,12 +81,15 @@ fun CitaPage(
     val today = LocalDate.now()
     val days = (0..6).map { today.plusDays(it.toLong()) }
 
-    // Filtrar citas por fecha seleccionada
-    val filteredAppointments = appointments?.filter { appointment ->
-        // Aquí deberías comparar con la fecha de la cita
-        // appointment.date == selectedDate
-        true // Temporal
-    } ?: emptyList()
+    // Filtrar citas por fecha seleccionada y empleado
+    val filteredAppointments = appointments
+        .filter { appointment ->
+            appointment.idEmployee == user.id &&
+                    LocalDate.parse(appointment.dateAppointment) == selectedDate
+        }
+        .sortedBy {
+            LocalTime.parse(it.timeAppointment, DateTimeFormatter.ofPattern("HH:mm"))
+        }
 
     Column(
         modifier = modifier
@@ -167,7 +172,7 @@ fun CitaPage(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // SELECTOR DE FECHAS - SOLUCIONADO
+        // SELECTOR DE FECHAS
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 20.dp)
@@ -176,7 +181,6 @@ fun CitaPage(
                 val isSelected = selectedDate == day
                 val isToday = day == today
 
-                // Usando Card normal en lugar de ElevatedCard
                 Card(
                     modifier = Modifier
                         .width(60.dp)
@@ -246,7 +250,7 @@ fun CitaPage(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Citas De Hoy",
+                text = if (selectedDate == today) "Citas De Hoy" else "Citas del Día",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F2937)
@@ -268,122 +272,202 @@ fun CitaPage(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(filteredAppointments.ifEmpty {
-                // Datos de ejemplo si no hay citas reales
-                listOf(
-                    SampleAppointment("09:00 AM", "Carlos Rodríguez", "Corte + Barba"),
-                    SampleAppointment("10:30 AM", "Miguel García", "Corte Clásico"),
-                    SampleAppointment("12:00 PM", "Luis Fernández", "Afeitado"),
-                    SampleAppointment("02:30 PM", "Ana Martínez", "Corte Degradado"),
-                    SampleAppointment("04:00 PM", "José López", "Corte + Lavado")
-                )
-            }) { appointment ->
-                AppointmentCard(
-                    appointment = appointment,
-                    services = services,
-                    users = users,
-                    onClick = { }
-                )
+            if (filteredAppointments.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_calendar_clock),
+                            contentDescription = "Sin citas",
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No hay citas para este día",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
+                }
+            } else {
+                items(filteredAppointments) { appointment ->
+                    AppointmentCard(
+                        appointment = appointment,
+                        services = services,
+                        users = users,
+                        promotions = promotions,
+                        onClick = { selectedAppointment = it }
+                    )
+                }
             }
         }
     }
 }
 
-// Clase para datos de ejemplo
-data class SampleAppointment(
-    val time: String,
-    val clientName: String,
-    val service: String,
-)
-
 @Composable
 fun AppointmentCard(
-    appointment: Any, // Puede ser AppointmentClientData o SampleAppointment
-    services: List<Any>?,
-    users: List<Any>?,
-    onClick: () -> Unit
+    appointment: AppointmentClientData,
+    services: List<Any>,
+    users: List<Any>,
+    promotions: List<Any>,
+    onClick: (AppointmentClientData) -> Unit
 ) {
+    // Determinar color según estado
+    val statusColor = when (appointment.statusAppointment) {
+        1 -> Color(0xFF22C55E)  // Verde - Activa
+        2 -> Color(0xFFF97316)  // Naranja - En proceso
+        3 -> Color(0xFF3B82F6)  // Azul - Terminada
+        0 -> Color(0xFFEF4444)  // Rojo - Cancelada
+        else -> Color(0xFF6B7280) // Gris - Desconocido
+    }
+
+    val statusText = when (appointment.statusAppointment) {
+        1 -> "Activa"
+        2 -> "En proceso"
+        3 -> "Terminada"
+        0 -> "Cancelada"
+        else -> "Desconocido"
+    }
+
+    // Obtener nombre del cliente
+    val client = users.find {
+        if (it is UserData) it.id == appointment.idClient else false
+    } as? UserData
+
+    // Obtener servicios
+    val titles = mutableListOf<String>()
+
+    // Promociones
+    if (appointment.idPromotion.isNotEmpty()) {
+        val validPromotionIds = appointment.idPromotion.filterNotNull()
+        if (validPromotionIds.isNotEmpty()) {
+            val firstPromotion = promotions.find {
+                if (it is com.example.fadebarber.data.model.PromotionData)
+                    it.id == validPromotionIds.firstOrNull()
+                else false
+            } as? com.example.fadebarber.data.model.PromotionData
+
+            if (firstPromotion != null) {
+                val totalPromotions = validPromotionIds.size
+                titles.add(
+                    if (totalPromotions > 1) {
+                        "${firstPromotion.namePromotion} + ${totalPromotions - 1} más"
+                    } else {
+                        firstPromotion.namePromotion ?: "Promoción"
+                    }
+                )
+            }
+        }
+    }
+
+    // Servicios
+    if (appointment.serviceId.isNotEmpty()) {
+        val validServiceIds = appointment.serviceId.filterNotNull()
+        val selectedServices = services.filter {
+            if (it is com.example.fadebarber.data.model.ServiceData)
+                it.id in validServiceIds
+            else false
+        }
+        if (selectedServices.isNotEmpty()) {
+            val firstService = selectedServices[0] as com.example.fadebarber.data.model.ServiceData
+            titles.add(
+                if (selectedServices.size > 1) {
+                    "${firstService.nameService} + ${selectedServices.size - 1} más"
+                } else {
+                    firstService.nameService ?: "Servicio"
+                }
+            )
+        }
+    }
+
     Card(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        onClick = {}
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        onClick = { onClick(appointment) }
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Indicador de color y hora
-            Column(
-                horizontalAlignment = Alignment.Start
-            ) {
-                /*val (time, color) = when (appointment) {
-                    is SampleAppointment -> appointment.time to appointment.color
-                    else -> "00:00 AM" to Color(0xFF3B82F6)
-                }*/
-
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(48.dp)
-                        .background(Color(0xFF3B82F6), RoundedCornerShape(2.dp))
-                )
-            }
+            // Indicador de color según estado
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(56.dp)
+                    .background(statusColor, RoundedCornerShape(2.dp))
+            )
 
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                val (time, clientName, service) = when (appointment) {
-                    is SampleAppointment -> Triple(appointment.time, appointment.clientName, appointment.service)
-                    else -> Triple("00:00 AM", "Cliente", "Servicio")
+                // Hora
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.AccessTime,
+                        contentDescription = "Hora",
+                        tint = statusColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = appointment.timeAppointment ?: "00:00",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
                 }
 
-                Text(
-                    text = time,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF3B82F6)
-                )
+                Spacer(modifier = Modifier.height(4.dp))
 
+                // Nombre del cliente
                 Text(
-                    text = clientName,
+                    text = client?.nameUser ?: "Cliente",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1F2937)
                 )
 
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Servicio
                 Text(
-                    text = service,
+                    text = titles.firstOrNull() ?: "Sin servicio",
                     fontSize = 14.sp,
                     color = Color(0xFF6B7280)
                 )
             }
 
-            // Iconos de acción
-            Row {
-                IconButton(
-                    onClick = { /* Llamar cliente */ },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_reloj),
-                        contentDescription = "Llamar",
-                        tint = Color(0xFF6B7280),
-                        modifier = Modifier.size(20.dp)
+            // Badge de estado
+            Box(
+                modifier = Modifier
+                    .background(
+                        statusColor.copy(alpha = 0.1f),
+                        RoundedCornerShape(8.dp)
                     )
-                }
-
-                IconButton(
-                    onClick = { /* Más opciones */ },
-                    modifier = Modifier.size(40.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_reloj),
-                        contentDescription = "Más",
-                        tint = Color(0xFF6B7280),
-                        modifier = Modifier.size(20.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(statusColor, CircleShape)
+                    )
+                    Text(
+                        text = statusText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = statusColor
                     )
                 }
             }
