@@ -1,6 +1,7 @@
 package com.example.fadebarber.ui.employee.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,15 +40,17 @@ fun CurrentAppointmentCard(
     selectedAppointment: AppointmentClientData?,
     user: UserData,
     scope: CoroutineScope,
-    onAppointmentClick: (AppointmentClientData) -> Unit
+    onAppointmentClick: (AppointmentClientData?) -> Unit
 ) {
     val ongoingAppointment = appointments
         ?.firstOrNull { it.idEmployee == user.id && it.statusAppointment == 2 }
 
+    // Hacemos clicable todo el Row
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .clickable { onAppointmentClick(ongoingAppointment) },
         verticalAlignment = Alignment.Top
     ) {
         if (ongoingAppointment != null) {
@@ -80,7 +83,7 @@ fun CurrentAppointmentCard(
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 BlinkingDot(size = 10.dp, color = Color(0xFF10B981))
@@ -92,8 +95,6 @@ fun CurrentAppointmentCard(
                                     color = Color(0xFF10B981)
                                 )
                             }
-
-                            Spacer(modifier = Modifier.width(6.dp))
 
                             Icon(
                                 imageVector = Icons.Filled.KeyboardArrowDown,
@@ -112,10 +113,7 @@ fun CurrentAppointmentCard(
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(
-                                    Color(0xFF3B82F6),
-                                    shape = CircleShape
-                                ),
+                                .background(Color(0xFF3B82F6), shape = CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -152,6 +150,7 @@ fun CurrentAppointmentCard(
                 }
             }
         } else {
+            // No hay citas
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -160,7 +159,6 @@ fun CurrentAppointmentCard(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ){
-                // No hay citas
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -182,10 +180,7 @@ fun CurrentAppointmentCard(
                             Box(
                                 modifier = Modifier
                                     .size(10.dp)
-                                    .background(
-                                        Color(0xFF9CA3AF),
-                                        shape = CircleShape
-                                    )
+                                    .background(Color(0xFF9CA3AF), shape = CircleShape)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(

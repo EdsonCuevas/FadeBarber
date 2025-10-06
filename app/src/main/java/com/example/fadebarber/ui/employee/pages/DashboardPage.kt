@@ -62,6 +62,9 @@ import com.example.fadebarber.ui.employee.components.CardAppointment
 import com.example.fadebarber.ui.employee.components.CurrentAppointmentCard
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import kotlinx.coroutines.launch
+import org.threeten.bp.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,8 +78,8 @@ fun DashboardPage(
     var selectedAppointment by remember { mutableStateOf<AppointmentClientData?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val today = LocalDate.now()
 
-    // Colección de Flows del ViewModel
     val appointments by viewModel.appointments.collectAsState(initial = emptyList())
     val services by viewModel.services.collectAsState(initial = emptyList())
     val users by viewModel.users.collectAsState(initial = emptyList())
@@ -84,33 +87,62 @@ fun DashboardPage(
 
     val systemUiController = rememberSystemUiController()
     SideEffect {
-        systemUiController.setStatusBarColor(
-            color = Color.Transparent,
-            darkIcons = false
-        )
+        systemUiController.setStatusBarColor(color = Color.Transparent, darkIcons = false)
     }
 
+    // === Lógica de próxima cita ===
+    val currentTime = LocalTime.now()
+    val formatter = DateTimeFormatter.ofPattern("HH:mm")
+
+    val todayAppointments = appointments
+        .filter {
+            it.idEmployee == user.id &&
+                    LocalDate.parse(it.dateAppointment) == today &&
+                    it.statusAppointment == 1  // 🔥 Solo citas activas
+        }
+        .sortedBy { LocalTime.parse(it.timeAppointment, formatter) }
+
+    val currentAppointment = appointments.find {
+        it.idEmployee == user.id &&
+                LocalDate.parse(it.dateAppointment) == today &&
+                it.statusAppointment == 2 // En proceso
+    }
+
+    val nextAppointment = if (currentAppointment != null) {
+        val currentTimeRef = LocalTime.parse(currentAppointment.timeAppointment, formatter)
+        todayAppointments.firstOrNull {
+            LocalTime.parse(it.timeAppointment, formatter).isAfter(currentTimeRef)
+        }
+    } else {
+        todayAppointments.firstOrNull {
+            LocalTime.parse(it.timeAppointment, formatter).isAfter(currentTime)
+        }
+    }
+
+
+    val nextAppointmentText = when {
+        nextAppointment != null -> {
+            val client = users.find { it.id == nextAppointment.idClient }
+            "${nextAppointment.timeAppointment} - ${client?.nameUser ?: "Cliente"}"
+        }
+        else -> "No hay más citas para hoy"
+    }
+
+    // === INTERFAZ ===
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .background(Color.White)
-            ,
+            .background(Color.White),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start
     ) {
-
         /** HEADER CON IMAGEN Y NOMBRE **/
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(
-                    RoundedCornerShape(
-                        topStart = 0.dp,
-                        topEnd = 0.dp,
-                        bottomStart = 24.dp,
-                        bottomEnd = 24.dp
-                    )
+                    RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                 )
                 .background(
                     brush = Brush.verticalGradient(
@@ -122,7 +154,7 @@ fun DashboardPage(
                 )
                 .padding(24.dp)
         ) {
-            // SALUDO + PUNTUACIÓN + PERFIL
+            // SALUDO + PERFIL
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -130,9 +162,7 @@ fun DashboardPage(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Hola, ${user.nameUser}",
                         fontSize = 28.sp,
@@ -143,10 +173,7 @@ fun DashboardPage(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Estrellas de puntuación
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         repeat(4) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_start),
@@ -156,14 +183,13 @@ fun DashboardPage(
                             )
                         }
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_start), // Estrella vacía
+                            painter = painterResource(id = R.drawable.ic_start),
                             contentDescription = "Estrella vacía",
                             tint = Color(0xFFFFC107),
                             modifier = Modifier.size(18.dp)
                         )
 
                         Spacer(modifier = Modifier.width(8.dp))
-
                         Text(
                             text = "4.0/5",
                             color = Color.White.copy(alpha = 0.9f),
@@ -173,7 +199,6 @@ fun DashboardPage(
                     }
                 }
 
-                // Imagen de perfil
                 Box {
                     Image(
                         painter = painterResource(id = R.drawable.perfil),
@@ -187,14 +212,12 @@ fun DashboardPage(
                 }
             }
 
-            // CARD DE PRÓXIMA CITA
+            // === CARD DE PRÓXIMA CITA DINÁMICA ===
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.15f)
-                ),
+                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
                 shape = RoundedCornerShape(16.dp),
-                border = null // Elimina cualquier borde
+                border = null
             ) {
                 Row(
                     modifier = Modifier
@@ -203,9 +226,7 @@ fun DashboardPage(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Próxima cita",
                             color = Color.White.copy(alpha = 0.8f),
@@ -216,14 +237,13 @@ fun DashboardPage(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "15:30 - Juan Pérez",
+                            text = nextAppointmentText,
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
-                    // Icono de calendario
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -234,8 +254,8 @@ fun DashboardPage(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_reloj), // Necesitarás este icono
-                            contentDescription = "Calendario",
+                            painter = painterResource(id = R.drawable.ic_reloj),
+                            contentDescription = "Reloj",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -244,9 +264,7 @@ fun DashboardPage(
             }
         }
 
-
         /** CARD PRINCIPAL DE CITA EN CURSO **/
-
         CurrentAppointmentCard(
             appointments = appointments,
             users = users,
@@ -259,17 +277,23 @@ fun DashboardPage(
             }
         )
 
-
         /** TITULO CITAS PENDIENTES **/
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                "Citas Pendientes",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                modifier = Modifier.padding(start = 20.dp)
+            )
+        }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.Top
-            ){
-                Text("Citas Pendientes", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.padding(start = 20.dp))
-            }
-
-            /** LISTADO DE CITAS **/
+        /** LISTADO DE CITAS **/
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -280,8 +304,17 @@ fun DashboardPage(
             val userAppointments = appointments
                 .filter { it.statusAppointment == 1 && it.idEmployee == user.id }
 
-            if (userAppointments.isNotEmpty()) {
-                userAppointments.forEach { appointment ->
+            val todayAppointmentsFiltered = userAppointments
+                .filter { appointment ->
+                    val appointmentDate = LocalDate.parse(appointment.dateAppointment)
+                    appointmentDate == today
+                }
+                .sortedBy {
+                    LocalTime.parse(it.timeAppointment, formatter)
+                }
+
+            if (todayAppointmentsFiltered.isNotEmpty()) {
+                todayAppointmentsFiltered.forEach { appointment ->
                     CardAppointment(
                         appointment = appointment,
                         services = services,
@@ -294,19 +327,18 @@ fun DashboardPage(
                     )
                 }
             } else {
-                // Cuando no hay citas
                 Spacer(modifier = Modifier.height(16.dp))
                 Icon(
                     painter = painterResource(id = R.drawable.ic_calendar_clock),
                     contentDescription = "Calendario",
-                    tint = Color(0xFF2563EB), // color azul visible sobre fondo blanco
+                    tint = Color(0xFF2563EB),
                     modifier = Modifier.size(50.dp)
                 )
                 Text(
                     text = "No hay citas disponibles",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2563EB) // mismo color que el icono
+                    color = Color(0xFF2563EB)
                 )
             }
         }
@@ -518,7 +550,7 @@ fun DashboardPage(
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Text(
-                                            text = "${appointment.totalPrice ?: "0"}.00",
+                                            text = "${appointment.totalPrice ?: "0"}.00 ${appointment.methodPayment ?: ""}",
                                             fontSize = 14.sp,
                                             color = Color(0xFF64748B)
                                         )
@@ -536,7 +568,7 @@ fun DashboardPage(
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Text(
-                                            text = "60 min",
+                                            text = "${appointment.durationTotal ?: "0"} min",
                                             fontSize = 14.sp,
                                             color = Color(0xFF64748B)
                                         )
@@ -548,8 +580,8 @@ fun DashboardPage(
                         // Lista de Servicios a Realizar
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Column(
@@ -557,7 +589,7 @@ fun DashboardPage(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Text(
-                                    text = "Servicios a Realizar",
+                                    text = "Detalles del servicio",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF1E293B)
@@ -575,7 +607,7 @@ fun DashboardPage(
                                                     text = "Promoción: ${promo.namePromotion}",
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Medium,
-                                                    color = Color(0xFF7C3AED)
+                                                    color = Color(0xFF7C3AED),
                                                 )
 
                                                 promo.servicePromotion?.forEach { serviceId ->
