@@ -4,4 +4,5 @@ data class BarberInfo(
     val barberName: String? = null,
     val barberDescription: String? = null,
     val barberBanner: String? = null,
+    val schedule: Map<String, ScheduleDay> = emptyMap(),
 )
