@@ -476,7 +476,7 @@ fun SignUpPage(
                             OutlinedTextField(
                                 value = confirmPassword,
                                 onValueChange = { confirmPassword = it },
-                                label = { Text("Confirmar contraseña") },
+                                label = { Text("Confirmar contraseña",fontSize = 11.sp) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.Lock,

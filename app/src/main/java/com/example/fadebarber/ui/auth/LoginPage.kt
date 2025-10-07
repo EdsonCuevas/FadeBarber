@@ -321,7 +321,7 @@ fun LoginPage(
                         TextButton(onClick = { onNavigateResetP() }) {
                             Text(
                                 text = "¿Olvidaste tu contraseña?",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 color = Color(0xFF0A66C2),
                                 fontWeight = FontWeight.Medium
                             )
@@ -392,7 +392,7 @@ fun LoginPage(
                         ) {
                             Text(
                                 text = "¿No tienes cuenta? Regístrate",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 color = Color(0xFF0A66C2),
                                 fontWeight = FontWeight.Medium
                             )
