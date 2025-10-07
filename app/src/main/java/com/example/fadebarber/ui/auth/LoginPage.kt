@@ -130,25 +130,6 @@ fun LoginPage(
                 )
             )
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.tijeras_24),
-            contentDescription = "Scissors",
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .size(70.dp)
-                .padding(20.dp)
-                .background(Color.White.copy(alpha = 0.0f))
-        )
-
-        Image(
-            painter = painterResource(id = R.drawable.peluqueria_24),
-            contentDescription = "Barber chair",
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(70.dp)
-                .padding(25.dp)
-                .background(Color.White.copy(alpha = 0.0f))
-        )
 
         Column(
             modifier = Modifier
@@ -193,7 +174,7 @@ fun LoginPage(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.Top,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
@@ -202,6 +183,9 @@ fun LoginPage(
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1E293B)
                     )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
 
                     Text(
                         text = "Accede a tu cuenta de para disfrutar la experiencia completa",
@@ -253,6 +237,8 @@ fun LoginPage(
                             modifier = Modifier.align(Alignment.Start)
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // PASSWORD
                     OutlinedTextField(
@@ -310,6 +296,8 @@ fun LoginPage(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(6.dp))
+
                     // Animación de error unificada
                     AnimatedContent(targetState = errorMessage != null) { showError ->
                         if (showError) {
@@ -324,6 +312,17 @@ fun LoginPage(
                             )
                         }
                     }
+
+                    TextButton(onClick = { onNavigateResetP() }) {
+                        Text(
+                            text = "¿Olvidaste tu contraseña?",
+                            fontSize = 13.sp,
+                            color = Color(0xFF0A66C2),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // BOTÓN LOGIN
                     Button(
@@ -372,6 +371,8 @@ fun LoginPage(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     TextButton(
                         onClick = {
                             errorMessage = null
@@ -381,15 +382,6 @@ fun LoginPage(
                     ) {
                         Text(
                             text = "¿No tienes cuenta? Regístrate",
-                            fontSize = 13.sp,
-                            color = Color(0xFF0A66C2),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    TextButton(onClick = { onNavigateResetP() }) {
-                        Text(
-                            text = "¿Olvidaste tu contraseña?",
                             fontSize = 13.sp,
                             color = Color(0xFF0A66C2),
                             fontWeight = FontWeight.Medium

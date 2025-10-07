@@ -3,54 +3,41 @@ package com.example.fadebarber.navegation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.composable
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.composable
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.navegation.RolesNav.AdminNav
 import com.example.fadebarber.navegation.RolesNav.ClientNav
 import com.example.fadebarber.navegation.RolesNav.EmployeeNav
 import com.example.fadebarber.ui.admin.AdminScreens
-import com.example.fadebarber.ui.auth.ResetPassword
 import com.example.fadebarber.ui.auth.LoginPage
+import com.example.fadebarber.ui.auth.ResetPassword
 import com.example.fadebarber.ui.auth.SignUpPage
 import com.example.fadebarber.ui.client.ClientScreens
 import com.example.fadebarber.ui.employee.EmployeeScreens
-import androidx.compose.runtime.LaunchedEffect
-import com.example.fadebarber.data.AuthState
-import android.util.Log
-import androidx.compose.runtime.livedata.observeAsState
 
 
-enum class UserRole {CLIENT, EMPLOYEE, ADMIN, AUTH}
+enum class UserRole { CLIENT, EMPLOYEE, ADMIN, AUTH }
 
 @Composable
-fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
-    val navController = rememberNavController()
+fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: NavHostController) {
     val authState = authViewModel.authState.observeAsState()
 
-    // Observar el estado de autenticación para navegar al login cuando se cierre sesión
-    LaunchedEffect(authState.value) {
-        Log.d("RoleNavGraph", "AuthState cambió a: ${authState.value}, Role actual: $role")
-        if (authState.value is AuthState.Unauthenticated && role != UserRole.AUTH) {
-            Log.d("RoleNavGraph", "Navegando al login...")
-            navController.navigate("login") {
-                popUpTo(0) { inclusive = true }
-            }
-        }
-    }
-    val items = when(role) {
+    val items = when (role) {
         UserRole.CLIENT -> ClientNav.items
         UserRole.EMPLOYEE -> EmployeeNav.items
         UserRole.ADMIN -> AdminNav.items
         UserRole.AUTH -> emptyList()
     }
+
     val startDestination = when (role) {
         UserRole.CLIENT -> "home"           // Apunta a home
         UserRole.EMPLOYEE -> "dashboard"    // Dashboard para empleados
         UserRole.ADMIN -> "dashboard"
-        UserRole.AUTH  -> "login" // Solo para AUTH
+        UserRole.AUTH -> "login"            // Solo para AUTH
     }
 
     Scaffold(
@@ -71,7 +58,6 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
                         navController.navigate("resetpassword")
                     }
                 )
-
             }
 
             // Signup
@@ -93,23 +79,22 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
                     viewModel = authViewModel,
                     onResetSuccess = {
                         navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
+                            popUpTo("login") { inclusive = true } // Cambiado de 0 a "login"
                         }
                     },
                     onNavigateToLogin = {
                         navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
+                            popUpTo("login") { inclusive = true } // Cambiado de 0 a "login"
                         }
                     }
                 )
             }
 
-
             items.forEach { item ->
                 composable(item.route) {
                     when (role) {
-                        UserRole.CLIENT -> ClientScreens(item.route)
-                        UserRole.EMPLOYEE -> EmployeeScreens(item.route, navController)
+                        UserRole.CLIENT -> ClientScreens(item.route, authViewModel)
+                        UserRole.EMPLOYEE -> EmployeeScreens(item.route, authViewModel)
                         UserRole.ADMIN -> AdminScreens(item.route)
                         else -> {}
                     }
@@ -117,6 +102,4 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
             }
         }
     }
-
 }
-

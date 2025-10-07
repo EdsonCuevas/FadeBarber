@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,8 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.MonetizationOn
-import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,7 +27,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MenuItemColors
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,8 +44,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fadebarber.data.model.AppointmentClientData
-import com.example.fadebarber.data.model.AppointmentPromotion
-import com.example.fadebarber.data.model.AppointmentService
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
@@ -59,8 +53,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.text.Typography.times
-import kotlin.time.Duration.Companion.days
 
 @Composable
 fun AgendaCartForm(
@@ -75,12 +67,12 @@ fun AgendaCartForm(
     var selectedPayment by remember { mutableStateOf("Efectivo") }
 
     val today = LocalDate.now()
-    val dbFormatter = DateTimeFormatter.ofPattern("HH:mm")               // formato en DB: 20:00
-    val displayFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH) // para mostrar: 8:00 PM
-
+    val dbFormatter = DateTimeFormatter.ofPattern("HH:mm")
+    val displayFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
     val scope = rememberCoroutineScope()
 
     var occupiedTimeStrings by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var currentAppts by remember { mutableStateOf<List<AppointmentClientData>>(emptyList()) }
 
     // Días según el schedule del barbero seleccionado
     val availableDays by remember(selectedBarber, barbers) {
@@ -94,29 +86,33 @@ fun AgendaCartForm(
         }
     }
 
-
-
-    // Si cambian barbero o fecha, traemos las citas ocupadas desde la DB
+    // Traer citas ocupadas desde la DB
     LaunchedEffect(selectedBarber, selectedDate) {
         if (selectedBarber != null && selectedDate != null) {
             try {
-                val appts = FirebaseRepository.getAppointmentsByBarberAndDate(
+                currentAppts = FirebaseRepository.getAppointmentsByBarberAndDate(
                     barberId = selectedBarber!!,
-                    date = selectedDate.toString() // formato yyyy-MM-dd (LocalDate.toString)
+                    date = selectedDate.toString()
                 )
-                occupiedTimeStrings = appts.mapNotNull { it.timeAppointment }.toSet()
+                // Generar todos los slots ocupados según duración de cada cita
+                occupiedTimeStrings = currentAppts.flatMap { appt ->
+                    val start = LocalTime.parse(appt.timeAppointment, dbFormatter)
+                    val duration = appt.durationTotal ?: 0
+                    generateSequence(start) { it.plusMinutes(30) }
+                        .takeWhile { it.isBefore(start.plusMinutes(duration.toLong())) }
+                        .map { it.format(dbFormatter) }
+                }.toSet()
             } catch (e: Exception) {
                 occupiedTimeStrings = emptySet()
+                currentAppts = emptyList()
                 e.printStackTrace()
             }
-            // resetear selección de hora al cambiar día/barbero
             selectedTime = null
         } else {
             occupiedTimeStrings = emptySet()
             selectedTime = null
         }
     }
-
 
     val total = items.sumOf {
         when (it) {
@@ -171,7 +167,7 @@ fun AgendaCartForm(
             }
         }
 
-        // Fechas (solo si ya eligió barbero)
+        // Fechas
         if (selectedBarber != null) {
             Text("Selecciona la fecha", fontWeight = FontWeight.SemiBold)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -188,16 +184,19 @@ fun AgendaCartForm(
                         shape = RoundedCornerShape(12.dp),
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
-                        Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = day.dayOfMonth.toString(), fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else Color.Black)
-                            Text(text = day.month.name.take(3), fontSize = 12.sp, color = if (isSelected) Color.White else Color.Gray)
+                        Column(
+                            modifier = Modifier.padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(day.dayOfMonth.toString(), fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else Color.Black)
+                            Text(day.month.name.take(3), fontSize = 12.sp, color = if (isSelected) Color.White else Color.Gray)
                         }
                     }
                 }
             }
         }
 
-        // Horarios (mostramos todos los horarios del schedule pero marcamos deshabilitados los ocupados)
+        // Horarios
         if (selectedDate != null && selectedBarber != null) {
             Text("Selecciona la hora", fontWeight = FontWeight.SemiBold)
             val schedule = barbers.firstOrNull { it.id == selectedBarber }?.schedule
@@ -209,11 +208,11 @@ fun AgendaCartForm(
                     val start = LocalTime.parse(daySchedule.start, dbFormatter)
                     val end = LocalTime.parse(daySchedule.end, dbFormatter)
 
-                    // generamos slots cada 30 minutos (ajusta si quieres 60)
                     generateSequence(start) { it.plusMinutes(30) }
-                        .takeWhile { !it.isAfter(end.minusMinutes(0)) }
+                        .takeWhile { !it.isAfter(end) }
                         .forEach { slot ->
-                            val slotKey = slot.format(dbFormatter) // "HH:mm", igual que en DB
+                            val slotKey = slot.format(dbFormatter)
+
                             val isOccupied = occupiedTimeStrings.contains(slotKey)
                             val isSelected = selectedTime != null && selectedTime!!.format(dbFormatter) == slotKey
 
@@ -239,10 +238,7 @@ fun AgendaCartForm(
                             }
                         }
 
-                    if (occupiedTimeStrings.isNotEmpty() && generateSequence(start) { it.plusMinutes(30) }.takeWhile { !it.isAfter(end) }.none {
-                            it.format(dbFormatter) !in occupiedTimeStrings
-                        }) {
-                        // si todos ocupados
+                    if (occupiedTimeStrings.isNotEmpty() && generateSequence(start) { it.plusMinutes(30) }.takeWhile { !it.isAfter(end) }.none { it.format(dbFormatter) !in occupiedTimeStrings }) {
                         Text("No hay horarios disponibles 🚫", color = Color.Red)
                     }
                 } else {
@@ -251,14 +247,12 @@ fun AgendaCartForm(
             }
         }
 
-
-        // 🔹 Método de pago + Total
+        // Método de pago + Total
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // SelectBox (Dropdown estilizado)
             var expanded by remember { mutableStateOf(false) }
             Box {
                 OutlinedButton(
@@ -301,51 +295,44 @@ fun AgendaCartForm(
                             onClick = {
                                 selectedPayment = option
                                 expanded = false
-                            },
-                            modifier = Modifier
-                                .background(
-                                    if (selectedPayment == option) Color(0xFFE3F2FD) else Color.Transparent,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(4.dp)
+                            }
                         )
                     }
                 }
             }
 
-            // Total
-            Text(
-                text = "Total: $${total} MXN",
-                fontWeight = FontWeight.Bold,
-                fontSize = 24.sp,
-                color = Color(0xFF0A66C2)
-            )
+            Text("Total: $${total} MXN", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = Color(0xFF0A66C2))
         }
 
-        // Confirmar (verificación final antes de guardar)
+        // Confirmar
         Button(
             onClick = {
                 if (selectedBarber == null || selectedDate == null || selectedTime == null) {
                     onConfirm(false, "Selecciona barbero, fecha y hora")
                     return@Button
                 }
-                scope.launch {
-                    // Re-verificamos en la DB justo antes de salvar
-                    val currentAppts = FirebaseRepository.getAppointmentsByBarberAndDate(
-                        barberId = selectedBarber!!,
-                        date = selectedDate.toString()
-                    )
-                    val requestedTimeKey = selectedTime!!.format(dbFormatter)
-                    val conflict = currentAppts.any { it.timeAppointment == requestedTimeKey }
 
+                scope.launch {
+                    val requestedStart = selectedTime!!
+                    val totalDuration = items.sumOf {
+                        when (it) {
+                            is ServiceData -> it.durationService ?: 0
+                            is PromotionData -> it.durationPromotion ?: 0
+                            else -> 0
+                        }
+                    }
+                    val requestedEnd = requestedStart.plusMinutes(totalDuration.toLong())
+                    val requestedSlots = generateSequence(requestedStart) { it.plusMinutes(30) }
+                        .takeWhile { it.isBefore(requestedEnd) }
+                        .map { it.format(dbFormatter) }
+                        .toSet()
+
+                    val conflict = occupiedTimeStrings.any { it in requestedSlots }
                     if (conflict) {
-                        onConfirm(false, "Lo siento — ese horario ya fue reservado por otra persona.")
-                        // opcional: refrescar ocupados para que UI muestre bloqueo inmediato
-                        occupiedTimeStrings = currentAppts.mapNotNull { it.timeAppointment }.toSet()
+                        onConfirm(false, "Lo siento — alguno de los horarios seleccionados ya está ocupado.")
                         return@launch
                     }
 
-                    // construir AppointmentClientData con formato HH:mm
                     val serviceIds = items.filterIsInstance<ServiceData>().mapNotNull { it.id }
                     val promoIds = items.filterIsInstance<PromotionData>().mapNotNull { it.id }
                     val servicePrice = items.filterIsInstance<ServiceData>().sumOf { it.priceService ?: 0 }
@@ -358,14 +345,17 @@ fun AgendaCartForm(
                         serviceId = serviceIds,
                         idPromotion = promoIds,
                         dateAppointment = selectedDate.toString(),
-                        timeAppointment = selectedTime!!.format(dbFormatter),
+                        timeAppointment = requestedStart.format(dbFormatter),
                         methodPayment = selectedPayment,
                         totalPrice = servicePrice + promotionPrice,
-                        statusAppointment = 1
+                        statusAppointment = 1,
+                        durationTotal = totalDuration
                     )
 
                     val success = FirebaseRepository.saveAppointment(appointment)
                     if (success) {
+                        // Actualizar UI con slots ocupados
+                        occupiedTimeStrings = occupiedTimeStrings + requestedSlots
                         onConfirm(true, "Cita agendada correctamente 🎉")
                     } else {
                         onConfirm(false, "Error al guardar. Intenta de nuevo.")
