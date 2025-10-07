@@ -27,6 +27,7 @@ import com.example.fadebarber.ui.employee.pages.DashboardPage
 @Composable
 fun EmployeeScreens(
     route: String,
+    authViewModel: AuthViewModel,
     navController: NavController,
     viewModel: DashboardViewModel = viewModel()
 ) {

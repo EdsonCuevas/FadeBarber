@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
+import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.ui.client.pages.CuentaPage
@@ -27,7 +27,12 @@ import com.example.fadebarber.ui.client.pages.HomePage
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun ClientScreens(route: String,navController: NavController, homeViewModel: HomeViewModel = viewModel()) {
+fun ClientScreens(
+    route: String,
+    authViewModel: AuthViewModel,
+    navController: NavController,
+    homeViewModel: HomeViewModel = viewModel()
+) {
     val user = homeViewModel.currentUser.collectAsState().value
     val authViewModel: AuthViewModel = viewModel()
     val authState = authViewModel.authState.observeAsState()
@@ -36,14 +41,14 @@ fun ClientScreens(route: String,navController: NavController, homeViewModel: Hom
     when (route) {
         "home" -> {
             if (user != null) {
-                HomePage(user = user, viewModel =  homeViewModel) // 🔹 Le pasamos también el ViewModel
+                HomePage(user = user, viewModel = homeViewModel, authViewModel = authViewModel)
             } else {
                 Text("Cargando información del usuario...")
             }
         }
         "account" -> {
             if (user != null) {
-                CuentaPage() // 🔹 Le pasamos también el ViewModel
+                CuentaPage(authViewModel = authViewModel)
             } else {
                 Text("Cargando información del usuario...")
             }
