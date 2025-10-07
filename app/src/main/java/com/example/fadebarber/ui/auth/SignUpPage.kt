@@ -141,7 +141,7 @@ fun SignUpPage(
                 )
             )
     ) {
-        Image(
+       /** Image(
             painter = painterResource(id = R.drawable.tijeras_24),
             contentDescription = "Scissors",
             modifier = Modifier
@@ -161,6 +161,7 @@ fun SignUpPage(
                 .background(Color.White.copy(alpha = 0.0f))
         )
 
+        **/
         AnimatedContent(targetState = registerSuccess) { success ->
             if (success) {
                 // Pantalla de éxito
