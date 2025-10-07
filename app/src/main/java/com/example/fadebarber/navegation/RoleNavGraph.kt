@@ -93,8 +93,8 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
             items.forEach { item ->
                 composable(item.route) {
                     when (role) {
-                        UserRole.CLIENT -> ClientScreens(item.route, authViewModel, navController)
-                        UserRole.EMPLOYEE -> EmployeeScreens(item.route, authViewModel, navController)
+                        UserRole.CLIENT -> ClientScreens(item.route, authViewModel)
+                        UserRole.EMPLOYEE -> EmployeeScreens(item.route, authViewModel)
                         UserRole.ADMIN -> AdminScreens(item.route)
                         else -> {}
                     }

@@ -2,13 +2,18 @@ package com.example.fadebarber.ui.client
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
+import com.example.fadebarber.ui.client.pages.CitaPageClient
 import com.example.fadebarber.ui.client.pages.CuentaPage
 import com.example.fadebarber.ui.client.pages.HomePage
 
@@ -17,7 +22,6 @@ import com.example.fadebarber.ui.client.pages.HomePage
 fun ClientScreens(
     route: String,
     authViewModel: AuthViewModel,
-    navController: NavController,
     homeViewModel: HomeViewModel = viewModel()
 ) {
     val user = homeViewModel.currentUser.collectAsState().value
@@ -27,16 +31,38 @@ fun ClientScreens(
             if (user != null) {
                 HomePage(user = user, viewModel = homeViewModel, authViewModel = authViewModel)
             } else {
-                Text("Cargando información del usuario...")
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
         }
         "account" -> {
             if (user != null) {
                 CuentaPage(authViewModel = authViewModel)
             } else {
-                Text("Cargando información del usuario...")
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
         }
-        "date" -> Text("Pantalla Citas Cliente")
+
+        "date" -> {
+            if (user != null) {
+                CitaPageClient(user =  user)
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
     }
 }

@@ -62,7 +62,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.utils.NotificationHelper
@@ -73,10 +72,9 @@ import com.google.firebase.database.FirebaseDatabase
 @Composable
 fun CuentaV2(
     modifier: Modifier = Modifier,
-    navController: NavController = NavController(LocalContext.current),
-    viewModel: DashboardViewModel = viewModel()
+    viewModel: DashboardViewModel = viewModel(),
+    authViewModel: AuthViewModel
 ) {
-    val authViewModel: AuthViewModel = viewModel()
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
     val context = LocalContext.current
@@ -581,11 +579,8 @@ fun CuentaV2(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
+                        Log.d("CuentaPage", "Botón de logout presionado")
                         authViewModel.logout()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                            launchSingleTop = true
-                        }
                     },
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
                 shape = RoundedCornerShape(12.dp),
