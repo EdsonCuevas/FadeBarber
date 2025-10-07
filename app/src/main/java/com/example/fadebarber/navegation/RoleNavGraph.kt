@@ -1,26 +1,26 @@
 package com.example.fadebarber.navegation
 
+import android.util.Log
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.navegation.RolesNav.AdminNav
 import com.example.fadebarber.navegation.RolesNav.ClientNav
 import com.example.fadebarber.navegation.RolesNav.EmployeeNav
 import com.example.fadebarber.ui.admin.AdminScreens
-import com.example.fadebarber.ui.auth.ResetPassword
 import com.example.fadebarber.ui.auth.LoginPage
+import com.example.fadebarber.ui.auth.ResetPassword
 import com.example.fadebarber.ui.auth.SignUpPage
 import com.example.fadebarber.ui.client.ClientScreens
 import com.example.fadebarber.ui.employee.EmployeeScreens
-import androidx.compose.runtime.LaunchedEffect
-import com.example.fadebarber.data.AuthState
-import android.util.Log
-import androidx.compose.runtime.livedata.observeAsState
 
 
 enum class UserRole {CLIENT, EMPLOYEE, ADMIN, AUTH}
@@ -108,7 +108,7 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel) {
             items.forEach { item ->
                 composable(item.route) {
                     when (role) {
-                        UserRole.CLIENT -> ClientScreens(item.route)
+                        UserRole.CLIENT -> ClientScreens(item.route, navController)
                         UserRole.EMPLOYEE -> EmployeeScreens(item.route, navController)
                         UserRole.ADMIN -> AdminScreens(item.route)
                         else -> {}
