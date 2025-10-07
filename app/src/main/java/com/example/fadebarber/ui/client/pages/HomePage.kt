@@ -1,7 +1,5 @@
 package com.example.fadebarber.ui.client.pages
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.HomeTab
 import com.example.fadebarber.data.model.PromotionData
@@ -74,7 +73,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel(), user: UserData) {
+fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel(), user: UserData, authViewModel: AuthViewModel) {
 
     var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
 
@@ -241,8 +240,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                                 }
                             ]
                         ),
-                        color = Color(0xFF0A1F66), // 🔹 azul oscuro
-                        height = 3.dp              // puedes ajustar el grosor
+                        color = Color(0xFF0A1F66),
+                        height = 3.dp
                     )
                 }
             ) {
