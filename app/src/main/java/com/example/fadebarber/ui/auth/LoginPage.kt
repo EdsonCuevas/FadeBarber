@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -296,7 +297,7 @@ fun LoginPage(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     // Animación de error unificada
                     AnimatedContent(targetState = errorMessage != null) { showError ->
@@ -313,13 +314,18 @@ fun LoginPage(
                         }
                     }
 
-                    TextButton(onClick = { onNavigateResetP() }) {
-                        Text(
-                            text = "¿Olvidaste tu contraseña?",
-                            fontSize = 13.sp,
-                            color = Color(0xFF0A66C2),
-                            fontWeight = FontWeight.Medium
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        TextButton(onClick = { onNavigateResetP() }) {
+                            Text(
+                                text = "¿Olvidaste tu contraseña?",
+                                fontSize = 13.sp,
+                                color = Color(0xFF0A66C2),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -373,19 +379,24 @@ fun LoginPage(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    TextButton(
-                        onClick = {
-                            errorMessage = null
-                            viewModel.prepareForSignUp()
-                            onNavigateToSignUp()
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start
                     ) {
-                        Text(
-                            text = "¿No tienes cuenta? Regístrate",
-                            fontSize = 13.sp,
-                            color = Color(0xFF0A66C2),
-                            fontWeight = FontWeight.Medium
-                        )
+                        TextButton(
+                            onClick = {
+                                errorMessage = null
+                                viewModel.prepareForSignUp()
+                                onNavigateToSignUp()
+                            }
+                        ) {
+                            Text(
+                                text = "¿No tienes cuenta? Regístrate",
+                                fontSize = 13.sp,
+                                color = Color(0xFF0A66C2),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
