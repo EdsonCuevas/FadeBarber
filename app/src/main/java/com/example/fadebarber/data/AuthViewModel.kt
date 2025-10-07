@@ -172,9 +172,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
+        auth.signOut()
         viewModelScope.launch {
-            auth.signOut()
-            UserPreferences.saveUserRole(appContext, -1) // reset
+            UserPreferences.saveUserRole(appContext, -1)
             _authState.postValue(AuthState.Unauthenticated)
         }
     }

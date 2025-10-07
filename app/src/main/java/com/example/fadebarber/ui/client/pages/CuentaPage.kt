@@ -73,10 +73,9 @@ import com.google.firebase.database.FirebaseDatabase
 @Composable
 fun CuentaPage(
     modifier: Modifier = Modifier,
-    navController: NavController = NavController(LocalContext.current),
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    authViewModel: AuthViewModel
 ) {
-    val authViewModel: AuthViewModel = viewModel()
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
     val barberInfo = viewModel.info.collectAsState().value
@@ -114,6 +113,8 @@ fun CuentaPage(
 
     // Cargar datos del usuario
     LaunchedEffect(user) {
+        Log.d("CuentaPage", "CuentaPage se está mostrando")
+
         user?.let {
             editableName = it.nameUser
             editableEmail = it.correoUser
@@ -584,11 +585,8 @@ fun CuentaPage(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
+                        Log.d("CuentaPage", "Botón de logout presionado")
                         authViewModel.logout()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                            launchSingleTop = true
-                        }
                     },
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
                 shape = RoundedCornerShape(12.dp),
@@ -609,7 +607,7 @@ fun CuentaPage(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Cerrar Sesión",
+                        text = "Cerrar Sesión xddd",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFFD32F2F)
