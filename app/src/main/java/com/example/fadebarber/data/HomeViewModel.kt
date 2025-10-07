@@ -40,7 +40,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    private fun loadCurrentUser() {
+    fun loadCurrentUser() {
         val uid = auth.currentUser?.uid ?: return
         database.child(uid).get()
             .addOnSuccessListener { snapshot ->

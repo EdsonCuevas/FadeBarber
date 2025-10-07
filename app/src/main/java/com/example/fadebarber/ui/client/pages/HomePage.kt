@@ -1,13 +1,10 @@
 package com.example.fadebarber.ui.client.pages
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
@@ -53,17 +49,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import com.example.fadebarber.R
+import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.HomeTab
 import com.example.fadebarber.data.model.PromotionData
@@ -71,7 +63,6 @@ import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.ui.client.components.AgendaCartForm
-import com.example.fadebarber.ui.client.components.AgendaServiceForm
 import com.example.fadebarber.ui.client.components.BarberBanner
 import com.example.fadebarber.ui.client.components.PromotionCard
 import com.example.fadebarber.ui.client.components.SearchBar
@@ -80,10 +71,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
-@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel(), user: UserData) {
+fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel(), user: UserData, authViewModel: AuthViewModel) {
 
     var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
 
@@ -250,8 +240,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
                                 }
                             ]
                         ),
-                        color = Color(0xFF0A1F66), // 🔹 azul oscuro
-                        height = 3.dp              // puedes ajustar el grosor
+                        color = Color(0xFF0A1F66),
+                        height = 3.dp
                     )
                 }
             ) {
@@ -356,37 +346,6 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel
             }
         }
 
-
-        // BottomSheet de agendar cita
-        if (selectedService != null) {
-            ModalBottomSheet(
-                onDismissRequest = {
-                    scope.launch { sheetState.hide() }.invokeOnCompletion {
-                        if (!sheetState.isVisible) {
-                            selectedService = null
-                        }
-                    }
-                },
-                sheetState = sheetState,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                containerColor = Color.White
-            ) {
-                AgendaServiceForm(
-                    service = selectedService!!,
-                    barbers = barbers,
-                    userId = user.id,
-                    onConfirm = { success, message ->
-                        alertMessage = message
-                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
-                        showAlert = true
-
-                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                            selectedService = null
-                        }
-                    }
-                )
-            }
-        }
 
         if (showCartAgenda) {
             ModalBottomSheet(

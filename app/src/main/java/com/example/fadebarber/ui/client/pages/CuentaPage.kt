@@ -1,4 +1,4 @@
-package com.example.fadebarber.ui.employee.pages
+package com.example.fadebarber.ui.client.pages
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,7 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
@@ -53,7 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,20 +63,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.data.AuthViewModel
-import com.example.fadebarber.data.DashboardViewModel
+import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CuentaV2(
+fun CuentaPage(
     modifier: Modifier = Modifier,
-    viewModel: DashboardViewModel = viewModel(),
+    viewModel: HomeViewModel = viewModel(),
     authViewModel: AuthViewModel
 ) {
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
+    val barberInfo = viewModel.info.collectAsState().value
     val context = LocalContext.current
 
     // Estados para editar información
@@ -111,6 +112,8 @@ fun CuentaV2(
 
     // Cargar datos del usuario
     LaunchedEffect(user) {
+        Log.d("CuentaPage", "CuentaPage se está mostrando")
+
         user?.let {
             editableName = it.nameUser
             editableEmail = it.correoUser
@@ -163,7 +166,9 @@ fun CuentaV2(
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                }
+                Text(text = editableEmail, fontSize = 14.sp, color = Color.Gray)
+                Text(text = editablePhone, fontSize = 14.sp, color = Color.Gray)
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -330,11 +335,11 @@ fun CuentaV2(
             // -------------------
             // Información Personal
             // -------------------
-            /*InfoPersonalSection(
+            InfoPersonalSection(
                 editableName = editableName,
                 editableEmail = editableEmail,
                 editablePhone = editablePhone
-            )*/
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -526,7 +531,7 @@ fun CuentaV2(
             // Gestionar Horario
             // -------------------
             Text(
-                text = "Gestionar Horario",
+                text = "Horarios laborales",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
@@ -543,8 +548,8 @@ fun CuentaV2(
             ) {
                 AnimatedVisibility(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
+                        .fillMaxHeight()
+                        .fillMaxWidth(),
                     visible = showHorario,
                     enter = expandVertically(),
                     exit = shrinkVertically()
@@ -556,7 +561,7 @@ fun CuentaV2(
                         )
 
                         diasOrdenados.forEach { dia ->
-                            val horario = user?.schedule?.get(dia)
+                            val horario = barberInfo?.schedule?.get(dia)
                             horario?.let {
                                 HorarioItem(
                                     isOpen = it.available,
@@ -594,7 +599,7 @@ fun CuentaV2(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.ExitToApp,
+                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                         contentDescription = "Cerrar Sesión",
                         tint = Color(0xFFD32F2F),
                         modifier = Modifier.size(20.dp)
@@ -737,41 +742,6 @@ private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
     }
 }
 
-@Composable
-private fun MenuItemWithIcon(icon: ImageVector, text: String, iconColor: Color, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = text,
-                    tint = iconColor,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(text = text, fontSize = 16.sp, color = Color.Black)
-            }
-            Icon(
-                imageVector = Icons.Filled.KeyboardArrowRight,
-                contentDescription = "Ir a $text",
-                tint = Color.Gray
-            )
-        }
-    }
-}
 
 // -------------------
 // HorarioItem
@@ -933,7 +903,7 @@ private fun updateUserData(
     email: String,
     phone: String,
     context: android.content.Context,
-    viewModel: DashboardViewModel,
+    viewModel: HomeViewModel,
     onLoadingChange: (Boolean) -> Unit,
     onSuccess: () -> Unit,
     onShowAlert: (String, Color) -> Unit
