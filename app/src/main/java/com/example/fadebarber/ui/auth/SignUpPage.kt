@@ -107,12 +107,14 @@ fun SignUpPage(
     val isEmailValid = emailRegex.matches(email)
     val isPhoneValid = phoneRegex.matches(phone)
 
-    // Validaciones de contraseña detalladas
+    // Validaciones de contraseña detalladas - ahora con todos los caracteres especiales
     val hasMinLength = password.length >= 8
     val hasUppercase = password.any { it.isUpperCase() }
     val hasLowercase = password.any { it.isLowerCase() }
     val hasDigit = password.any { it.isDigit() }
-    val hasSpecialChar = password.any { it == '!' || it == '?' }
+    val hasSpecialChar = password.any {
+        it in "!@#$%^&*()_+-=[]{}|;:,.<>?~`\"'\\/<> "
+    }
     val isPasswordValid = hasMinLength && hasUppercase && hasLowercase && hasDigit && hasSpecialChar
     val isPasswordMatchValid = password == confirmPassword
 
@@ -481,7 +483,7 @@ fun SignUpPage(
                                         color = if (hasDigit) Color(0xFF34D399) else Color.Red
                                     )
                                     Text(
-                                        text = "• Al menos 1 carácter especial (! o ?).",
+                                        text = "• Al menos 1 carácter especial.",
                                         fontSize = 11.sp,
                                         color = if (hasSpecialChar) Color(0xFF34D399) else Color.Red
                                     )
