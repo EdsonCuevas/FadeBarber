@@ -89,7 +89,7 @@ fun LoginPage(
 
     // Regex de validaciones
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
-    val passwordRegex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!?]).{8,}$".toRegex()
+    val passwordRegex = "^(?=.*[0-9]).{8,}$".toRegex()
     val isEmailValid = emailRegex.matches(email)
     val isPasswordValid = passwordRegex.matches(password)
 
