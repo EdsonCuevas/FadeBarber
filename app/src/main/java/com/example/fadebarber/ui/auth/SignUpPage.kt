@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,11 +19,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Visibility
@@ -31,6 +34,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,11 +59,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fadebarber.R
@@ -70,7 +79,9 @@ import com.example.fadebarber.data.AuthViewModel
 fun SignUpPage(
     viewModel: AuthViewModel,
     onRegisterSuccess: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToTerms: () -> Unit = {},  // Nueva función para términos
+    onNavigateToPrivacy: () -> Unit = {} // Nueva función para privacidad
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -79,6 +90,7 @@ fun SignUpPage(
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var termsAccepted by remember { mutableStateOf(false) }
     var registerSuccess by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
 
@@ -103,6 +115,10 @@ fun SignUpPage(
     val hasSpecialChar = password.any { it == '!' || it == '?' }
     val isPasswordValid = hasMinLength && hasUppercase && hasLowercase && hasDigit && hasSpecialChar
     val isPasswordMatchValid = password == confirmPassword
+
+    // Validación de formulario completo
+    val isFormValid = isNameValid && isEmailValid && isPhoneValid &&
+            isPasswordValid && isPasswordMatchValid && termsAccepted
 
     LaunchedEffect(authState.value) {
         when(val state = authState.value) {
@@ -141,27 +157,27 @@ fun SignUpPage(
                 )
             )
     ) {
-       /** Image(
-            painter = painterResource(id = R.drawable.tijeras_24),
-            contentDescription = "Scissors",
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .size(70.dp)
-                .padding(20.dp)
-                .background(Color.White.copy(alpha = 0.0f))
+        /** Image(
+        painter = painterResource(id = R.drawable.tijeras_24),
+        contentDescription = "Scissors",
+        modifier = Modifier
+        .align(Alignment.TopStart)
+        .size(70.dp)
+        .padding(20.dp)
+        .background(Color.White.copy(alpha = 0.0f))
         )
 
         Image(
-            painter = painterResource(id = R.drawable.peluqueria_24),
-            contentDescription = "Barber chair",
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(70.dp)
-                .padding(25.dp)
-                .background(Color.White.copy(alpha = 0.0f))
+        painter = painterResource(id = R.drawable.peluqueria_24),
+        contentDescription = "Barber chair",
+        modifier = Modifier
+        .align(Alignment.TopEnd)
+        .size(70.dp)
+        .padding(25.dp)
+        .background(Color.White.copy(alpha = 0.0f))
         )
 
-        **/
+         **/
         AnimatedContent(targetState = registerSuccess) { success ->
             if (success) {
                 // Pantalla de éxito
@@ -363,7 +379,7 @@ fun SignUpPage(
                                 label = { Text("Correo electrónico") },
                                 leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Default.Lock,
+                                        imageVector = Icons.Default.Mail,
                                         contentDescription = null,
                                         tint = if (email.isEmpty()) Color.Gray else Color(0xFF0A66C2)
                                     )
@@ -476,7 +492,7 @@ fun SignUpPage(
                             OutlinedTextField(
                                 value = confirmPassword,
                                 onValueChange = { confirmPassword = it },
-                                label = { Text("Confirmar contraseña") },
+                                label = { Text("Confirmar contraseña", fontSize = 11.sp) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.Lock,
@@ -524,9 +540,110 @@ fun SignUpPage(
                                 )
                             }
 
+                            // Términos y condiciones
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = termsAccepted,
+                                    onCheckedChange = { termsAccepted = it },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = Color(0xFF0A66C2),
+                                        uncheckedColor = Color.Gray,
+                                        checkmarkColor = Color.White
+                                    )
+                                )
+                                // Usar ClickableText en lugar de Text
+                                ClickableText(
+                                    text = buildAnnotatedString {
+                                        append("Acepto los ")
+
+                                        // Términos y Condiciones
+                                        pushStringAnnotation(
+                                            tag = "TERMS",
+                                            annotation = "terms"
+                                        )
+                                        withStyle(
+                                            style = SpanStyle(
+                                                color = Color(0xFF0A66C2),
+                                                textDecoration = TextDecoration.Underline
+                                            )
+                                        ) {
+                                            append("Términos y Condiciones")
+                                        }
+                                        pop()
+
+                                        append(" y la ")
+
+                                        // Política de Privacidad
+                                        pushStringAnnotation(
+                                            tag = "PRIVACY",
+                                            annotation = "privacy"
+                                        )
+                                        withStyle(
+                                            style = SpanStyle(
+                                                color = Color(0xFF0A66C2),
+                                                textDecoration = TextDecoration.Underline
+                                            )
+                                        ) {
+                                            append("Política de Privacidad")
+                                        }
+                                        pop()
+                                    },
+                                    //fontSize = 12.sp,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(start = 8.dp),
+                                    onClick = { offset ->
+                                        val annotatedString = buildAnnotatedString {
+                                            append("Acepto los ")
+                                            pushStringAnnotation(
+                                                tag = "TERMS",
+                                                annotation = "terms"
+                                            )
+                                            withStyle(
+                                                style = SpanStyle(
+                                                    color = Color(0xFF0A66C2),
+                                                    textDecoration = TextDecoration.Underline
+                                                )
+                                            ) {
+                                                append("Términos y Condiciones")
+                                            }
+                                            pop()
+                                            append(" y la ")
+                                            pushStringAnnotation(
+                                                tag = "PRIVACY",
+                                                annotation = "privacy"
+                                            )
+                                            withStyle(
+                                                style = SpanStyle(
+                                                    color = Color(0xFF0A66C2),
+                                                    textDecoration = TextDecoration.Underline
+                                                )
+                                            ) {
+                                                append("Política de Privacidad")
+                                            }
+                                            pop()
+                                        }
+
+                                        annotatedString.getStringAnnotations(offset, offset).firstOrNull()?.let { annotation ->
+                                            when (annotation.tag) {
+                                                "TERMS" -> onNavigateToTerms()
+                                                "PRIVACY" -> onNavigateToPrivacy()
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+
                             Button(
                                 onClick = {
-                                    if (!isPasswordMatchValid) {
+                                    if (!termsAccepted) {
+                                        Toast.makeText(context, "Debes aceptar los términos y condiciones", Toast.LENGTH_SHORT).show()
+                                    } else if (!isPasswordMatchValid) {
                                         Toast.makeText(context, "Las contraseñas no coinciden", Toast.LENGTH_SHORT).show()
                                     } else if (!isPasswordValid) {
                                         Toast.makeText(
@@ -549,10 +666,10 @@ fun SignUpPage(
                                     .height(48.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF0A66C2),
+                                    containerColor = if (isFormValid) Color(0xFF0A66C2) else Color.Gray,
                                     contentColor = Color.White
                                 ),
-                                enabled = !isProcessing
+                                enabled = isFormValid && !isProcessing
                             ) {
                                 if (isProcessing) {
                                     LinearProgressIndicator(
