@@ -17,15 +17,18 @@ class HomeViewModel : ViewModel() {
 
     private val _services = MutableStateFlow<List<ServiceData>>(emptyList())
     private val _promotions = MutableStateFlow<List<PromotionData>>(emptyList())
-
     private val _barbers = MutableStateFlow<List<UserData>>(emptyList())
     private val _info = MutableStateFlow<BarberInfo?>(null)
     private val _currentUser = MutableStateFlow<UserData?>(null)
+
+    // NUEVO: Estado del carrito
+    private val _cartItems = MutableStateFlow<List<Any>>(emptyList())
 
     val services: StateFlow<List<ServiceData>> = _services
     val promotions: StateFlow<List<PromotionData>> = _promotions
     val info: StateFlow<BarberInfo?> = _info
     val currentUser: StateFlow<UserData?> = _currentUser
+    val cartItems: StateFlow<List<Any>> = _cartItems
 
     private val auth = FirebaseAuth.getInstance()
     private val database = FirebaseDatabase.getInstance().getReference("User")
@@ -51,4 +54,19 @@ class HomeViewModel : ViewModel() {
                 _currentUser.value = null
             }
     }
+
+    // Funciones para manejar el carrito
+    fun addToCart(item: Any) {
+        _cartItems.value = _cartItems.value + item
+    }
+
+    fun removeFromCart(item: Any) {
+        _cartItems.value = _cartItems.value - item
+    }
+
+    fun clearCart() {
+        _cartItems.value = emptyList()
+    }
+
+    fun getCartItemsCount(): Int = _cartItems.value.size
 }

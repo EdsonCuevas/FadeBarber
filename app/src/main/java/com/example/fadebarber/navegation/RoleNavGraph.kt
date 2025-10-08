@@ -4,12 +4,14 @@ package com.example.fadebarber.navegation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.fadebarber.data.AuthViewModel
+import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.navegation.RolesNav.AdminNav
 import com.example.fadebarber.navegation.RolesNav.ClientNav
 import com.example.fadebarber.navegation.RolesNav.EmployeeNav
@@ -22,7 +24,6 @@ enum class UserRole { CLIENT, EMPLOYEE, ADMIN, AUTH }
 
 @Composable
 fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: NavHostController) {
-    val authState = authViewModel.authState.observeAsState()
 
     val items = when (role) {
         UserRole.CLIENT -> ClientNav.items
@@ -105,9 +106,24 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
             }
 
             items.forEach { item ->
-                composable(item.route) {
+                composable(item.route) { backStackEntry ->
                     when (role) {
-                        UserRole.CLIENT -> ClientScreens(item.route, authViewModel)
+                        UserRole.CLIENT -> {
+                            // ✅ Recordamos el backStackEntry asociado a "home" una sola vez
+                            val parentEntry = remember(backStackEntry) {
+                                navController.getBackStackEntry("home")
+                            }
+
+                            // ✅ ViewModel compartido entre pantallas del cliente
+                            val homeViewModel: HomeViewModel = viewModel(parentEntry)
+
+                            ClientScreens(
+                                route = item.route,
+                                authViewModel = authViewModel,
+                                homeViewModel = homeViewModel
+                            )
+                        }
+
                         UserRole.EMPLOYEE -> EmployeeScreens(item.route, authViewModel)
                         UserRole.ADMIN -> AdminScreens(item.route)
                         else -> {}
