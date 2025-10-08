@@ -88,7 +88,6 @@ fun HomePage(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(),
     user: UserData,
-    authViewModel: AuthViewModel
 ) {
 
     var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
@@ -96,15 +95,11 @@ fun HomePage(
     val info by viewModel.info.collectAsState()
     val services by viewModel.services.collectAsState()
     val promotions by viewModel.promotions.collectAsState()
+    val cartItems by viewModel.cartItems.collectAsState() // ✅ Cambio aquí
+
     val barbers by produceState<List<UserData>>(initialValue = emptyList()) {
         value = FirebaseRepository.getBarbers()
     }
-
-    val scope = rememberCoroutineScope()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    var selectedService by remember { mutableStateOf<ServiceData?>(null) }
-    var selectedPromotion by remember { mutableStateOf<PromotionData?>(null) }
 
     var showAlert by remember { mutableStateOf(false) }
     var alertMessage by remember { mutableStateOf<String?>(null) }
@@ -112,7 +107,6 @@ fun HomePage(
 
     var searchQuery by remember { mutableStateOf("") }
 
-    var cartItems by remember { mutableStateOf<List<Any>>(emptyList()) }
     var showCart by remember { mutableStateOf(false) }
 
     var showCartAgenda by remember { mutableStateOf(false) }
@@ -443,7 +437,7 @@ fun HomePage(
                                 ServiceCard(
                                     service = service,
                                     onClick = {
-                                        cartItems = cartItems + service
+                                        viewModel.addToCart(service) // ✅ Cambio aquí
                                         alertMessage = "${service.nameService} agregado al carrito 🛒"
                                         alertColor = Color(0xFF10B981)
                                         showAlert = true
@@ -461,7 +455,7 @@ fun HomePage(
                         if (filteredPromos.isNotEmpty()) {
                             items(filteredPromos) { promo ->
                                 PromotionCard(promotion = promo, allServices = services) {
-                                    cartItems = cartItems + promo
+                                    viewModel.addToCart(promo) // ✅ Cambio aquí
                                     alertMessage = "${promo.namePromotion} agregado al carrito 🛒"
                                     alertColor = Color(0xFF10B981)
                                     showAlert = true
@@ -678,7 +672,7 @@ fun HomePage(
                         showAlert = true
                         showCart = false
                         showCartAgenda = false
-                        cartItems = emptyList()
+                        viewModel.clearCart() // ✅ Cambio aquí
                     }
                 )
             }
@@ -693,7 +687,7 @@ fun HomePage(
                 CartPage(
                     items = cartItems,
                     onClose = { showCart = false },
-                    onRemove = { item -> cartItems = cartItems - item },
+                    onRemove = { item -> viewModel.removeFromCart(item) }, // ✅ Cambio aquí
                     onAgendar = {
                         showCartAgenda = true
                     }
