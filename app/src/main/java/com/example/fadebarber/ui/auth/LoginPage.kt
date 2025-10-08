@@ -77,6 +77,8 @@ fun LoginPage(
     var passwordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
+    var showEmailError by remember { mutableStateOf(false) }
+    var showPasswordError by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val authState = viewModel.authState.observeAsState()
     val context = LocalContext.current
@@ -99,9 +101,16 @@ fun LoginPage(
             is AuthState.Error -> {
                 isProcessing = false
                 errorMessage = state.message
-                scope.launch {
-                    kotlinx.coroutines.delay(3000)
-                    errorMessage = null
+                // Verificar si el error es de cuenta no verificada
+                if (state.message?.contains("email") == true ||
+                    state.message?.contains("verification") == true ||
+                    state.message?.contains("verificado") == true) {
+                    // No hacer nada, dejar el error como está
+                } else {
+                    scope.launch {
+                        kotlinx.coroutines.delay(3000)
+                        errorMessage = null
+                    }
                 }
             }
             is AuthState.Loading -> {
@@ -200,6 +209,7 @@ fun LoginPage(
                         onValueChange = {
                             email = it
                             if (errorMessage != null) errorMessage = null
+                            showEmailError = false
                         },
                         label = { Text("Correo electrónico") },
                         leadingIcon = {
@@ -212,16 +222,8 @@ fun LoginPage(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = when {
-                                email.isEmpty() -> Color.Gray
-                                isEmailValid -> Color(0xFF34D399)
-                                else -> Color.Red
-                            },
-                            unfocusedBorderColor = when {
-                                email.isEmpty() -> Color.Gray
-                                isEmailValid -> Color(0xFF34D399)
-                                else -> Color.Red
-                            },
+                            focusedBorderColor = if (showEmailError) Color.Red else Color.Gray,
+                            unfocusedBorderColor = if (showEmailError) Color.Red else Color.Gray,
                             focusedLabelColor = Color(0xFF0A66C2),
                             unfocusedLabelColor = Color.Gray,
                             focusedTrailingIconColor = Color(0xFF0A66C2),
@@ -229,14 +231,6 @@ fun LoginPage(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     )
-                    if (email.isNotEmpty() && !isEmailValid) {
-                        Text(
-                            text = "Formato de correo electrónico inválido.",
-                            color = Color.Red,
-                            fontSize = 11.sp,
-                            modifier = Modifier.align(Alignment.Start)
-                        )
-                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -246,6 +240,7 @@ fun LoginPage(
                         onValueChange = {
                             password = it
                             if (errorMessage != null) errorMessage = null
+                            showPasswordError = false
                         },
                         label = { Text("Contraseña") },
                         leadingIcon = {
@@ -270,16 +265,8 @@ fun LoginPage(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = when {
-                                password.isEmpty() -> Color.Gray
-                                isPasswordValid -> Color(0xFF34D399)
-                                else -> Color.Red
-                            },
-                            unfocusedBorderColor = when {
-                                password.isEmpty() -> Color.Gray
-                                isPasswordValid -> Color(0xFF34D399)
-                                else -> Color.Red
-                            },
+                            focusedBorderColor = if (showPasswordError) Color.Red else Color.Gray,
+                            unfocusedBorderColor = if (showPasswordError) Color.Red else Color.Gray,
                             focusedLabelColor = Color(0xFF0A66C2),
                             unfocusedLabelColor = Color.Gray,
                             focusedTrailingIconColor = Color(0xFF0A66C2),
@@ -287,14 +274,6 @@ fun LoginPage(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     )
-                    if (password.isNotEmpty() && !isPasswordValid) {
-                        Text(
-                            text = "Formato de contraseña inválido.",
-                            color = Color.Red,
-                            fontSize = 11.sp,
-                            modifier = Modifier.align(Alignment.Start)
-                        )
-                    }
 
                     Spacer(modifier = Modifier.height(2.dp))
 
@@ -332,20 +311,25 @@ fun LoginPage(
                     // BOTÓN LOGIN
                     Button(
                         onClick = {
-                            if (isEmailValid && isPasswordValid) {
+                            showEmailError = false
+                            showPasswordError = false
+
+                            val emailValid = emailRegex.matches(email)
+                            val passwordValid = passwordRegex.matches(password)
+
+                            if (emailValid && passwordValid) {
                                 viewModel.login(email, password)
                             } else {
-                                if (!isEmailValid && !isPasswordValid) {
+                                if (!emailValid && !passwordValid) {
+                                    showEmailError = true
+                                    showPasswordError = true
                                     errorMessage = "Correo y contraseña inválidos"
-                                } else if (!isEmailValid) {
+                                } else if (!emailValid) {
+                                    showEmailError = true
                                     errorMessage = "Correo inválido"
-                                } else if (!isPasswordValid) {
+                                } else if (!passwordValid) {
+                                    showPasswordError = true
                                     errorMessage = "Contraseña inválida"
-                                }
-
-                                scope.launch {
-                                    kotlinx.coroutines.delay(3000)
-                                    errorMessage = null
                                 }
                             }
                         },
