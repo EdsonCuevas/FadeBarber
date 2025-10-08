@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -86,14 +87,14 @@ fun SignUpPage(
     onNavigateToTerms: () -> Unit = {},
     onNavigateToPrivacy: () -> Unit = {}
 ) {
-    var name by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    val name by viewModel.registerName.collectAsState()
+    val phone by viewModel.registerPhone.collectAsState()
+    val email by viewModel.registerEmail.collectAsState()
+    val password by viewModel.registerPassword.collectAsState()
+    val confirmPassword by viewModel.registerConfirmPassword.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
-    var termsAccepted by remember { mutableStateOf(false) }
+    val termsAccepted by viewModel.termsAccepted.collectAsState()
     var registerSuccess by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
 
@@ -302,7 +303,7 @@ fun SignUpPage(
                                 )
                                 OutlinedTextField(
                                     value = name,
-                                    onValueChange = { name = it },
+                                    onValueChange = { viewModel.updateRegisterName(it) },
                                     placeholder = { Text("Juan Pérez", color = Color(0xFF94A3B8)) },
                                     leadingIcon = {
                                         Icon(
@@ -353,7 +354,7 @@ fun SignUpPage(
                                 )
                                 OutlinedTextField(
                                     value = phone,
-                                    onValueChange = { if (it.all { ch -> ch.isDigit() }) phone = it },
+                                    onValueChange = { if (it.all { ch -> ch.isDigit() }) viewModel.updateRegisterPhone(it)},
                                     placeholder = { Text("3121234567", color = Color(0xFF94A3B8)) },
                                     leadingIcon = {
                                         Icon(
@@ -407,7 +408,7 @@ fun SignUpPage(
                                 )
                                 OutlinedTextField(
                                     value = email,
-                                    onValueChange = { email = it },
+                                    onValueChange = {viewModel.updateRegisterEmail(it)},
                                     placeholder = { Text("ejemplo@correo.com", color = Color(0xFF94A3B8)) },
                                     leadingIcon = {
                                         Icon(
@@ -458,7 +459,7 @@ fun SignUpPage(
                                 )
                                 OutlinedTextField(
                                     value = password,
-                                    onValueChange = { password = it },
+                                    onValueChange = { viewModel.updateRegisterPassword(it)},
                                     placeholder = { Text("••••••••", color = Color(0xFF94A3B8)) },
                                     leadingIcon = {
                                         Icon(
@@ -559,7 +560,7 @@ fun SignUpPage(
                                 )
                                 OutlinedTextField(
                                     value = confirmPassword,
-                                    onValueChange = { confirmPassword = it },
+                                    onValueChange = { viewModel.updateRegisterConfirmPassword(it) },
                                     placeholder = { Text("••••••••", color = Color(0xFF94A3B8)) },
                                     leadingIcon = {
                                         Icon(
@@ -619,7 +620,7 @@ fun SignUpPage(
                             ) {
                                 Checkbox(
                                     checked = termsAccepted,
-                                    onCheckedChange = { termsAccepted = it },
+                                    onCheckedChange = { viewModel.updateTermsAccepted(it) },
                                     colors = CheckboxDefaults.colors(
                                         checkedColor = Color(0xFF2563EB),
                                         uncheckedColor = Color(0xFF64748B),
