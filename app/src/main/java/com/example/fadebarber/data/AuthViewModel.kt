@@ -10,7 +10,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -30,8 +32,40 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _errorEvent = MutableSharedFlow<Event<String>>()
     val errorEvent = _errorEvent.asSharedFlow()
 
+    //Variables de signup
+    private val _registerName = MutableStateFlow("")
+    private val _registerPhone = MutableStateFlow("")
+    private val _registerEmail = MutableStateFlow("")
+    private val _registerPassword = MutableStateFlow("")
+    private val _registerConfirmPassword = MutableStateFlow("")
+    private val _termsAccepted = MutableStateFlow(false)
+
+    val registerName = _registerName.asStateFlow()
+    val registerPhone = _registerPhone.asStateFlow()
+    val registerEmail = _registerEmail.asStateFlow()
+    val registerPassword = _registerPassword.asStateFlow()
+    val registerConfirmPassword = _registerConfirmPassword.asStateFlow()
+    val termsAccepted = _termsAccepted.asStateFlow()
+    //Terminan las variables
+
     init {
         checkAuthStatus()
+
+    }
+    fun updateRegisterName(value: String) { _registerName.value = value }
+    fun updateRegisterPhone(value: String) { _registerPhone.value = value }
+    fun updateRegisterEmail(value: String) { _registerEmail.value = value }
+    fun updateRegisterPassword(value: String) { _registerPassword.value = value }
+    fun updateRegisterConfirmPassword(value: String) { _registerConfirmPassword.value = value }
+    fun updateTermsAccepted(value: Boolean) { _termsAccepted.value = value }
+
+    fun clearRegisterForm() {
+        _registerName.value = ""
+        _registerPhone.value = ""
+        _registerEmail.value = ""
+        _registerPassword.value = ""
+        _registerConfirmPassword.value = ""
+        _termsAccepted.value = false
     }
 
     fun checkAuthStatus() {
@@ -222,3 +256,4 @@ class Event<T> {
         content = null
     }
 }
+
