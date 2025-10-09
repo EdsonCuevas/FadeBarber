@@ -644,6 +644,8 @@ fun AgendaCartForm(
 
                     scope.launch {
                         val requestedStart = selectedTime!!
+
+                        // 🧮 Calcular la duración total de todos los servicios y promociones
                         val totalDuration = items.sumOf {
                             when (it) {
                                 is ServiceData -> it.durationService ?: 0
@@ -651,26 +653,31 @@ fun AgendaCartForm(
                                 else -> 0
                             }
                         }
+
                         val requestedEnd = requestedStart.plusMinutes(totalDuration.toLong())
+
+                        // 🔍 Generar los bloques que ocuparía la cita
                         val requestedSlots = generateSequence(requestedStart) { it.plusMinutes(30) }
                             .takeWhile { it.isBefore(requestedEnd) }
                             .map { it.format(dbFormatter) }
                             .toSet()
 
+                        // 🚫 Verificar si hay algún conflicto con horarios ocupados
                         val conflict = occupiedTimeStrings.any { it in requestedSlots }
+
                         if (conflict) {
-                            onConfirm(false, "Alguno de los horarios ya está ocupado")
+                            // ❌ Solo mostrar mensaje — no guardar, no limpiar nada
+                            onConfirm(false, "No hay tiempo suficiente para esta cita ⏰")
                             return@launch
                         }
 
+                        // ✅ Si todo está libre, crear la cita normalmente
                         val serviceIds = items.filterIsInstance<ServiceData>().mapNotNull { it.id }
-                        val promoIds =
-                            items.filterIsInstance<PromotionData>().mapNotNull { it.id }
-                        val servicePrice =
-                            items.filterIsInstance<ServiceData>().sumOf { it.priceService ?: 0 }
-                        val promotionPrice =
-                            items.filterIsInstance<PromotionData>()
-                                .sumOf { it.pricePromotion ?: 0 }
+                        val promoIds = items.filterIsInstance<PromotionData>().mapNotNull { it.id }
+
+                        val servicePrice = items.filterIsInstance<ServiceData>().sumOf { it.priceService ?: 0 }
+                        val promotionPrice = items.filterIsInstance<PromotionData>()
+                            .sumOf { it.pricePromotion ?: 0 }
 
                         val appointment = AppointmentClientData(
                             id = null,
@@ -688,6 +695,7 @@ fun AgendaCartForm(
 
                         val success = FirebaseRepository.saveAppointment(appointment)
                         if (success) {
+                            // 🧩 Solo actualizamos los horarios ocupados si realmente se guardó
                             occupiedTimeStrings = occupiedTimeStrings + requestedSlots
                             onConfirm(true, "Cita agendada correctamente 🎉")
                         } else {
@@ -713,6 +721,7 @@ fun AgendaCartForm(
                     fontWeight = FontWeight.Bold
                 )
             }
+
         }
     }
 }
