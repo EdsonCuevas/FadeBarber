@@ -24,12 +24,11 @@ class HomeViewModel : ViewModel() {
     private val _barbers = MutableStateFlow<List<UserData>>(emptyList())
     private val _info = MutableStateFlow<BarberInfo?>(null)
     private val _currentUser = MutableStateFlow<UserData?>(null)
-
-    // NUEVO: Estado del carrito
     private val _cartItems = MutableStateFlow<List<Any>>(emptyList())
 
     val services: StateFlow<List<ServiceData>> = _services
     val promotions: StateFlow<List<PromotionData>> = _promotions
+    val barbers: StateFlow<List<UserData>> = _barbers
     val info: StateFlow<BarberInfo?> = _info
     val currentUser: StateFlow<UserData?> = _currentUser
     val cartItems: StateFlow<List<Any>> = _cartItems
@@ -37,12 +36,16 @@ class HomeViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val database = FirebaseDatabase.getInstance().getReference("User")
 
-    // Referencia para el listener de información del barbero
+    // Referencias para listeners
     private var barberInfoListener: ValueEventListener? = null
     private var barberInfoReference: com.google.firebase.database.DatabaseReference? = null
+    private var servicesListener: ValueEventListener? = null
+    private var promotionsListener: ValueEventListener? = null
+    private var barbersListener: ValueEventListener? = null
 
     init {
         viewModelScope.launch {
+            // Carga inicial (opcional, los listeners harán la carga también)
             _services.value = FirebaseRepository.getServices()
             _promotions.value = FirebaseRepository.getPromotions()
             _barbers.value = FirebaseRepository.getBarbers()
@@ -63,7 +66,79 @@ class HomeViewModel : ViewModel() {
             }
     }
 
-    // NUEVO: Iniciar listener en tiempo real para información del barbero
+    // ========== LISTENERS EN TIEMPO REAL ==========
+
+    /**
+     * Iniciar todos los listeners para HomePage
+     */
+    fun startRealtimeListeners() {
+        startServicesListener()
+        startPromotionsListener()
+        startBarbersListener()
+        Log.d("HomeViewModel", "Todos los listeners de HomePage iniciados")
+    }
+
+    /**
+     * Detener todos los listeners
+     */
+    fun stopRealtimeListeners() {
+        stopServicesListener()
+        stopPromotionsListener()
+        stopBarbersListener()
+        Log.d("HomeViewModel", "Todos los listeners de HomePage detenidos")
+    }
+
+    /**
+     * Listener para servicios
+     */
+    private fun startServicesListener() {
+        servicesListener = FirebaseRepository.listenToServices { services ->
+            _services.value = services
+        }
+    }
+
+    private fun stopServicesListener() {
+        servicesListener?.let {
+            FirebaseRepository.stopListeningToServices(it)
+            servicesListener = null
+        }
+    }
+
+    /**
+     * Listener para promociones
+     */
+    private fun startPromotionsListener() {
+        promotionsListener = FirebaseRepository.listenToPromotions { promotions ->
+            _promotions.value = promotions
+        }
+    }
+
+    private fun stopPromotionsListener() {
+        promotionsListener?.let {
+            FirebaseRepository.stopListeningToPromotions(it)
+            promotionsListener = null
+        }
+    }
+
+    /**
+     * Listener para barberos
+     */
+    private fun startBarbersListener() {
+        barbersListener = FirebaseRepository.listenToBarbers { barbers ->
+            _barbers.value = barbers
+        }
+    }
+
+    private fun stopBarbersListener() {
+        barbersListener?.let {
+            FirebaseRepository.stopListeningToBarbers(it)
+            barbersListener = null
+        }
+    }
+
+    /**
+     * Listener para información del barbero (horarios)
+     */
     fun listenToBarberInfo() {
         val firebaseUser = auth.currentUser
         if (firebaseUser == null) {
@@ -74,14 +149,13 @@ class HomeViewModel : ViewModel() {
         val userId = firebaseUser.uid
         barberInfoReference = FirebaseDatabase.getInstance().getReference("Barber/$userId")
 
-        // Crear el listener
         barberInfoListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 try {
                     val barberData = snapshot.getValue(BarberInfo::class.java)
                     barberData?.let {
                         _info.value = it
-                        Log.d("HomeViewModel", "Información de barbero actualizada en tiempo real")
+                        Log.d("HomeViewModel", "Información de barbero actualizada")
                     }
                 } catch (e: Exception) {
                     Log.e("HomeViewModel", "Error al actualizar información de barbero", e)
@@ -93,14 +167,12 @@ class HomeViewModel : ViewModel() {
             }
         }
 
-        // Adjuntar el listener
         barberInfoListener?.let {
             barberInfoReference?.addValueEventListener(it)
             Log.d("HomeViewModel", "Listener de horarios iniciado")
         }
     }
 
-    // NUEVO: Detener listener cuando ya no sea necesario
     fun stopListeningToBarberInfo() {
         barberInfoListener?.let { listener ->
             barberInfoReference?.removeEventListener(listener)
@@ -110,7 +182,8 @@ class HomeViewModel : ViewModel() {
         barberInfoReference = null
     }
 
-    // Funciones para manejar el carrito
+    // ========== CARRITO ==========
+
     fun addToCart(item: Any) {
         _cartItems.value = _cartItems.value + item
     }
@@ -125,10 +198,10 @@ class HomeViewModel : ViewModel() {
 
     fun getCartItemsCount(): Int = _cartItems.value.size
 
-    // Limpiar recursos cuando el ViewModel se destruya
     override fun onCleared() {
         super.onCleared()
+        stopRealtimeListeners()
         stopListeningToBarberInfo()
-        Log.d("HomeViewModel", "ViewModel limpiado")
+        Log.d("HomeViewModel", "ViewModel limpiado, listeners detenidos")
     }
 }

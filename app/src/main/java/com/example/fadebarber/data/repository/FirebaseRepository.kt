@@ -1,13 +1,16 @@
 package com.example.fadebarber.data.repository
 
+import android.util.Log
 import com.example.fadebarber.data.model.AppointmentClientData
-import com.example.fadebarber.data.model.AppointmentPromotion
 import com.example.fadebarber.data.model.AppointmentService
 import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.model.PromotionData
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.tasks.await
 import kotlin.jvm.java
 
@@ -21,6 +24,8 @@ object FirebaseRepository {
     private val promotionRef = database.getReference("Promotion")
     private val infoRef = database.getReference("Information")
     private val userRef = database.getReference("User")
+
+    // ========== FUNCIONES SUSPEND (llamadas únicas) ==========
 
     suspend fun getServices(): List<ServiceData> {
         return try {
@@ -100,8 +105,6 @@ object FirebaseRepository {
         }
     }
 
-
-
     suspend fun saveAppointment(appointment: AppointmentClientData): Boolean {
         return try {
             val ref = appointmentRef.push()
@@ -128,4 +131,122 @@ object FirebaseRepository {
         }
     }
 
+    // ========== FUNCIONES DE LISTENERS EN TIEMPO REAL ==========
+
+    /**
+     * Escuchar cambios en servicios en tiempo real
+     */
+    fun listenToServices(onServicesUpdate: (List<ServiceData>) -> Unit): ValueEventListener {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val services = mutableListOf<ServiceData>()
+                    for (child in snapshot.children) {
+                        val service = child.getValue(ServiceData::class.java)
+                        if (service?.statusService == 1) {
+                            services.add(service)
+                        }
+                    }
+                    onServicesUpdate(services)
+                    Log.d("FirebaseRepository", "Servicios actualizados: ${services.size}")
+                } catch (e: Exception) {
+                    Log.e("FirebaseRepository", "Error al actualizar servicios", e)
+                    onServicesUpdate(emptyList())
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("FirebaseRepository", "Error en listener de servicios: ${error.message}")
+                onServicesUpdate(emptyList())
+            }
+        }
+        serviceRef.addValueEventListener(listener)
+        return listener
+    }
+
+    /**
+     * Escuchar cambios en promociones en tiempo real
+     */
+    fun listenToPromotions(onPromotionsUpdate: (List<PromotionData>) -> Unit): ValueEventListener {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val promotions = mutableListOf<PromotionData>()
+                    for (child in snapshot.children) {
+                        val promotion = child.getValue(PromotionData::class.java)
+                        if (promotion?.statusPromotion == 1) {
+                            promotions.add(promotion)
+                        }
+                    }
+                    onPromotionsUpdate(promotions)
+                    Log.d("FirebaseRepository", "Promociones actualizadas: ${promotions.size}")
+                } catch (e: Exception) {
+                    Log.e("FirebaseRepository", "Error al actualizar promociones", e)
+                    onPromotionsUpdate(emptyList())
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("FirebaseRepository", "Error en listener de promociones: ${error.message}")
+                onPromotionsUpdate(emptyList())
+            }
+        }
+        promotionRef.addValueEventListener(listener)
+        return listener
+    }
+
+    /**
+     * Escuchar cambios en barberos en tiempo real
+     */
+    fun listenToBarbers(onBarbersUpdate: (List<UserData>) -> Unit): ValueEventListener {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val users = mutableListOf<UserData>()
+                    for (child in snapshot.children) {
+                        val user = child.getValue(UserData::class.java)
+                        if (user?.categoryUser == 2 && user.statusUser == 1) {
+                            users.add(user)
+                        }
+                    }
+                    onBarbersUpdate(users)
+                    Log.d("FirebaseRepository", "Barberos actualizados: ${users.size}")
+                } catch (e: Exception) {
+                    Log.e("FirebaseRepository", "Error al actualizar barberos", e)
+                    onBarbersUpdate(emptyList())
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("FirebaseRepository", "Error en listener de barberos: ${error.message}")
+                onBarbersUpdate(emptyList())
+            }
+        }
+        userRef.addValueEventListener(listener)
+        return listener
+    }
+
+    /**
+     * Detener listener de servicios
+     */
+    fun stopListeningToServices(listener: ValueEventListener) {
+        serviceRef.removeEventListener(listener)
+        Log.d("FirebaseRepository", "Listener de servicios detenido")
+    }
+
+    /**
+     * Detener listener de promociones
+     */
+    fun stopListeningToPromotions(listener: ValueEventListener) {
+        promotionRef.removeEventListener(listener)
+        Log.d("FirebaseRepository", "Listener de promociones detenido")
+    }
+
+    /**
+     * Detener listener de barberos
+     */
+    fun stopListeningToBarbers(listener: ValueEventListener) {
+        userRef.removeEventListener(listener)
+        Log.d("FirebaseRepository", "Listener de barberos detenido")
+    }
 }
