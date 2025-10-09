@@ -1,29 +1,38 @@
 package com.example.fadebarber.ui.client.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -41,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fadebarber.data.model.AppointmentClientData
@@ -52,11 +62,13 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AgendaCartForm(
-    items: List<Any>, // Puede contener ServiceData o PromotionData
+    items: List<Any>,
     barbers: List<UserData>,
     userId: String,
     onConfirm: (Boolean, String) -> Unit
@@ -74,7 +86,7 @@ fun AgendaCartForm(
     var occupiedTimeStrings by remember { mutableStateOf<Set<String>>(emptySet()) }
     var currentAppts by remember { mutableStateOf<List<AppointmentClientData>>(emptyList()) }
 
-    // Días según el schedule del barbero seleccionado
+    // Días disponibles
     val availableDays by remember(selectedBarber, barbers) {
         derivedStateOf {
             val schedule = barbers.firstOrNull { it.id == selectedBarber }?.schedule
@@ -86,7 +98,7 @@ fun AgendaCartForm(
         }
     }
 
-    // Traer citas ocupadas desde la DB
+    // Cargar citas ocupadas
     LaunchedEffect(selectedBarber, selectedDate) {
         if (selectedBarber != null && selectedDate != null) {
             try {
@@ -94,7 +106,6 @@ fun AgendaCartForm(
                     barberId = selectedBarber!!,
                     date = selectedDate.toString()
                 )
-                // Generar todos los slots ocupados según duración de cada cita
                 occupiedTimeStrings = currentAppts.flatMap { appt ->
                     val start = LocalTime.parse(appt.timeAppointment, dbFormatter)
                     val duration = appt.durationTotal ?: 0
@@ -122,251 +133,595 @@ fun AgendaCartForm(
         }
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(Color(0xFFF5F7FA)),
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text("Agendar Carrito", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-
-        // 🔹 Selección de barbero
-        Text("Selecciona un barbero", fontWeight = FontWeight.SemiBold)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            barbers.forEach { barber ->
-                val isSelected = selectedBarber == barber.id
-                Card(
+        // HEADER
+        item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .clickable { selectedBarber = barber.id },
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) Color(0xFF0A66C2) else Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(2.dp)
+                        .size(48.dp)
+                        .background(
+                            Color(0xFF2563EB).copy(alpha = 0.1f),
+                            RoundedCornerShape(14.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            tint = if (isSelected) Color.White else Color.Gray
-                        )
-                        Text(
-                            barber.nameUser,
-                            fontSize = 14.sp,
-                            color = if (isSelected) Color.White else Color.Black
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = "Agendar",
+                        tint = Color(0xFF2563EB),
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    "Agendar Cita",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
             }
         }
 
-        // Fechas
-        if (selectedBarber != null) {
-            Text("Selecciona la fecha", fontWeight = FontWeight.SemiBold)
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(availableDays) { day ->
-                    val isSelected = selectedDate == day
-                    Card(
-                        modifier = Modifier
-                            .width(70.dp)
-                            .clickable {
-                                selectedDate = day
-                                selectedTime = null
-                            },
-                        colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFF0A66C2) else Color.White),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(day.dayOfMonth.toString(), fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else Color.Black)
-                            Text(day.month.name.take(3), fontSize = 12.sp, color = if (isSelected) Color.White else Color.Gray)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Horarios
-        if (selectedDate != null && selectedBarber != null) {
-            Text("Selecciona la hora", fontWeight = FontWeight.SemiBold)
-            val schedule = barbers.firstOrNull { it.id == selectedBarber }?.schedule
-            val key = selectedDate!!.dayOfWeek.name.lowercase(Locale.ENGLISH)
-            val daySchedule = schedule?.get(key)
-
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
-                    val start = LocalTime.parse(daySchedule.start, dbFormatter)
-                    val end = LocalTime.parse(daySchedule.end, dbFormatter)
-
-                    generateSequence(start) { it.plusMinutes(30) }
-                        .takeWhile { !it.isAfter(end) }
-                        .forEach { slot ->
-                            val slotKey = slot.format(dbFormatter)
-
-                            val isOccupied = occupiedTimeStrings.contains(slotKey)
-                            val isSelected = selectedTime != null && selectedTime!!.format(dbFormatter) == slotKey
-
-                            Button(
-                                onClick = { if (!isOccupied) selectedTime = slot },
-                                enabled = !isOccupied,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = when {
-                                        isSelected -> Color(0xFF0A66C2)
-                                        isOccupied -> Color.LightGray
-                                        else -> Color.White
-                                    },
-                                    contentColor = when {
-                                        isSelected -> Color.White
-                                        isOccupied -> Color.DarkGray
-                                        else -> Color.Black
-                                    }
+        // SELECCIÓN DE BARBERO
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(
+                                    Color(0xFF2563EB).copy(alpha = 0.1f),
+                                    RoundedCornerShape(8.dp)
                                 ),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = ButtonDefaults.buttonElevation(2.dp)
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Barbero",
+                                tint = Color(0xFF2563EB),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            "Selecciona tu barbero",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        barbers.forEach { barber ->
+                            val isSelected = selectedBarber == barber.id
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { selectedBarber = barber.id },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) Color(0xFF2563EB) else Color(
+                                        0xFFF8FAFC
+                                    )
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                elevation = CardDefaults.cardElevation(
+                                    defaultElevation = if (isSelected) 6.dp else 0.dp
+                                )
                             ) {
-                                Text(slot.format(displayFormatter))
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .background(
+                                                if (isSelected) Color.White.copy(alpha = 0.2f)
+                                                else Color(0xFF2563EB).copy(alpha = 0.1f),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = barber.nameUser.firstOrNull()
+                                                ?.uppercase() ?: "B",
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) Color.White else Color(0xFF2563EB)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        barber.nameUser,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isSelected) Color.White else Color(0xFF1E293B),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    if (isSelected) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Seleccionado",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
-
-                    if (occupiedTimeStrings.isNotEmpty() && generateSequence(start) { it.plusMinutes(30) }.takeWhile { !it.isAfter(end) }.none { it.format(dbFormatter) !in occupiedTimeStrings }) {
-                        Text("No hay horarios disponibles 🚫", color = Color.Red)
                     }
-                } else {
-                    Text("No hay horarios disponibles 🚫", color = Color.Red)
                 }
             }
         }
 
-        // Método de pago + Total
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            var expanded by remember { mutableStateOf(false) }
-            Box {
-                OutlinedButton(
-                    onClick = { expanded = true },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0A66C2))
+        // SELECCIÓN DE FECHA
+        if (selectedBarber != null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    if (selectedPayment == "Efectivo") Icon(Icons.Default.AttachMoney, contentDescription = null, tint = Color(0xFF0A66C2))
-                    else if (selectedPayment == "Tarjeta") Icon(Icons.Default.CreditCard, contentDescription = null, tint = Color(0xFF0A66C2))
-                    Spacer(Modifier.width(8.dp))
-                    Text(selectedPayment)
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(
+                                        Color(0xFF2563EB).copy(alpha = 0.1f),
+                                        RoundedCornerShape(8.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Fecha",
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                "Selecciona la fecha",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
 
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier
-                        .background(Color.White, shape = RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFFE0E0E0), shape = RoundedCornerShape(12.dp))
-                        .width(150.dp)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(availableDays) { day ->
+                                val isSelected = selectedDate == day
+                                val isToday = day == today
+
+                                Card(
+                                    modifier = Modifier
+                                        .width(70.dp)
+                                        .clickable {
+                                            selectedDate = day
+                                            selectedTime = null
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = when {
+                                            isSelected -> Color(0xFF2563EB)
+                                            else -> Color(0xFFF8FAFC)
+                                        }
+                                    ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    elevation = CardDefaults.cardElevation(
+                                        defaultElevation = if (isSelected) 6.dp else 0.dp
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .padding(vertical = 14.dp)
+                                            .fillMaxWidth(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = day.dayOfWeek.getDisplayName(
+                                                TextStyle.SHORT,
+                                                Locale("es")
+                                            ).uppercase(),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = when {
+                                                isSelected -> Color.White.copy(alpha = 0.9f)
+                                                else -> Color(0xFF94A3B8)
+                                            }
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = day.dayOfMonth.toString(),
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = when {
+                                                isSelected -> Color.White
+                                                else -> Color(0xFF1E293B)
+                                            }
+                                        )
+                                        if (isToday && !isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(top = 4.dp)
+                                                    .size(6.dp)
+                                                    .background(Color(0xFF2563EB), CircleShape)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // SELECCIÓN DE HORARIO
+        if (selectedDate != null && selectedBarber != null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    listOf("Efectivo", "Tarjeta").forEach { option ->
-                        DropdownMenuItem(
-                            text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(
+                                        Color(0xFF2563EB).copy(alpha = 0.1f),
+                                        RoundedCornerShape(8.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = "Hora",
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                "Selecciona la hora",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val schedule = barbers.firstOrNull { it.id == selectedBarber }?.schedule
+                        val key = selectedDate!!.dayOfWeek.name.lowercase(Locale.ENGLISH)
+                        val daySchedule = schedule?.get(key)
+
+                        if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
+                            val start = LocalTime.parse(daySchedule.start, dbFormatter)
+                            val end = LocalTime.parse(daySchedule.end, dbFormatter)
+
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                generateSequence(start) { it.plusMinutes(30) }
+                                    .takeWhile { !it.isAfter(end) }
+                                    .forEach { slot ->
+                                        val slotKey = slot.format(dbFormatter)
+                                        val isOccupied = occupiedTimeStrings.contains(slotKey)
+                                        val isSelected = selectedTime != null &&
+                                                selectedTime!!.format(dbFormatter) == slotKey
+
+                                        Button(
+                                            onClick = { if (!isOccupied) selectedTime = slot },
+                                            enabled = !isOccupied,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = when {
+                                                    isSelected -> Color(0xFF2563EB)
+                                                    isOccupied -> Color(0xFFF1F5F9)
+                                                    else -> Color(0xFFF8FAFC)
+                                                },
+                                                contentColor = when {
+                                                    isSelected -> Color.White
+                                                    isOccupied -> Color(0xFF94A3B8)
+                                                    else -> Color(0xFF1E293B)
+                                                },
+                                                disabledContainerColor = Color(0xFFF1F5F9),
+                                                disabledContentColor = Color(0xFF94A3B8)
+                                            ),
+                                            shape = RoundedCornerShape(12.dp),
+                                            elevation = ButtonDefaults.buttonElevation(
+                                                defaultElevation = if (isSelected) 4.dp else 0.dp
+                                            ),
+                                            contentPadding = PaddingValues(
+                                                horizontal = 16.dp,
+                                                vertical = 10.dp
+                                            )
+                                        ) {
+                                            Text(
+                                                slot.format(displayFormatter),
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 13.sp
+                                            )
+                                        }
+                                    }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No hay horarios disponibles 🚫",
+                                    color = Color(0xFFEF4444),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // RESUMEN Y MÉTODO DE PAGO
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        "Resumen de Pago",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Método de pago
+                    var expanded by remember { mutableStateOf(false) }
+                    Box {
+                        OutlinedButton(
+                            onClick = { expanded = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF2563EB)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.5.dp,
+                                Color(0xFFE2E8F0)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = if (option == "Tarjeta") Icons.Default.CreditCard else Icons.Default.AttachMoney,
+                                        imageVector = if (selectedPayment == "Efectivo")
+                                            Icons.Default.AttachMoney else Icons.Default.CreditCard,
                                         contentDescription = null,
-                                        tint = if (selectedPayment == option) Color(0xFF0A66C2) else Color.Gray
+                                        tint = Color(0xFF2563EB)
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        option,
-                                        fontWeight = if (selectedPayment == option) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (selectedPayment == option) Color(0xFF0A66C2) else Color.Black
+                                        selectedPayment,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
-                            },
-                            onClick = {
-                                selectedPayment = option
-                                expanded = false
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                             }
+                        }
+
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.fillMaxWidth(0.85f)
+                        ) {
+                            listOf("Efectivo", "Tarjeta").forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(
+                                                imageVector = if (option == "Tarjeta")
+                                                    Icons.Default.CreditCard else Icons.Default.AttachMoney,
+                                                contentDescription = null,
+                                                tint = if (selectedPayment == option)
+                                                    Color(0xFF2563EB) else Color(0xFF94A3B8)
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                option,
+                                                fontWeight = if (selectedPayment == option)
+                                                    FontWeight.Bold else FontWeight.Normal,
+                                                color = if (selectedPayment == option)
+                                                    Color(0xFF1E293B) else Color(0xFF64748B)
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedPayment = option
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Total
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Total a pagar",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF64748B)
+                        )
+                        Text(
+                            "$${total} MXN",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2563EB)
                         )
                     }
                 }
             }
-
-            Text("Total: $${total} MXN", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = Color(0xFF0A66C2))
         }
 
-        // Confirmar
-        Button(
-            onClick = {
-                if (selectedBarber == null || selectedDate == null || selectedTime == null) {
-                    onConfirm(false, "Selecciona barbero, fecha y hora")
-                    return@Button
-                }
+        // BOTÓN CONFIRMAR
+        item {
+            Button(
+                onClick = {
+                    if (selectedBarber == null || selectedDate == null || selectedTime == null) {
+                        onConfirm(false, "Selecciona barbero, fecha y hora")
+                        return@Button
+                    }
 
-                scope.launch {
-                    val requestedStart = selectedTime!!
-                    val totalDuration = items.sumOf {
-                        when (it) {
-                            is ServiceData -> it.durationService ?: 0
-                            is PromotionData -> it.durationPromotion ?: 0
-                            else -> 0
+                    scope.launch {
+                        val requestedStart = selectedTime!!
+
+                        // 🧮 Calcular la duración total de todos los servicios y promociones
+                        val totalDuration = items.sumOf {
+                            when (it) {
+                                is ServiceData -> it.durationService ?: 0
+                                is PromotionData -> it.durationPromotion ?: 0
+                                else -> 0
+                            }
+                        }
+
+                        val requestedEnd = requestedStart.plusMinutes(totalDuration.toLong())
+
+                        // 🔍 Generar los bloques que ocuparía la cita
+                        val requestedSlots = generateSequence(requestedStart) { it.plusMinutes(30) }
+                            .takeWhile { it.isBefore(requestedEnd) }
+                            .map { it.format(dbFormatter) }
+                            .toSet()
+
+                        // 🚫 Verificar si hay algún conflicto con horarios ocupados
+                        val conflict = occupiedTimeStrings.any { it in requestedSlots }
+
+                        if (conflict) {
+                            // ❌ Solo mostrar mensaje — no guardar, no limpiar nada
+                            onConfirm(false, "No hay tiempo suficiente para esta cita ⏰")
+                            return@launch
+                        }
+
+                        // ✅ Si todo está libre, crear la cita normalmente
+                        val serviceIds = items.filterIsInstance<ServiceData>().mapNotNull { it.id }
+                        val promoIds = items.filterIsInstance<PromotionData>().mapNotNull { it.id }
+
+                        val servicePrice = items.filterIsInstance<ServiceData>().sumOf { it.priceService ?: 0 }
+                        val promotionPrice = items.filterIsInstance<PromotionData>()
+                            .sumOf { it.pricePromotion ?: 0 }
+
+                        val appointment = AppointmentClientData(
+                            id = null,
+                            idClient = userId,
+                            idEmployee = selectedBarber!!,
+                            serviceId = serviceIds,
+                            idPromotion = promoIds,
+                            dateAppointment = selectedDate.toString(),
+                            timeAppointment = requestedStart.format(dbFormatter),
+                            methodPayment = selectedPayment,
+                            totalPrice = servicePrice + promotionPrice,
+                            statusAppointment = 1,
+                            durationTotal = totalDuration
+                        )
+
+                        val success = FirebaseRepository.saveAppointment(appointment)
+                        if (success) {
+                            // 🧩 Solo actualizamos los horarios ocupados si realmente se guardó
+                            occupiedTimeStrings = occupiedTimeStrings + requestedSlots
+                            onConfirm(true, "Cita agendada correctamente 🎉")
+                        } else {
+                            onConfirm(false, "Error al guardar. Intenta de nuevo.")
                         }
                     }
-                    val requestedEnd = requestedStart.plusMinutes(totalDuration.toLong())
-                    val requestedSlots = generateSequence(requestedStart) { it.plusMinutes(30) }
-                        .takeWhile { it.isBefore(requestedEnd) }
-                        .map { it.format(dbFormatter) }
-                        .toSet()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF2563EB)
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 4.dp,
+                    pressedElevation = 8.dp
+                )
+            ) {
+                Text(
+                    "Confirmar Cita",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-                    val conflict = occupiedTimeStrings.any { it in requestedSlots }
-                    if (conflict) {
-                        onConfirm(false, "Lo siento — alguno de los horarios seleccionados ya está ocupado.")
-                        return@launch
-                    }
-
-                    val serviceIds = items.filterIsInstance<ServiceData>().mapNotNull { it.id }
-                    val promoIds = items.filterIsInstance<PromotionData>().mapNotNull { it.id }
-                    val servicePrice = items.filterIsInstance<ServiceData>().sumOf { it.priceService ?: 0 }
-                    val promotionPrice = items.filterIsInstance<PromotionData>().sumOf { it.pricePromotion ?: 0 }
-
-                    val appointment = AppointmentClientData(
-                        id = null,
-                        idClient = userId,
-                        idEmployee = selectedBarber!!,
-                        serviceId = serviceIds,
-                        idPromotion = promoIds,
-                        dateAppointment = selectedDate.toString(),
-                        timeAppointment = requestedStart.format(dbFormatter),
-                        methodPayment = selectedPayment,
-                        totalPrice = servicePrice + promotionPrice,
-                        statusAppointment = 1,
-                        durationTotal = totalDuration
-                    )
-
-                    val success = FirebaseRepository.saveAppointment(appointment)
-                    if (success) {
-                        // Actualizar UI con slots ocupados
-                        occupiedTimeStrings = occupiedTimeStrings + requestedSlots
-                        onConfirm(true, "Cita agendada correctamente 🎉")
-                    } else {
-                        onConfirm(false, "Error al guardar. Intenta de nuevo.")
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A66C2))
-        ) {
-            Text("Agendar Carrito")
         }
     }
 }

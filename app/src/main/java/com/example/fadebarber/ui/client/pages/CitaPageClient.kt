@@ -84,7 +84,6 @@ fun CitaPageClient(
 
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-    // Filtrar SOLO las citas donde el usuario actual es el CLIENTE
     val filteredAppointments = appointments
         .filter { appointment ->
             val appointmentDate = appointment.dateAppointment?.substring(0, 10)

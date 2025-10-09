@@ -2,7 +2,6 @@ package com.example.fadebarber.ui.employee.pages
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -51,9 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +75,11 @@ fun CuentaV2(
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
     val context = LocalContext.current
+
+    // Regex patterns
+    val phoneRegex = "^[0-9]{7,15}$".toRegex()
+    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
+    val passwordRegex = "^(?=.*[0-9]).{8,}$".toRegex()
 
     // Estados para editar información
     var editableName by remember { mutableStateOf("") }
@@ -109,6 +111,11 @@ fun CuentaV2(
     var alertColor by remember { mutableStateOf(Color(0xFF10B981)) }
     var showAlert by remember { mutableStateOf(false) }
 
+    // Validaciones en tiempo real
+    val isEmailValid = editableEmail.isEmpty() || emailRegex.matches(editableEmail)
+    val isPhoneValid = editablePhone.isEmpty() || phoneRegex.matches(editablePhone)
+    val isNewPasswordValid = newPassword.isEmpty() || passwordRegex.matches(newPassword)
+
     // Cargar datos del usuario
     LaunchedEffect(user) {
         user?.let {
@@ -132,9 +139,7 @@ fun CuentaV2(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // -------------------
             // Perfil del usuario
-            // -------------------
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -163,13 +168,11 @@ fun CuentaV2(
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // -------------------
             // Editar Cuenta Card
-            // -------------------
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -196,9 +199,7 @@ fun CuentaV2(
                 }
             }
 
-            // -------------------
             // Formulario de edición
-            // -------------------
             AnimatedVisibility(
                 visible = showCuenta,
                 enter = expandVertically() + fadeIn(),
@@ -218,29 +219,48 @@ fun CuentaV2(
                                 onValueChange = { editableName = it },
                                 label = { Text("Nombre") },
                                 enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && editableName.isBlank(),
+                                supportingText = {
+                                    if (isEditingProfile && editableName.isBlank()) {
+                                        Text("El nombre es requerido", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+
                             OutlinedTextField(
                                 value = editableEmail,
                                 onValueChange = { editableEmail = it },
                                 label = { Text("Correo") },
                                 enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && !isEmailValid,
+                                supportingText = {
+                                    if (isEditingProfile && !isEmailValid) {
+                                        Text("Formato de correo inválido", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+
                             OutlinedTextField(
                                 value = editablePhone,
                                 onValueChange = { editablePhone = it },
                                 label = { Text("Teléfono") },
                                 enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && !isPhoneValid,
+                                supportingText = {
+                                    if (isEditingProfile && !isPhoneValid) {
+                                        Text("Teléfono debe tener 7-15 dígitos", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(16.dp))
 
                             // Botones de acción
                             if (!isEditingProfile) {
-                                // Botón Editar
                                 Button(
                                     onClick = { isEditingProfile = true },
                                     modifier = Modifier.fillMaxWidth(),
@@ -258,12 +278,10 @@ fun CuentaV2(
                                     Text("Editar Información")
                                 }
                             } else {
-                                // Botones Guardar y Cancelar
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // Botón Cancelar
                                     Button(
                                         onClick = {
                                             editableName = originalName
@@ -280,7 +298,6 @@ fun CuentaV2(
                                         Text("Cancelar")
                                     }
 
-                                    // Botón Guardar
                                     Button(
                                         onClick = {
                                             updateUserData(
@@ -289,6 +306,8 @@ fun CuentaV2(
                                                 phone = editablePhone,
                                                 context = context,
                                                 viewModel = viewModel,
+                                                emailRegex = emailRegex,
+                                                phoneRegex = phoneRegex,
                                                 onLoadingChange = { isLoading = it },
                                                 onSuccess = {
                                                     originalName = editableName
@@ -304,7 +323,10 @@ fun CuentaV2(
                                             )
                                         },
                                         modifier = Modifier.weight(1f),
-                                        enabled = !isLoading,
+                                        enabled = !isLoading &&
+                                                editableName.isNotBlank() &&
+                                                isEmailValid &&
+                                                isPhoneValid,
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color(0xFF10B981)
                                         )
@@ -327,20 +349,7 @@ fun CuentaV2(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // -------------------
-            // Información Personal
-            // -------------------
-            /*InfoPersonalSection(
-                editableName = editableName,
-                editableEmail = editableEmail,
-                editablePhone = editablePhone
-            )*/
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // -------------------
             // Cambiar Contraseña
-            // -------------------
             MenuItemWithArrow(
                 text = "Cambiar Contraseña",
                 onClick = { showPassword = !showPassword }
@@ -369,6 +378,12 @@ fun CuentaV2(
                                 onValueChange = { currentPassword = it },
                                 label = { Text("Contraseña Actual") },
                                 enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && currentPassword.isBlank(),
+                                supportingText = {
+                                    if (isEditingPassword && currentPassword.isBlank()) {
+                                        Text("La contraseña actual es requerida", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 visualTransformation = if (showCurrentPassword)
                                     VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
@@ -391,6 +406,12 @@ fun CuentaV2(
                                 onValueChange = { newPassword = it },
                                 label = { Text("Nueva Contraseña") },
                                 enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && !isNewPasswordValid && newPassword.isNotEmpty(),
+                                supportingText = {
+                                    if (isEditingPassword && newPassword.isNotEmpty() && !isNewPasswordValid) {
+                                        Text("Mínimo 8 caracteres y 1 número", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 visualTransformation = if (showNewPassword)
                                     VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
@@ -413,6 +434,14 @@ fun CuentaV2(
                                 onValueChange = { confirmPassword = it },
                                 label = { Text("Confirmar Contraseña") },
                                 enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && confirmPassword.isNotEmpty() &&
+                                        newPassword != confirmPassword,
+                                supportingText = {
+                                    if (isEditingPassword && confirmPassword.isNotEmpty() &&
+                                        newPassword != confirmPassword) {
+                                        Text("Las contraseñas no coinciden", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 visualTransformation = if (showConfirmPassword)
                                     VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
@@ -430,9 +459,7 @@ fun CuentaV2(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Botones de acción
                             if (!isEditingPassword) {
-                                // Botón Editar
                                 Button(
                                     onClick = { isEditingPassword = true },
                                     modifier = Modifier.fillMaxWidth(),
@@ -450,12 +477,10 @@ fun CuentaV2(
                                     Text("Cambiar Contraseña")
                                 }
                             } else {
-                                // Botones Guardar y Cancelar
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // Botón Cancelar
                                     Button(
                                         onClick = {
                                             currentPassword = ""
@@ -472,7 +497,6 @@ fun CuentaV2(
                                         Text("Cancelar")
                                     }
 
-                                    // Botón Guardar
                                     Button(
                                         onClick = {
                                             updatePassword(
@@ -481,6 +505,7 @@ fun CuentaV2(
                                                 confirmPassword = confirmPassword,
                                                 context = context,
                                                 userName = editableName,
+                                                passwordRegex = passwordRegex,
                                                 onLoadingChange = { isLoadingPassword = it },
                                                 onPasswordCleared = {
                                                     currentPassword = ""
@@ -497,9 +522,10 @@ fun CuentaV2(
                                         },
                                         modifier = Modifier.weight(1f),
                                         enabled = !isLoadingPassword &&
+                                                currentPassword.isNotEmpty() &&
                                                 newPassword.isNotEmpty() &&
-                                                newPassword == confirmPassword &&
-                                                currentPassword.isNotEmpty(),
+                                                isNewPasswordValid &&
+                                                newPassword == confirmPassword,
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color(0xFF10B981)
                                         )
@@ -507,8 +533,7 @@ fun CuentaV2(
                                         if (isLoadingPassword) {
                                             CircularProgressIndicator(
                                                 modifier = Modifier.size(20.dp),
-                                                color = Color.White
-                                            )
+                                                color = Color.White)
                                         } else {
                                             Text("Guardar")
                                         }
@@ -522,9 +547,7 @@ fun CuentaV2(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // -------------------
             // Gestionar Horario
-            // -------------------
             Text(
                 text = "Gestionar Horario",
                 fontSize = 20.sp,
@@ -572,9 +595,7 @@ fun CuentaV2(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // -------------------
             // Cerrar Sesión
-            // -------------------
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -622,94 +643,6 @@ fun CuentaV2(
     }
 }
 
-// -------------------
-// InfoPersonalSection
-// -------------------
-@Composable
-private fun InfoPersonalSection(
-    editableName: String,
-    editableEmail: String,
-    editablePhone: String
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 90f else 0f,
-        label = "arrowRotation"
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Información Personal", fontSize = 16.sp, color = Color.Black)
-
-            Icon(
-                imageVector = Icons.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color.Gray,
-                modifier = Modifier.rotate(rotation)
-            )
-        }
-    }
-
-    AnimatedVisibility(
-        visible = expanded,
-        enter = expandVertically() + fadeIn(),
-        exit = shrinkVertically() + fadeOut()
-    ) {
-        Column {
-            Spacer(modifier = Modifier.height(8.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    OutlinedTextField(
-                        value = editableName,
-                        onValueChange = {},
-                        enabled = false,
-                        label = { Text("Nombre") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = editableEmail,
-                        onValueChange = {},
-                        enabled = false,
-                        label = { Text("Correo") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = editablePhone,
-                        onValueChange = {},
-                        enabled = false,
-                        label = { Text("Teléfono") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-    }
-}
-
-// -------------------
-// Menús simples
-// -------------------
 @Composable
 private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
     Card(
@@ -737,45 +670,6 @@ private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
     }
 }
 
-@Composable
-private fun MenuItemWithIcon(icon: ImageVector, text: String, iconColor: Color, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = text,
-                    tint = iconColor,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(text = text, fontSize = 16.sp, color = Color.Black)
-            }
-            Icon(
-                imageVector = Icons.Filled.KeyboardArrowRight,
-                contentDescription = "Ir a $text",
-                tint = Color.Gray
-            )
-        }
-    }
-}
-
-// -------------------
-// HorarioItem
-// -------------------
 @Composable
 fun HorarioItem(
     isOpen: Boolean,
@@ -823,9 +717,7 @@ fun HorarioItem(
                             if (isOpen) Color(0xFF10B981) else Color(0xFFEF4444)
                         )
                 )
-
                 Spacer(modifier = Modifier.width(12.dp))
-
                 Text(
                     text = diaEsp,
                     fontSize = 14.sp,
@@ -834,9 +726,7 @@ fun HorarioItem(
                 )
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isOpen && !horaFin.isNullOrEmpty()) {
                     Icon(
                         painter = painterResource(id = android.R.drawable.ic_menu_recent_history),
@@ -871,9 +761,6 @@ fun HorarioItem(
     }
 }
 
-// -------------------
-// Alerta personalizada
-// -------------------
 @Composable
 private fun CustomAlert(
     message: String,
@@ -925,15 +812,14 @@ private fun CustomAlert(
     }
 }
 
-// -------------------
-// Función para actualizar datos del usuario
-// -------------------
 private fun updateUserData(
     name: String,
     email: String,
     phone: String,
     context: android.content.Context,
     viewModel: DashboardViewModel,
+    emailRegex: Regex,
+    phoneRegex: Regex,
     onLoadingChange: (Boolean) -> Unit,
     onSuccess: () -> Unit,
     onShowAlert: (String, Color) -> Unit
@@ -956,8 +842,14 @@ private fun updateUserData(
             return
         }
 
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+        if (!emailRegex.matches(email)) {
             onShowAlert("Correo electrónico inválido", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        if (!phoneRegex.matches(phone)) {
+            onShowAlert("Número de teléfono inválido (7-15 dígitos)", Color(0xFFEF4444))
             onLoadingChange(false)
             return
         }
@@ -1029,15 +921,13 @@ private fun updateUserData(
     }
 }
 
-// -------------------
-// Función para actualizar contraseña
-// -------------------
 private fun updatePassword(
     currentPassword: String,
     newPassword: String,
     confirmPassword: String,
     context: android.content.Context,
     userName: String,
+    passwordRegex: Regex,
     onLoadingChange: (Boolean) -> Unit,
     onPasswordCleared: () -> Unit,
     onShowAlert: (String, Color) -> Unit
@@ -1053,8 +943,8 @@ private fun updatePassword(
             return
         }
 
-        if (newPassword.length < 8) {
-            onShowAlert("La contraseña debe tener al menos 8 caracteres", Color(0xFFEF4444))
+        if (!passwordRegex.matches(newPassword)) {
+            onShowAlert("La contraseña debe tener al menos 8 caracteres y contener al menos un número", Color(0xFFEF4444))
             onLoadingChange(false)
             return
         }

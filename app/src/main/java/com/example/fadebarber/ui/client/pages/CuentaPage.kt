@@ -80,6 +80,11 @@ fun CuentaPage(
     val barberInfo = viewModel.info.collectAsState().value
     val context = LocalContext.current
 
+    // Regex patterns
+    val phoneRegex = "^[0-9]{7,15}$".toRegex()
+    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
+    val passwordRegex = "^(?=.*[0-9]).{8,}$".toRegex()
+
     // Estados para editar información
     var editableName by remember { mutableStateOf("") }
     var editableEmail by remember { mutableStateOf("") }
@@ -110,10 +115,14 @@ fun CuentaPage(
     var alertColor by remember { mutableStateOf(Color(0xFF10B981)) }
     var showAlert by remember { mutableStateOf(false) }
 
+    // Validaciones en tiempo real
+    val isEmailValid = editableEmail.isEmpty() || emailRegex.matches(editableEmail)
+    val isPhoneValid = editablePhone.isEmpty() || phoneRegex.matches(editablePhone)
+    val isNewPasswordValid = newPassword.isEmpty() || passwordRegex.matches(newPassword)
+
     // Cargar datos del usuario
     LaunchedEffect(user) {
         Log.d("CuentaPage", "CuentaPage se está mostrando")
-
         user?.let {
             editableName = it.nameUser
             editableEmail = it.correoUser
@@ -135,9 +144,7 @@ fun CuentaPage(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // -------------------
             // Perfil del usuario
-            // -------------------
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -172,9 +179,7 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // -------------------
             // Editar Cuenta Card
-            // -------------------
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -201,9 +206,7 @@ fun CuentaPage(
                 }
             }
 
-            // -------------------
             // Formulario de edición
-            // -------------------
             AnimatedVisibility(
                 visible = showCuenta,
                 enter = expandVertically() + fadeIn(),
@@ -223,29 +226,48 @@ fun CuentaPage(
                                 onValueChange = { editableName = it },
                                 label = { Text("Nombre") },
                                 enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && editableName.isBlank(),
+                                supportingText = {
+                                    if (isEditingProfile && editableName.isBlank()) {
+                                        Text("El nombre es requerido", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+
                             OutlinedTextField(
                                 value = editableEmail,
                                 onValueChange = { editableEmail = it },
                                 label = { Text("Correo") },
                                 enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && !isEmailValid,
+                                supportingText = {
+                                    if (isEditingProfile && !isEmailValid) {
+                                        Text("Formato de correo inválido", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+
                             OutlinedTextField(
                                 value = editablePhone,
                                 onValueChange = { editablePhone = it },
                                 label = { Text("Teléfono") },
                                 enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && !isPhoneValid,
+                                supportingText = {
+                                    if (isEditingProfile && !isPhoneValid) {
+                                        Text("Teléfono debe tener 7-15 dígitos", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(16.dp))
 
                             // Botones de acción
                             if (!isEditingProfile) {
-                                // Botón Editar
                                 Button(
                                     onClick = { isEditingProfile = true },
                                     modifier = Modifier.fillMaxWidth(),
@@ -263,12 +285,10 @@ fun CuentaPage(
                                     Text("Editar Información")
                                 }
                             } else {
-                                // Botones Guardar y Cancelar
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // Botón Cancelar
                                     Button(
                                         onClick = {
                                             editableName = originalName
@@ -285,7 +305,6 @@ fun CuentaPage(
                                         Text("Cancelar")
                                     }
 
-                                    // Botón Guardar
                                     Button(
                                         onClick = {
                                             updateUserData(
@@ -294,6 +313,8 @@ fun CuentaPage(
                                                 phone = editablePhone,
                                                 context = context,
                                                 viewModel = viewModel,
+                                                emailRegex = emailRegex,
+                                                phoneRegex = phoneRegex,
                                                 onLoadingChange = { isLoading = it },
                                                 onSuccess = {
                                                     originalName = editableName
@@ -309,7 +330,10 @@ fun CuentaPage(
                                             )
                                         },
                                         modifier = Modifier.weight(1f),
-                                        enabled = !isLoading,
+                                        enabled = !isLoading &&
+                                                editableName.isNotBlank() &&
+                                                isEmailValid &&
+                                                isPhoneValid,
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color(0xFF10B981)
                                         )
@@ -332,9 +356,7 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // -------------------
             // Información Personal
-            // -------------------
             InfoPersonalSection(
                 editableName = editableName,
                 editableEmail = editableEmail,
@@ -343,9 +365,7 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // -------------------
             // Cambiar Contraseña
-            // -------------------
             MenuItemWithArrow(
                 text = "Cambiar Contraseña",
                 onClick = { showPassword = !showPassword }
@@ -374,6 +394,12 @@ fun CuentaPage(
                                 onValueChange = { currentPassword = it },
                                 label = { Text("Contraseña Actual") },
                                 enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && currentPassword.isBlank(),
+                                supportingText = {
+                                    if (isEditingPassword && currentPassword.isBlank()) {
+                                        Text("La contraseña actual es requerida", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 visualTransformation = if (showCurrentPassword)
                                     VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
@@ -396,6 +422,12 @@ fun CuentaPage(
                                 onValueChange = { newPassword = it },
                                 label = { Text("Nueva Contraseña") },
                                 enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && !isNewPasswordValid && newPassword.isNotEmpty(),
+                                supportingText = {
+                                    if (isEditingPassword && newPassword.isNotEmpty() && !isNewPasswordValid) {
+                                        Text("Mínimo 8 caracteres y 1 número", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 visualTransformation = if (showNewPassword)
                                     VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
@@ -418,6 +450,14 @@ fun CuentaPage(
                                 onValueChange = { confirmPassword = it },
                                 label = { Text("Confirmar Contraseña") },
                                 enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && confirmPassword.isNotEmpty() &&
+                                        newPassword != confirmPassword,
+                                supportingText = {
+                                    if (isEditingPassword && confirmPassword.isNotEmpty() &&
+                                        newPassword != confirmPassword) {
+                                        Text("Las contraseñas no coinciden", color = Color(0xFFEF4444))
+                                    }
+                                },
                                 visualTransformation = if (showConfirmPassword)
                                     VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
@@ -435,9 +475,7 @@ fun CuentaPage(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Botones de acción
                             if (!isEditingPassword) {
-                                // Botón Editar
                                 Button(
                                     onClick = { isEditingPassword = true },
                                     modifier = Modifier.fillMaxWidth(),
@@ -455,12 +493,10 @@ fun CuentaPage(
                                     Text("Cambiar Contraseña")
                                 }
                             } else {
-                                // Botones Guardar y Cancelar
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // Botón Cancelar
                                     Button(
                                         onClick = {
                                             currentPassword = ""
@@ -477,7 +513,6 @@ fun CuentaPage(
                                         Text("Cancelar")
                                     }
 
-                                    // Botón Guardar
                                     Button(
                                         onClick = {
                                             updatePassword(
@@ -486,6 +521,7 @@ fun CuentaPage(
                                                 confirmPassword = confirmPassword,
                                                 context = context,
                                                 userName = editableName,
+                                                passwordRegex = passwordRegex,
                                                 onLoadingChange = { isLoadingPassword = it },
                                                 onPasswordCleared = {
                                                     currentPassword = ""
@@ -502,9 +538,10 @@ fun CuentaPage(
                                         },
                                         modifier = Modifier.weight(1f),
                                         enabled = !isLoadingPassword &&
+                                                currentPassword.isNotEmpty() &&
                                                 newPassword.isNotEmpty() &&
-                                                newPassword == confirmPassword &&
-                                                currentPassword.isNotEmpty(),
+                                                isNewPasswordValid &&
+                                                newPassword == confirmPassword,
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color(0xFF10B981)
                                         )
@@ -527,9 +564,7 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // -------------------
             // Gestionar Horario
-            // -------------------
             Text(
                 text = "Horarios laborales",
                 fontSize = 20.sp,
@@ -577,9 +612,7 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // -------------------
             // Cerrar Sesión
-            // -------------------
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -627,9 +660,6 @@ fun CuentaPage(
     }
 }
 
-// -------------------
-// InfoPersonalSection
-// -------------------
 @Composable
 private fun InfoPersonalSection(
     editableName: String,
@@ -637,7 +667,6 @@ private fun InfoPersonalSection(
     editablePhone: String
 ) {
     var expanded by remember { mutableStateOf(false) }
-
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 90f else 0f,
         label = "arrowRotation"
@@ -659,7 +688,6 @@ private fun InfoPersonalSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Información Personal", fontSize = 16.sp, color = Color.Black)
-
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowRight,
                 contentDescription = null,
@@ -712,9 +740,6 @@ private fun InfoPersonalSection(
     }
 }
 
-// -------------------
-// Menús simples
-// -------------------
 @Composable
 private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
     Card(
@@ -742,10 +767,6 @@ private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
     }
 }
 
-
-// -------------------
-// HorarioItem
-// -------------------
 @Composable
 fun HorarioItem(
     isOpen: Boolean,
@@ -793,9 +814,7 @@ fun HorarioItem(
                             if (isOpen) Color(0xFF10B981) else Color(0xFFEF4444)
                         )
                 )
-
                 Spacer(modifier = Modifier.width(12.dp))
-
                 Text(
                     text = diaEsp,
                     fontSize = 14.sp,
@@ -804,9 +823,7 @@ fun HorarioItem(
                 )
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isOpen && !horaFin.isNullOrEmpty()) {
                     Icon(
                         painter = painterResource(id = android.R.drawable.ic_menu_recent_history),
@@ -841,9 +858,6 @@ fun HorarioItem(
     }
 }
 
-// -------------------
-// Alerta personalizada
-// -------------------
 @Composable
 private fun CustomAlert(
     message: String,
@@ -895,15 +909,15 @@ private fun CustomAlert(
     }
 }
 
-// -------------------
 // Función para actualizar datos del usuario
-// -------------------
 private fun updateUserData(
     name: String,
     email: String,
     phone: String,
     context: android.content.Context,
     viewModel: HomeViewModel,
+    emailRegex: Regex,
+    phoneRegex: Regex,
     onLoadingChange: (Boolean) -> Unit,
     onSuccess: () -> Unit,
     onShowAlert: (String, Color) -> Unit
@@ -926,8 +940,14 @@ private fun updateUserData(
             return
         }
 
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+        if (!emailRegex.matches(email)) {
             onShowAlert("Correo electrónico inválido", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        if (!phoneRegex.matches(phone)) {
+            onShowAlert("Número de teléfono inválido (7-15 dígitos)", Color(0xFFEF4444))
             onLoadingChange(false)
             return
         }
@@ -999,15 +1019,14 @@ private fun updateUserData(
     }
 }
 
-// -------------------
 // Función para actualizar contraseña
-// -------------------
 private fun updatePassword(
     currentPassword: String,
     newPassword: String,
     confirmPassword: String,
     context: android.content.Context,
     userName: String,
+    passwordRegex: Regex,
     onLoadingChange: (Boolean) -> Unit,
     onPasswordCleared: () -> Unit,
     onShowAlert: (String, Color) -> Unit
@@ -1023,8 +1042,8 @@ private fun updatePassword(
             return
         }
 
-        if (newPassword.length < 8) {
-            onShowAlert("La contraseña debe tener al menos 8 caracteres", Color(0xFFEF4444))
+        if (!passwordRegex.matches(newPassword)) {
+            onShowAlert("La contraseña debe tener al menos 8 caracteres y contener al menos un número", Color(0xFFEF4444))
             onLoadingChange(false)
             return
         }
