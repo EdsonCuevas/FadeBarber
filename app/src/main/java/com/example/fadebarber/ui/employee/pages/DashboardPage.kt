@@ -1,5 +1,6 @@
 package com.example.fadebarber.ui.employee.pages
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.HourglassBottom
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -33,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -48,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +64,7 @@ import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.ui.employee.components.CardAppointment
 import com.example.fadebarber.ui.employee.components.CurrentAppointmentCard
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.launch
 import org.threeten.bp.LocalDate
 import java.time.LocalTime
@@ -73,12 +77,17 @@ fun DashboardPage(
     user: UserData,
     viewModel: DashboardViewModel = viewModel()
 ) {
-
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     var selectedAppointment by remember { mutableStateOf<AppointmentClientData?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val today = LocalDate.now()
+
+    var showCancelDialog by remember { mutableStateOf(false) }
+    var alertMessage by remember { mutableStateOf("") }
+    var alertColor by remember { mutableStateOf(Color.Transparent) }
+    var showAlert by remember { mutableStateOf(false) }
 
     val appointments by viewModel.appointments.collectAsState(initial = emptyList())
     val services by viewModel.services.collectAsState(initial = emptyList())
@@ -98,7 +107,7 @@ fun DashboardPage(
         .filter {
             it.idEmployee == user.id &&
                     LocalDate.parse(it.dateAppointment) == today &&
-                    it.statusAppointment == 1  // 🔥 Solo citas activas
+                    it.statusAppointment == 1
         }
         .sortedBy { LocalTime.parse(it.timeAppointment, formatter) }
 
@@ -118,7 +127,6 @@ fun DashboardPage(
             LocalTime.parse(it.timeAppointment, formatter).isAfter(currentTime)
         }
     }
-
 
     val nextAppointmentText = when {
         nextAppointment != null -> {
@@ -154,7 +162,6 @@ fun DashboardPage(
                 )
                 .padding(24.dp)
         ) {
-            // SALUDO + PERFIL
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -182,7 +189,7 @@ fun DashboardPage(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                        Icon(
+                        /*Icon(
                             painter = painterResource(id = R.drawable.ic_start),
                             contentDescription = "Estrella vacía",
                             tint = Color(0xFFFFC107),
@@ -195,7 +202,7 @@ fun DashboardPage(
                             color = Color.White.copy(alpha = 0.9f),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
-                        )
+                        )*/
                     }
                 }
 
@@ -212,7 +219,6 @@ fun DashboardPage(
                 }
             }
 
-            // === CARD DE PRÓXIMA CITA DINÁMICA ===
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
@@ -343,9 +349,6 @@ fun DashboardPage(
             }
         }
 
-
-
-
         /** MODAL BOTTOM SHEET **/
         if (selectedAppointment != null) {
             ModalBottomSheet(
@@ -376,12 +379,19 @@ fun DashboardPage(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
+                            val statusInfo = when (appointment.statusAppointment) {
+                                1 -> Pair("Activo", Color(0xFF22C55E))
+                                2 -> Pair("En Proceso", Color(0xFF3B82F6))
+                                4 -> Pair("Cancelada", Color(0xFFEF4444))
+                                else -> Pair("Desconocido", Color.Gray)
+                            }
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier
                                     .background(
-                                        Color(0xFFDCFCE7),
+                                        statusInfo.second.copy(alpha = 0.1f),
                                         RoundedCornerShape(20.dp)
                                     )
                                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -389,13 +399,13 @@ fun DashboardPage(
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
-                                        .background(Color(0xFF22C55E), CircleShape)
+                                        .background(statusInfo.second, CircleShape)
                                 )
                                 Text(
-                                    text = "Activo",
+                                    text = statusInfo.first,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF16A34A)
+                                    color = statusInfo.second
                                 )
                             }
                         }
@@ -411,13 +421,10 @@ fun DashboardPage(
                                 modifier = Modifier.padding(20.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-
-                                // Icono y Título del Servicio
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    // Icono del servicio
                                     Box(
                                         modifier = Modifier
                                             .size(48.dp)
@@ -427,17 +434,12 @@ fun DashboardPage(
                                             ),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = "✂",
-                                            fontSize = 24.sp
-                                        )
+                                        Text(text = "✂", fontSize = 24.sp)
                                     }
 
                                     Column {
-                                        // Título del servicio
                                         val titles = mutableListOf<String>()
 
-                                        // Promociones
                                         if (appointment.idPromotion.isNotEmpty()) {
                                             val validPromotionIds = appointment.idPromotion.filterNotNull()
                                             if (validPromotionIds.isNotEmpty()) {
@@ -457,7 +459,6 @@ fun DashboardPage(
                                             }
                                         }
 
-                                        // Servicios
                                         if (appointment.serviceId.isNotEmpty()) {
                                             val validServiceIds = appointment.serviceId.filterNotNull()
                                             val selectedServices = services.filter { it.id in validServiceIds }
@@ -481,22 +482,19 @@ fun DashboardPage(
                                             )
                                         }
 
-                                        // Descripción con el profesional
-                                        val user = users.find { it.id == appointment.idClient }
+                                        val client = users.find { it.id == appointment.idClient }
                                         Text(
-                                            text = "con ${user?.nameUser ?: "Profesional"}",
+                                            text = "con ${client?.nameUser ?: "Cliente"}",
                                             fontSize = 14.sp,
                                             color = Color(0xFF64748B)
                                         )
                                     }
                                 }
 
-                                // Información de la cita
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    // Fecha
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -508,13 +506,12 @@ fun DashboardPage(
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Text(
-                                            text = appointment?.dateAppointment.orEmpty(),
+                                            text = appointment.dateAppointment.orEmpty(),
                                             fontSize = 14.sp,
                                             color = Color(0xFF64748B)
                                         )
                                     }
 
-                                    // Hora
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -538,7 +535,6 @@ fun DashboardPage(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    // Precio
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -556,7 +552,6 @@ fun DashboardPage(
                                         )
                                     }
 
-                                    // Duración
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -577,7 +572,7 @@ fun DashboardPage(
                             }
                         }
 
-                        // Lista de Servicios a Realizar
+                        // Lista de Servicios
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -595,7 +590,6 @@ fun DashboardPage(
                                     color = Color(0xFF1E293B)
                                 )
 
-                                // Mostrar servicios de promociones
                                 if (appointment.idPromotion.isNotEmpty()) {
                                     appointment.idPromotion.filterNotNull().forEach { promotionId ->
                                         val promotion = promotions.find { it.id == promotionId }
@@ -650,7 +644,6 @@ fun DashboardPage(
                                     }
                                 }
 
-                                // Mostrar servicios individuales
                                 if (appointment.serviceId.isNotEmpty()) {
                                     appointment.serviceId.filterNotNull().forEach { serviceId ->
                                         val service = services.find { it.id == serviceId }
@@ -688,7 +681,6 @@ fun DashboardPage(
                                     }
                                 }
 
-                                // Si no hay servicios
                                 if (appointment.serviceId.isEmpty() && appointment.idPromotion.isEmpty()) {
                                     Text(
                                         text = "No hay servicios especificados",
@@ -705,70 +697,331 @@ fun DashboardPage(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Botón Empezar
-                            Button(
-                                onClick = { /* Acción empezar */ },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF3B82F6)
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_user),
-                                        contentDescription = "Empezar",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = "Empezar",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
-                                    )
+                            // Mostrar botón Empezar o Finalizar según el estado
+                            when (appointment.statusAppointment) {
+                                1 -> { // Activo - Mostrar Empezar
+                                    Button(
+                                        onClick = {
+                                            // Validar si hay otra cita en proceso
+                                            val hasRunningAppointment = appointments.any {
+                                                it.idEmployee == user.id &&
+                                                        it.statusAppointment == 2 &&
+                                                        it.id != appointment.id
+                                            }
+
+                                            if (hasRunningAppointment) {
+                                                alertMessage = "Ya hay una cita en proceso. Finalízala antes de comenzar otra."
+                                                alertColor = Color(0xFFEF4444)
+                                                showAlert = true
+                                            } else {
+                                                updateAppointmentStatus(
+                                                    appointmentId = appointment.id ?: "",
+                                                    newStatus = 2,
+                                                    context = context,
+                                                    onSuccess = {
+                                                        alertMessage = "Cita iniciada correctamente"
+                                                        alertColor = Color(0xFF10B981)
+                                                        showAlert = true
+                                                        selectedAppointment = null
+                                                        scope.launch { sheetState.hide() }
+                                                    },
+                                                    onError = { error ->
+                                                        alertMessage = error
+                                                        alertColor = Color(0xFFEF4444)
+                                                        showAlert = true
+                                                    }
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF3B82F6)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_user),
+                                                contentDescription = "Empezar",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = "Empezar",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                                2 -> { // En Proceso - Mostrar Finalizar
+                                    Button(
+                                        onClick = {
+                                            updateAppointmentStatus(
+                                                appointmentId = appointment.id ?: "",
+                                                newStatus = 3, // Estado finalizado
+                                                context = context,
+                                                onSuccess = {
+                                                    alertMessage = "Cita finalizada correctamente"
+                                                    alertColor = Color(0xFF10B981)
+                                                    showAlert = true
+                                                    selectedAppointment = null
+                                                    scope.launch { sheetState.hide() }
+                                                },
+                                                onError = { error ->
+                                                    alertMessage = error
+                                                    alertColor = Color(0xFFEF4444)
+                                                    showAlert = true
+                                                }
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF10B981)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_user),
+                                                contentDescription = "Finalizar",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = "Finalizar Cita",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                                4 -> { // Cancelada - Mostrar Reactivar
+                                    Button(
+                                        onClick = {
+                                            updateAppointmentStatus(
+                                                appointmentId = appointment.id ?: "",
+                                                newStatus = 1, // Reactivar a estado activo
+                                                context = context,
+                                                onSuccess = {
+                                                    alertMessage = "Cita reactivada correctamente"
+                                                    alertColor = Color(0xFF10B981)
+                                                    showAlert = true
+                                                    selectedAppointment = null
+                                                    scope.launch { sheetState.hide() }
+                                                },
+                                                onError = { error ->
+                                                    alertMessage = error
+                                                    alertColor = Color(0xFFEF4444)
+                                                    showAlert = true
+                                                }
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF3B82F6)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_user),
+                                                contentDescription = "Reactivar",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = "Reactivar Cita",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
                                 }
                             }
 
-                            // Botón Cancelar
-                            OutlinedButton(
-                                onClick = { /* Acción cancelar */ },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp),
-                                border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            // Botón Cancelar (siempre visible excepto si ya está cancelada o finalizada)
+                            if (appointment.statusAppointment != 3 && appointment.statusAppointment != 4) {
+                                OutlinedButton(
+                                    onClick = {
+                                        showCancelDialog = true
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp),
+                                    border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_user),
-                                        contentDescription = "Cancelar",
-                                        tint = Color(0xFFEF4444),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = "Cancelar",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFFEF4444)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_user),
+                                            contentDescription = "Cancelar",
+                                            tint = Color(0xFFEF4444),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Text(
+                                            text = "Cancelar Cita",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFFEF4444)
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // Espaciado adicional para el bottom sheet
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
         }
+    }
+
+    // Dialog de confirmación de cancelación
+    if (showCancelDialog && selectedAppointment != null) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = {
+                Text(
+                    text = "Cancelar Cita",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.",
+                    fontSize = 16.sp,
+                    color = Color(0xFF64748B)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedAppointment?.let { appointment ->
+                            updateAppointmentStatus(
+                                appointmentId = appointment.id ?: "",
+                                newStatus = 4,
+                                context = context,
+                                onSuccess = {
+                                    alertMessage = "Cita cancelada correctamente"
+                                    alertColor = Color(0xFF10B981)
+                                    showAlert = true
+                                    showCancelDialog = false
+                                    selectedAppointment = null
+                                    scope.launch { sheetState.hide() }
+                                },
+                                onError = { error ->
+                                    alertMessage = error
+                                    alertColor = Color(0xFFEF4444)
+                                    showAlert = true
+                                    showCancelDialog = false
+                                }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFEF4444)
+                    )
+                ) {
+                    Text("Sí, cancelar", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("No, mantener", color = Color(0xFF64748B))
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Alerta de mensajes
+    if (showAlert) {
+        AlertDialog(
+            onDismissRequest = { showAlert = false },
+            title = {
+                Text(
+                    text = if (alertColor == Color(0xFF10B981)) "Éxito" else "Error",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(text = alertMessage)
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showAlert = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = alertColor
+                    )
+                ) {
+                    Text("Aceptar", color = Color.White)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+}
+
+// Función para actualizar el estado de la cita
+private fun updateAppointmentStatus(
+    appointmentId: String,
+    newStatus: Int,
+    context: android.content.Context,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit
+) {
+    Log.d("UpdateAppointment", "Actualizando cita $appointmentId a estado $newStatus")
+
+    try {
+        if (appointmentId.isBlank()) {
+            onError("ID de cita inválido")
+            return
+        }
+
+        val database = FirebaseDatabase.getInstance().getReference("Appointment")
+
+        val updates: Map<String, Any> = mapOf(
+            "statusAppointment" to newStatus
+        )
+
+        database.child(appointmentId)
+            .updateChildren(updates)
+            .addOnSuccessListener {
+                Log.d("UpdateAppointment", "Estado actualizado correctamente")
+                onSuccess()
+            }
+            .addOnFailureListener { e ->
+                Log.e("UpdateAppointment", "Error actualizando estado", e)
+                onError("Error al actualizar: ${e.message}")
+            }
+
+    } catch (e: Exception) {
+        Log.e("UpdateAppointment", "Error general", e)
+        onError("Error inesperado: ${e.message}")
     }
 }

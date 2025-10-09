@@ -695,7 +695,7 @@ fun AppointmentCard(
         1 -> Color(0xFF22C55E)  // Verde - Activa
         2 -> Color(0xFFF97316)  // Naranja - En proceso
         3 -> Color(0xFF3B82F6)  // Azul - Terminada
-        0 -> Color(0xFFEF4444)  // Rojo - Cancelada
+        4 -> Color(0xFFEF4444)  // Rojo - Cancelada
         else -> Color(0xFF6B7280) // Gris - Desconocido
     }
 
@@ -703,7 +703,7 @@ fun AppointmentCard(
         1 -> "Activa"
         2 -> "En proceso"
         3 -> "Terminada"
-        0 -> "Cancelada"
+        4 -> "Cancelada"
         else -> "Desconocido"
     }
 
