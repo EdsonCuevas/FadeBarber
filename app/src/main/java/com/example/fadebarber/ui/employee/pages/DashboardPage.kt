@@ -380,7 +380,7 @@ fun DashboardPage(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             val statusInfo = when (appointment.statusAppointment) {
-                                1 -> Pair("Pendiente", Color(0xFF3B82F6))
+                                1 -> Pair("Pendiente", Color(0xFFF59E0B))
                                 2 -> Pair("En curso", Color(0xFF22C55E))
                                 4 -> Pair("Cancelada", Color(0xFFEF4444))
                                 else -> Pair("Desconocido", Color.Gray)
@@ -859,7 +859,7 @@ fun DashboardPage(
                             }
 
                             // Botón Cancelar (siempre visible excepto si ya está cancelada o finalizada)
-                            if (appointment.statusAppointment != 3 && appointment.statusAppointment != 4) {
+                            if (appointment.statusAppointment == 1) {
                                 OutlinedButton(
                                     onClick = {
                                         showCancelDialog = true
