@@ -131,7 +131,7 @@ fun ResetPassword(
                             fontSize = 14.sp
                         )
                     }
-
+                    Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = { showAlert = false }) {
                         Text("✕", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     }
@@ -497,7 +497,7 @@ fun ResetPassword(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        "Enviar correo de recuperación",
+                                        "Enviar correo",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )

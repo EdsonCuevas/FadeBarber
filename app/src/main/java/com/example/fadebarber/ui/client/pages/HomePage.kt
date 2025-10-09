@@ -451,7 +451,7 @@ fun HomePage(
                                     service = service,
                                     onClick = {
                                         viewModel.addToCart(service) // ✅ Cambio aquí
-                                        alertMessage = "${service.nameService} agregado al carrito 🛒"
+                                        alertMessage = "${service.nameService} agregado al carrito"
                                         alertColor = Color(0xFF10B981)
                                         showAlert = true
                                     }
@@ -469,7 +469,7 @@ fun HomePage(
                             items(filteredPromos) { promo ->
                                 PromotionCard(promotion = promo, allServices = services) {
                                     viewModel.addToCart(promo) // ✅ Cambio aquí
-                                    alertMessage = "${promo.namePromotion} agregado al carrito 🛒"
+                                    alertMessage = "${promo.namePromotion} agregado al carrito"
                                     alertColor = Color(0xFF10B981)
                                     showAlert = true
                                 }
