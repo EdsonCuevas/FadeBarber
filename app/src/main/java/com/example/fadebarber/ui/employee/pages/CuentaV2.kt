@@ -173,31 +173,10 @@ fun CuentaV2(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Editar Cuenta Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showCuenta = !showCuenta },
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Editar Cuenta",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1976D2)
-                    )
-                    Text(
-                        text = if (showCuenta) "Ocultar formulario" else "Actualiza tu información personal",
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
+            MenuItemWithArrow(
+                text = "Editar Cuenta",
+                onClick = { showCuenta = !showCuenta }
+            )
 
             // Formulario de edición
             AnimatedVisibility(

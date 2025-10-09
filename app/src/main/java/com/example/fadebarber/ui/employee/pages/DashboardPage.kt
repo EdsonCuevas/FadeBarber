@@ -380,8 +380,8 @@ fun DashboardPage(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             val statusInfo = when (appointment.statusAppointment) {
-                                1 -> Pair("Activo", Color(0xFF22C55E))
-                                2 -> Pair("En Proceso", Color(0xFF3B82F6))
+                                1 -> Pair("Pendiente", Color(0xFF3B82F6))
+                                2 -> Pair("En curso", Color(0xFF22C55E))
                                 4 -> Pair("Cancelada", Color(0xFFEF4444))
                                 else -> Pair("Desconocido", Color.Gray)
                             }

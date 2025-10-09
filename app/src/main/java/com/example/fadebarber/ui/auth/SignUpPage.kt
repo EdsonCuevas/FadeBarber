@@ -271,7 +271,6 @@ fun SignUpPage(
                     // Logo con fondo circular
                     Box(
                         modifier = Modifier
-                            .size(100.dp)
                             .background(
                                 Color.White.copy(alpha = 0.15f),
                                 shape = CircleShape
@@ -280,11 +279,11 @@ fun SignUpPage(
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.logo_v),
+                            painter = painterResource(id = R.drawable.logo_goku),
                             contentDescription = "Logo",
                             modifier = Modifier
-                                .size(68.dp)
-                                .clip(CircleShape) // Hace la imagen circular
+                                .size(120.dp)
+                                .clip(CircleShape)
                         )
                     }
                     Spacer(modifier = Modifier.height(20.dp))
