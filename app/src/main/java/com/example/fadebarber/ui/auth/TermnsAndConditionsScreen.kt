@@ -226,7 +226,7 @@ fun TermsAndConditionsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Footer con nota importante
+                /** // Footer con nota importante
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -258,7 +258,7 @@ fun TermsAndConditionsScreen(
                             lineHeight = 18.sp
                         )
                     }
-                }
+                } **/
 
                 Spacer(modifier = Modifier.height(16.dp))
 
