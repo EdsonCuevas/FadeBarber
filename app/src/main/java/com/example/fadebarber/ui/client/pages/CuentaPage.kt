@@ -36,13 +36,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -68,6 +69,7 @@ import com.example.fadebarber.ui.client.components.SkeletonHorarioItem
 import com.example.fadebarber.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
+import com.example.fadebarber.ui.client.components.HorarioItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,8 +124,9 @@ fun CuentaPage(
     val isNewPasswordValid = newPassword.isEmpty() || passwordRegex.matches(newPassword)
 
     // Cargar datos del usuario
-    LaunchedEffect(user) {
+    LaunchedEffect(Unit, user) {
         Log.d("CuentaPage", "CuentaPage se está mostrando")
+
         user?.let {
             editableName = it.nameUser
             editableEmail = it.correoUser
@@ -132,9 +135,20 @@ fun CuentaPage(
             originalEmail = it.correoUser
             originalPhone = it.phoneNumberUser
         }
+
         Log.d("EmployeeScreens", "Iniciando configuración FCM...")
         NotificationHelper.saveUserToken()
         Log.d("EmployeeScreens", "Token FCM configurado")
+
+        // Iniciar listener de horarios en tiempo real
+        viewModel.listenToBarberInfo()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            Log.d("CuentaPage", "Deteniendo listener de horarios")
+            viewModel.stopListeningToBarberInfo()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -545,7 +559,7 @@ fun CuentaPage(
             Spacer(modifier = Modifier.height(16.dp))
 
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 modifier = Modifier
@@ -562,7 +576,7 @@ fun CuentaPage(
                 ) {
                     if (barberInfo == null) {
                         // Skeleton Loading
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             repeat(7) { index ->
                                 SkeletonHorarioItem()
                                 if (index < 6) {
@@ -571,27 +585,41 @@ fun CuentaPage(
                             }
                         }
                     } else {
-                        Column(modifier = Modifier.padding(top = 16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             val diasOrdenados = listOf(
-                                "monday", "tuesday", "wednesday",
-                                "thursday", "friday", "saturday", "sunday"
+                                "monday" to "Lunes",
+                                "tuesday" to "Martes",
+                                "wednesday" to "Miércoles",
+                                "thursday" to "Jueves",
+                                "friday" to "Viernes",
+                                "saturday" to "Sábado",
+                                "sunday" to "Domingo"
                             )
 
-                            diasOrdenados.forEach { dia ->
-                                val horario = barberInfo.schedule?.get(dia)
+                            diasOrdenados.forEachIndexed { index, (diaKey, diaNombre) ->
+                                val horario = barberInfo.schedule.get(diaKey)
                                 horario?.let {
                                     HorarioItem(
                                         isOpen = it.available,
-                                        horaInicio = it.start,
-                                        horaFin = it.end,
-                                        dia = dia
+                                        horaInicio = it.start.toString(),
+                                        horaFin = it.end.toString(),
+                                        diaNombre = diaNombre
                                     )
+                                    if (index < diasOrdenados.size - 1) {
+                                        Divider(
+                                            modifier = Modifier.padding(vertical = 12.dp),
+                                            color = Color.LightGray.copy(alpha = 0.3f),
+                                            thickness = 1.dp
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -644,86 +672,6 @@ fun CuentaPage(
 }
 
 @Composable
-private fun InfoPersonalSection(
-    editableName: String,
-    editableEmail: String,
-    editablePhone: String
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 90f else 0f,
-        label = "arrowRotation"
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Información Personal", fontSize = 16.sp, color = Color.Black)
-            Icon(
-                imageVector = Icons.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color.Gray,
-                modifier = Modifier.rotate(rotation)
-            )
-        }
-    }
-
-    AnimatedVisibility(
-        visible = expanded,
-        enter = expandVertically() + fadeIn(),
-        exit = shrinkVertically() + fadeOut()
-    ) {
-        Column {
-            Spacer(modifier = Modifier.height(8.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    OutlinedTextField(
-                        value = editableName,
-                        onValueChange = {},
-                        enabled = false,
-                        label = { Text("Nombre") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = editableEmail,
-                        onValueChange = {},
-                        enabled = false,
-                        label = { Text("Correo") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = editablePhone,
-                        onValueChange = {},
-                        enabled = false,
-                        label = { Text("Teléfono") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
     Card(
         modifier = Modifier
@@ -746,97 +694,6 @@ private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
                 contentDescription = "Ir a $text",
                 tint = Color.Gray
             )
-        }
-    }
-}
-
-@Composable
-fun HorarioItem(
-    isOpen: Boolean,
-    horaInicio: String?,
-    horaFin: String?,
-    dia: String
-) {
-    val diaEsp = when (dia) {
-        "monday" -> "Lunes"
-        "tuesday" -> "Martes"
-        "wednesday" -> "Miércoles"
-        "thursday" -> "Jueves"
-        "friday" -> "Viernes"
-        "saturday" -> "Sábado"
-        "sunday" -> "Domingo"
-        else -> dia
-    }
-
-    Card(
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isOpen) Color(0xFFF0F9FF) else Color(0xFFFEF2F2)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isOpen) Color(0xFF10B981) else Color(0xFFEF4444)
-                        )
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = diaEsp,
-                    fontSize = 14.sp,
-                    color = Color(0xFF374151),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isOpen && !horaFin.isNullOrEmpty()) {
-                    Icon(
-                        painter = painterResource(id = android.R.drawable.ic_menu_recent_history),
-                        contentDescription = "Horario",
-                        tint = Color(0xFF10B981),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${horaInicio} - ${horaFin}",
-                        fontSize = 14.sp,
-                        color = Color(0xFF10B981),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(id = android.R.drawable.ic_lock_power_off),
-                        contentDescription = "Cerrado",
-                        tint = Color(0xFFEF4444),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Descanso",
-                        fontSize = 14.sp,
-                        color = Color(0xFFEF4444),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
         }
     }
 }
