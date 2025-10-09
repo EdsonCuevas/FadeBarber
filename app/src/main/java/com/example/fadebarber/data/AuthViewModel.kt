@@ -59,6 +59,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun updateRegisterConfirmPassword(value: String) { _registerConfirmPassword.value = value }
     fun updateTermsAccepted(value: Boolean) { _termsAccepted.value = value }
 
+
+    fun clearAuthState() {
+        _authState.value = null
+    }
+
     fun clearRegisterForm() {
         _registerName.value = ""
         _registerPhone.value = ""
@@ -217,7 +222,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _authState.value = AuthState.Unauthenticated
     }
 
-    // Nuevo método para limpiar estado antes de ir al registro
     fun prepareForSignUp() {
         _authState.value = AuthState.Unauthenticated
     }
@@ -229,7 +233,11 @@ sealed class AuthState {
     object Loading : AuthState()
     object EmailSent : AuthState()
     data class Error(val message: String) : AuthState()
+
+
 }
+
+
 
 
 class Event<T> {

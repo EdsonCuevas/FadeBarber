@@ -1,6 +1,5 @@
 package com.example.fadebarber.ui.auth
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.Image
@@ -37,6 +36,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,6 +77,9 @@ import androidx.compose.ui.unit.sp
 import com.example.fadebarber.R
 import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +100,10 @@ fun SignUpPage(
     val termsAccepted by viewModel.termsAccepted.collectAsState()
     var registerSuccess by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    // --- NUEVO ESTADO PARA EL MENSAJE DE ERROR ---
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // ---------------------------------------------
 
     val authState = viewModel.authState.observeAsState()
     val context = LocalContext.current
@@ -105,8 +112,7 @@ fun SignUpPage(
     // Validaciones
     val nameRegex = "^[A-Za-záéíóúÁÉÍÓÚñÑ\\s]{2,50}$".toRegex()
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
-    val phoneRegex = "^[0-9]{7,15}$".toRegex()
-
+    val phoneRegex = "^[0-9]{10}$".toRegex()
     val isNameValid = nameRegex.matches(name)
     val isEmailValid = emailRegex.matches(email)
     val isPhoneValid = phoneRegex.matches(phone)
@@ -131,20 +137,36 @@ fun SignUpPage(
             is AuthState.Authenticated -> {
                 isProcessing = false
                 registerSuccess = true
+                errorMessage = null
             }
             is AuthState.EmailSent -> {
                 isProcessing = false
                 registerSuccess = true
+                errorMessage = null
             }
             is AuthState.Error -> {
                 isProcessing = false
-                Toast.makeText(context, (authState.value as AuthState.Error).message, Toast.LENGTH_LONG).show()
+                val rawErrorMessage = (state as AuthState.Error).message
+                val customErrorMessage = when {
+                    rawErrorMessage?.contains("email address is already in use", ignoreCase = true) == true -> {
+                        "El correo electrónico ingresado ya está en uso por otro usuario"
+                    }
+                    else -> rawErrorMessage ?: "Error desconocido"
+                }
+                errorMessage = customErrorMessage
                 registerSuccess = false
             }
             is AuthState.Loading -> {
                 isProcessing = true
             }
             else -> {}
+        }
+    }
+
+    LaunchedEffect(errorMessage) {
+        if (errorMessage != null) {
+            delay(3000) // Espera 3 segundos
+            errorMessage = null // Limpia el mensaje
         }
     }
 
@@ -157,7 +179,10 @@ fun SignUpPage(
                 )
             )
     ) {
-        AnimatedContent(targetState = registerSuccess) { success ->
+        AnimatedContent(
+            targetState = registerSuccess,
+            modifier = Modifier.fillMaxSize()
+        ) { success ->
             if (success) {
                 // Pantalla de éxito
                 Column(
@@ -201,7 +226,15 @@ fun SignUpPage(
                     )
                     Spacer(modifier = Modifier.height(40.dp))
                     Button(
-                        onClick = { onNavigateToLogin() },
+                        onClick = {
+                            isLoading = true
+                            viewModel.clearRegisterForm()
+                            MainScope().launch {
+                                delay(150)
+                                onNavigateToLogin()
+                                isLoading = false
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
@@ -235,7 +268,6 @@ fun SignUpPage(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(modifier = Modifier.height(24.dp))
-
                     // Logo con fondo circular
                     Box(
                         modifier = Modifier
@@ -254,29 +286,22 @@ fun SignUpPage(
                                 .size(68.dp)
                                 .clip(CircleShape) // Hace la imagen circular
                         )
-
                     }
-
                     Spacer(modifier = Modifier.height(20.dp))
-
                     Text(
                         text = "Crear cuenta",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Text(
                         text = "Únete a Fade Barber hoy",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Normal,
                         color = Color.White.copy(alpha = 0.85f)
                     )
-
                     Spacer(modifier = Modifier.height(32.dp))
-
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -342,7 +367,6 @@ fun SignUpPage(
                                     )
                                 }
                             }
-
                             // Teléfono
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
@@ -389,14 +413,13 @@ fun SignUpPage(
                                 )
                                 if (phone.isNotEmpty() && !isPhoneValid) {
                                     Text(
-                                        text = "Ingrese un número válido (7-15 dígitos)",
+                                        text = "Ingrese un número válido",
                                         color = Color(0xFFEF4444),
                                         fontSize = 11.sp,
                                         modifier = Modifier.padding(top = 4.dp)
                                     )
                                 }
                             }
-
                             // Email
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
@@ -447,7 +470,6 @@ fun SignUpPage(
                                     )
                                 }
                             }
-
                             // Password
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
@@ -500,7 +522,6 @@ fun SignUpPage(
                                     ),
                                     shape = RoundedCornerShape(12.dp)
                                 )
-
                                 // Validaciones visuales
                                 if (password.isNotEmpty()) {
                                     Box(
@@ -548,7 +569,6 @@ fun SignUpPage(
                                     }
                                 }
                             }
-
                             // Confirm Password
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
@@ -610,7 +630,6 @@ fun SignUpPage(
                                     )
                                 }
                             }
-
                             // Términos y condiciones
                             Row(
                                 modifier = Modifier
@@ -702,30 +721,52 @@ fun SignUpPage(
                                     }
                                 )
                             }
-
                             Spacer(modifier = Modifier.height(8.dp))
+
+                            // --- MENSAJE DE ERROR
+                            AnimatedContent(targetState = errorMessage != null) { showError ->
+                                if (showError) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp) // Espacio encima del mensaje
+                                            .background(
+                                                Color(0xFFEF4444).copy(alpha = 0.1f), // Fondo rojo claro
+                                                RoundedCornerShape(10.dp)
+                                            )
+                                            .padding(12.dp)
+                                    ) {
+                                        Text(
+                                            text = errorMessage ?: "Error al registrarse",
+                                            color = Color(0xFFEF4444),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp)) // Espacio debajo del mensaje
+                                }
+                            }
+
 
                             // Botón de registro
                             Button(
                                 onClick = {
+                                    errorMessage = null
                                     if (!termsAccepted) {
-                                        Toast.makeText(context, "Debes aceptar los términos y condiciones", Toast.LENGTH_SHORT).show()
+                                        errorMessage = "Debes aceptar los términos y condiciones"
                                     } else if (!isPasswordMatchValid) {
-                                        Toast.makeText(context, "Las contraseñas no coinciden", Toast.LENGTH_SHORT).show()
+                                        errorMessage = "Las contraseñas no coinciden"
                                     } else if (!isPasswordValid) {
-                                        Toast.makeText(
-                                            context,
-                                            "La contraseña no cumple con los requisitos",
-                                            Toast.LENGTH_LONG
-                                        ).show()
+                                        errorMessage = "La contraseña no cumple con los requisitos"
                                     } else if (!isNameValid) {
-                                        Toast.makeText(context, "Nombre no válido", Toast.LENGTH_SHORT).show()
+                                        errorMessage = "Nombre no válido"
                                     } else if (!isEmailValid) {
-                                        Toast.makeText(context, "Email no válido", Toast.LENGTH_SHORT).show()
+                                        errorMessage = "Email no válido"
                                     } else if (!isPhoneValid) {
-                                        Toast.makeText(context, "Teléfono no válido", Toast.LENGTH_SHORT).show()
+                                        errorMessage = "Teléfono no válido"
                                     } else {
                                         viewModel.signup(name, email, password, phone)
+                                        errorMessage = null
                                     }
                                 },
                                 modifier = Modifier
@@ -755,9 +796,7 @@ fun SignUpPage(
                                     )
                                 }
                             }
-
                             Spacer(modifier = Modifier.height(12.dp))
-
                             // DIVIDER
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -782,9 +821,7 @@ fun SignUpPage(
                                         .background(Color(0xFFE2E8F0))
                                 )
                             }
-
                             Spacer(modifier = Modifier.height(12.dp))
-
                             // Ya tienes cuenta
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -796,7 +833,16 @@ fun SignUpPage(
                                     fontSize = 14.sp,
                                     color = Color(0xFF64748B)
                                 )
-                                TextButton(onClick = { onNavigateToLogin() }) {
+                                TextButton(onClick = {
+                                    errorMessage = null
+                                    isLoading = true
+                                    viewModel.clearRegisterForm()
+                                    MainScope().launch {
+                                        delay(150)
+                                        onNavigateToLogin()
+                                        isLoading = false
+                                    }
+                                }) {
                                     Text(
                                         "Iniciar sesión",
                                         fontSize = 14.sp,
@@ -807,9 +853,7 @@ fun SignUpPage(
                             }
                         }
                     }
-
                     Spacer(modifier = Modifier.height(24.dp))
-
                     Text(
                         text = "© 2025 Fade Barber",
                         fontSize = 12.sp,
@@ -817,6 +861,15 @@ fun SignUpPage(
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
                 }
+            }
+        }
+        // Mostrar spinner encima si está cargando
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
         }
     }

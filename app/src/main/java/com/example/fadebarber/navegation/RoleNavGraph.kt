@@ -1,4 +1,3 @@
-// En tu archivo com.example.fadebarber.navegation
 package com.example.fadebarber.navegation
 
 import androidx.compose.foundation.layout.padding
@@ -16,7 +15,11 @@ import com.example.fadebarber.navegation.RolesNav.AdminNav
 import com.example.fadebarber.navegation.RolesNav.ClientNav
 import com.example.fadebarber.navegation.RolesNav.EmployeeNav
 import com.example.fadebarber.ui.admin.AdminScreens
-import com.example.fadebarber.ui.auth.*
+import com.example.fadebarber.ui.auth.LoginPage
+import com.example.fadebarber.ui.auth.PrivacyPolicyScreen
+import com.example.fadebarber.ui.auth.ResetPassword
+import com.example.fadebarber.ui.auth.SignUpPage
+import com.example.fadebarber.ui.auth.TermsAndConditionsScreen
 import com.example.fadebarber.ui.client.ClientScreens
 import com.example.fadebarber.ui.employee.EmployeeScreens
 

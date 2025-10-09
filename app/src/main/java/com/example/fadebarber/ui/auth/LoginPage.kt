@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import com.example.fadebarber.R
 import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
@@ -93,22 +94,32 @@ fun LoginPage(
     val isEmailValid = emailRegex.matches(email)
     val isPasswordValid = passwordRegex.matches(password)
 
-    // Escuchar cambios en el estado de autenticación
     LaunchedEffect(authState.value) {
         when (val state = authState.value) {
             is AuthState.Authenticated -> {
                 isProcessing = false
                 errorMessage = null
+                showEmailError = false
+                showPasswordError = false
                 onLoginSuccess(state.role)
             }
             is AuthState.Error -> {
                 isProcessing = false
-                errorMessage = state.message
-                if (state.message?.contains("email") != true &&
+                errorMessage = null
+                val isInvalidCredentials = state.message?.contains("invalid", ignoreCase = true) == true ||
+                        state.message?.contains("credentials", ignoreCase = true) == true ||
+                        state.message?.contains("wrong", ignoreCase = true) == true ||
+                        state.message?.contains("not found", ignoreCase = true) == true ||
+                        state.message?.contains("incorrect", ignoreCase = true) == true
+
+                if (isInvalidCredentials) {
+                    errorMessage = "Correo electrónico o contraseña inválidos"
+                } else if (state.message?.contains("email") != true &&
                     state.message?.contains("verification") != true &&
                     state.message?.contains("verificado") != true) {
+                    errorMessage = state.message // Mostrar otros mensajes de error
                     scope.launch {
-                        kotlinx.coroutines.delay(3000)
+                        delay(3000)
                         errorMessage = null
                     }
                 }
@@ -168,17 +179,17 @@ fun LoginPage(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "Bienvenido de nuevo",
+            /**Text(
+                text = "Bienvenido",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-
+            **/
             Text(
-                text = "Inicia sesión para continuar",
+                text = "Inicia sesión para disfrutar \nla experiencia completa",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Normal,
                 color = Color.White.copy(alpha = 0.85f)
@@ -243,26 +254,14 @@ fun LoginPage(
                                 Icon(
                                     imageVector = Icons.Default.Mail,
                                     contentDescription = null,
-                                    tint = when {
-                                        showEmailError -> Color(0xFFEF4444)
-                                        email.isNotEmpty() && emailRegex.matches(email) -> Color(0xFF10B981)
-                                        else -> Color(0xFF2563EB)
-                                    }
+                                    tint = if (showEmailError) Color(0xFFEF4444) else Color(0xFF2563EB)
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = when {
-                                    showEmailError -> Color(0xFFEF4444)
-                                    email.isNotEmpty() && emailRegex.matches(email) -> Color(0xFF10B981)
-                                    else -> Color(0xFF2563EB)
-                                },
-                                unfocusedBorderColor = when {
-                                    showEmailError -> Color(0xFFEF4444)
-                                    email.isNotEmpty() && emailRegex.matches(email) -> Color(0xFF10B981)
-                                    else -> Color(0xFFE2E8F0)
-                                },
+                                focusedBorderColor = if (showEmailError) Color(0xFFEF4444) else Color(0xFF2563EB),
+                                unfocusedBorderColor = if (showEmailError) Color(0xFFEF4444) else Color(0xFFE2E8F0),
                                 focusedLabelColor = Color(0xFF2563EB),
                                 unfocusedLabelColor = Color(0xFF64748B),
                                 cursorColor = Color(0xFF2563EB)
@@ -297,11 +296,7 @@ fun LoginPage(
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = when {
-                                        showPasswordError -> Color(0xFFEF4444)
-                                        password.isNotEmpty() && passwordRegex.matches(password) -> Color(0xFF10B981)
-                                        else -> Color(0xFF2563EB)
-                                    }
+                                    tint = if (showPasswordError) Color(0xFFEF4444) else Color(0xFF2563EB)
                                 )
                             },
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -319,16 +314,8 @@ fun LoginPage(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = when {
-                                    showPasswordError -> Color(0xFFEF4444)
-                                    password.isNotEmpty() && passwordRegex.matches(password) -> Color(0xFF10B981)
-                                    else -> Color(0xFF2563EB)
-                                },
-                                unfocusedBorderColor = when {
-                                    showPasswordError -> Color(0xFFEF4444)
-                                    password.isNotEmpty() && passwordRegex.matches(password) -> Color(0xFF10B981)
-                                    else -> Color(0xFFE2E8F0)
-                                },
+                                focusedBorderColor = if (showPasswordError) Color(0xFFEF4444) else Color(0xFF2563EB),
+                                unfocusedBorderColor = if (showPasswordError) Color(0xFFEF4444) else Color(0xFFE2E8F0),
                                 focusedLabelColor = Color(0xFF2563EB),
                                 unfocusedLabelColor = Color(0xFF64748B),
                                 cursorColor = Color(0xFF2563EB)
@@ -400,7 +387,7 @@ fun LoginPage(
                                     errorMessage = "Correo inválido"
                                 } else if (!passwordValid) {
                                     showPasswordError = true
-                                    errorMessage = "Contraseña inválida"
+                                    errorMessage = "Contraseña incorrecta. Vuelve a intentarlo o selecciona \"¿Has olvidado tu contraseña?\" para cambiarla."
                                 }
                             }
                         },
@@ -487,6 +474,29 @@ fun LoginPage(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // SIGN UP BUTTON
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        /**TextButton(
+                            onClick = {
+                            }
+                        ) {
+                            Text(
+                                text = "Accede como invitado",
+                                fontSize = 14.sp,
+                                color = Color(0xFF2563EB),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        **/
+                    }
                 }
             }
 
@@ -495,7 +505,7 @@ fun LoginPage(
             Text(
                 text = "© 2025 Fade Barber",
                 fontSize = 12.sp,
-                color = Color(0xFF64748B),
+                color = Color.White.copy(alpha = 0.85f),
                 modifier = Modifier.padding(bottom = 24.dp)
             )
         }
