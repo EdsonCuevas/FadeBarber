@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
+import com.example.fadebarber.ui.client.components.SkeletonHorarioItem
 import com.example.fadebarber.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -559,21 +560,33 @@ fun CuentaPage(
                     enter = expandVertically(),
                     exit = shrinkVertically()
                 ) {
-                    Column(modifier = Modifier.padding(top = 16.dp)) {
-                        val diasOrdenados = listOf(
-                            "monday", "tuesday", "wednesday",
-                            "thursday", "friday", "saturday", "sunday"
-                        )
+                    if (barberInfo == null) {
+                        // Skeleton Loading
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            repeat(7) { index ->
+                                SkeletonHorarioItem()
+                                if (index < 6) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
+                            }
+                        }
+                    } else {
+                        Column(modifier = Modifier.padding(top = 16.dp)) {
+                            val diasOrdenados = listOf(
+                                "monday", "tuesday", "wednesday",
+                                "thursday", "friday", "saturday", "sunday"
+                            )
 
-                        diasOrdenados.forEach { dia ->
-                            val horario = barberInfo?.schedule?.get(dia)
-                            horario?.let {
-                                HorarioItem(
-                                    isOpen = it.available,
-                                    horaInicio = it.start,
-                                    horaFin = it.end,
-                                    dia = dia
-                                )
+                            diasOrdenados.forEach { dia ->
+                                val horario = barberInfo.schedule?.get(dia)
+                                horario?.let {
+                                    HorarioItem(
+                                        isOpen = it.available,
+                                        horaInicio = it.start,
+                                        horaFin = it.end,
+                                        dia = dia
+                                    )
+                                }
                             }
                         }
                     }

@@ -9,7 +9,7 @@ import com.example.fadebarber.navegation.NavigationItem
 
 object ClientNav {
     val items = listOf(
-        NavigationItem("date", "Dates", Icons.Filled.DateRange),
+        NavigationItem("date", "Citas", Icons.Filled.DateRange),
         NavigationItem("home", "Inicio", Icons.Filled.Home),
         NavigationItem("account", "Cuenta", Icons.Filled.AccountCircle),
 
