@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.example.fadebarber.services.EnvLoad
+import com.example.fadebarber.BuildConfig
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetContract
@@ -99,7 +100,8 @@ suspend fun crearPaymentIntentDirecto(amount: Int): String? {
     return withContext(Dispatchers.IO) {
         try {
             Log.d("Stripe", "Creando PaymentIntent para: $amount MXN (${amount * 100} centavos)")
-            val env = EnvLoad()
+            val stripeKey = BuildConfig.STRIPE_KEY
+
             val client = OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
@@ -116,7 +118,7 @@ suspend fun crearPaymentIntentDirecto(amount: Int): String? {
             val request = Request.Builder()
                 .url("https://api.stripe.com/v1/payment_intents")
                 .post(formBody)
-                .addHeader("Authorization", "Bearer ${env["SECRET_STRIPE_KEY"]}")
+                .addHeader("Authorization", "Bearer $stripeKey")
                 .addHeader("Content-Type", "application/x-www-form-urlencoded")
                 .build()
 
