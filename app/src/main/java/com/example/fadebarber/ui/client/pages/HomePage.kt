@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,7 +55,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,16 +63,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.R
-import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.HomeTab
-import com.example.fadebarber.data.model.PromotionData
-import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.ui.client.components.AgendaCartForm
@@ -108,7 +107,7 @@ fun HomePage(
     val info by viewModel.info.collectAsState()
     val services by viewModel.services.collectAsState()
     val promotions by viewModel.promotions.collectAsState()
-    val cartItems by viewModel.cartItems.collectAsState() // ✅ Cambio aquí
+    val cartItems by viewModel.cartItems.collectAsState()
 
     val barbers by produceState<List<UserData>>(initialValue = emptyList()) {
         value = FirebaseRepository.getBarbers()
@@ -194,7 +193,7 @@ fun HomePage(
 
             LaunchedEffect(alertMessage) {
                 if (alertMessage != null) {
-                    delay(2000L)
+                    delay(3000L)
                     showAlert = false
                 }
             }
@@ -205,7 +204,7 @@ fun HomePage(
                 .fillMaxSize()
                 .background(Color(0xFFF5F7FA))
         ) {
-            // HEADER MEJORADO (igual a CitaPageClient)
+            // HEADER MEJORADO
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -310,8 +309,10 @@ fun HomePage(
 
             // CONTENIDO CON LazyColumn
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(24.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Banner
@@ -325,7 +326,6 @@ fun HomePage(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                // Abrir Google Maps con la ubicación de Universidad de Colima Campus Naranjo
                                 val gmmIntentUri =
                                     Uri.parse("geo:0,0?q=Universidad+de+Colima+Campus+Naranjo")
                                 val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
@@ -450,10 +450,10 @@ fun HomePage(
                                 ServiceCard(
                                     service = service,
                                     onClick = {
-                                        viewModel.addToCart(service) // ✅ Cambio aquí
-                                        alertMessage = "${service.nameService} agregado al carrito"
+                                        viewModel.addToCart(service)
+                                        /*alertMessage = "✅ ${service.nameService} agregado"
                                         alertColor = Color(0xFF10B981)
-                                        showAlert = true
+                                        showAlert = true*/
                                     }
                                 )
                             }
@@ -468,8 +468,8 @@ fun HomePage(
                         if (filteredPromos.isNotEmpty()) {
                             items(filteredPromos) { promo ->
                                 PromotionCard(promotion = promo, allServices = services) {
-                                    viewModel.addToCart(promo) // ✅ Cambio aquí
-                                    alertMessage = "${promo.namePromotion} agregado al carrito"
+                                    viewModel.addToCart(promo)
+                                    alertMessage = "✅ ${promo.namePromotion} agregado"
                                     alertColor = Color(0xFF10B981)
                                     showAlert = true
                                 }
@@ -668,6 +668,86 @@ fun HomePage(
             }
         }
 
+        // 🎯 BOTÓN FLOTANTE FIJO - SIEMPRE VISIBLE
+        AnimatedVisibility(
+            visible = cartItems.isNotEmpty(),
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .zIndex(3f)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF2563EB)
+                ),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+            ) {
+                Button(
+                    onClick = { showCart = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        Color.White.copy(alpha = 0.2f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_calendar_clock),
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(horizontalAlignment = Alignment.Start) {
+                                Text(
+                                    text = "AGENDAR CITA",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "${cartItems.size} servicio${if (cartItems.size > 1) "s" else ""} seleccionado${if (cartItems.size > 1) "s" else ""}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                            }
+                        }
+
+                        Icon(
+                            painter = painterResource(id = android.R.drawable.ic_menu_send),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         // BottomSheets
         if (showCartAgenda) {
             ModalBottomSheet(
@@ -680,13 +760,16 @@ fun HomePage(
                     barbers = barbers,
                     userId = user.id,
                     onConfirm = { success, message ->
-                        alertMessage = message
+                        alertMessage = if (success) "✅ $message" else "❌ $message"
                         alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
                         showAlert = true
                         showCart = false
                         showCartAgenda = false
-                        viewModel.clearCart() // ✅ Cambio aquí
-                    }
+                        if (success) {
+                            viewModel.clearCart()
+                        }
+                    },
+                    user = user
                 )
             }
         }
@@ -700,8 +783,14 @@ fun HomePage(
                 CartPage(
                     items = cartItems,
                     onClose = { showCart = false },
-                    onRemove = { item -> viewModel.removeFromCart(item) }, // ✅ Cambio aquí
+                    onRemove = { item ->
+                        viewModel.removeFromCart(item)
+                        alertMessage = "❌ Servicio eliminado"
+                        alertColor = Color(0xFFEF4444)
+                        showAlert = true
+                    },
                     onAgendar = {
+                        showCart = false
                         showCartAgenda = true
                     }
                 )
@@ -737,7 +826,7 @@ fun InfoStatCard(number: String, label: String, modifier: Modifier = Modifier) {
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF64748B),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -817,7 +906,15 @@ fun EmptyStateCard(message: String) {
                 text = message,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1E293B)
+                color = Color(0xFF1E293B),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Explora nuestras otras opciones",
+                fontSize = 13.sp,
+                color = Color(0xFF64748B),
+                textAlign = TextAlign.Center
             )
         }
     }

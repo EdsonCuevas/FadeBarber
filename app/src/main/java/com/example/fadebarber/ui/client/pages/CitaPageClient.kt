@@ -1,6 +1,5 @@
 package com.example.fadebarber.ui.client.pages
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +50,7 @@ import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.ui.client.components.QrAppointmentModal
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalTime
@@ -93,7 +93,7 @@ fun CitaPageClient(
         .sortedBy {
             LocalTime.parse(it.timeAppointment, DateTimeFormatter.ofPattern("HH:mm"))
         }
-    Log.d("CitaPage", "Filtered Appointments: $filteredAppointments")
+
 
     Column(
         modifier = modifier
@@ -311,6 +311,14 @@ fun CitaPageClient(
                     )
                 }
             }
+
+        }
+        if (selectedAppointment != null) {
+            QrAppointmentModal(
+                appointment = selectedAppointment!!,
+                onDismiss = { selectedAppointment = null },
+                onCancelAppointment = { /* lógica de cancelación */ }
+            )
         }
     }
 }
