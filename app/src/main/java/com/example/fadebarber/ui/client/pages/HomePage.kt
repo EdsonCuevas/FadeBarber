@@ -121,7 +121,8 @@ fun HomePage(
 
     var showCart by remember { mutableStateOf(false) }
 
-    var showCartAgenda by remember { mutableStateOf(false) }
+    // 🎯 NUEVA VARIABLE: controla el sheet de agenda (se abre SOBRE el carrito)
+    var showAgendaSheet by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -451,9 +452,6 @@ fun HomePage(
                                     service = service,
                                     onClick = {
                                         viewModel.addToCart(service)
-                                        /*alertMessage = "✅ ${service.nameService} agregado"
-                                        alertColor = Color(0xFF10B981)
-                                        showAlert = true*/
                                     }
                                 )
                             }
@@ -748,32 +746,7 @@ fun HomePage(
             }
         }
 
-        // BottomSheets
-        if (showCartAgenda) {
-            ModalBottomSheet(
-                onDismissRequest = { showCartAgenda = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = Color.White
-            ) {
-                AgendaCartForm(
-                    items = cartItems,
-                    barbers = barbers,
-                    userId = user.id,
-                    onConfirm = { success, message ->
-                        alertMessage = if (success) "✅ $message" else "❌ $message"
-                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
-                        showAlert = true
-                        showCart = false
-                        showCartAgenda = false
-                        if (success) {
-                            viewModel.clearCart()
-                        }
-                    },
-                    user = user
-                )
-            }
-        }
-
+        // 🎯 BOTTOMSHEET DEL CARRITO (PRIMER NIVEL)
         if (showCart) {
             ModalBottomSheet(
                 onDismissRequest = { showCart = false },
@@ -790,9 +763,35 @@ fun HomePage(
                         showAlert = true
                     },
                     onAgendar = {
-                        showCart = false
-                        showCartAgenda = true
+                        // 🎯 Abrir el sheet de agenda SIN cerrar el carrito
+                        showAgendaSheet = true
                     }
+                )
+            }
+        }
+
+        // 🎯 BOTTOMSHEET DE AGENDA (SEGUNDO NIVEL - SE ABRE SOBRE EL CARRITO)
+        if (showAgendaSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showAgendaSheet = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = Color.White
+            ) {
+                AgendaCartForm(
+                    items = cartItems,
+                    barbers = barbers,
+                    userId = user.id,
+                    onConfirm = { success, message ->
+                        alertMessage = if (success) "✅ $message" else "❌ $message"
+                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
+                        showAlert = true
+                        showAgendaSheet = false
+                        showCart = false
+                        if (success) {
+                            viewModel.clearCart()
+                        }
+                    },
+                    user = user
                 )
             }
         }
