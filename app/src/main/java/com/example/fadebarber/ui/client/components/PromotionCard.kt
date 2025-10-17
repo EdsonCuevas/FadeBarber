@@ -62,12 +62,12 @@ fun PromotionCard(
                 Text(promotion.namePromotion ?: "", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("⏱ ${promotion.durationPromotion ?: 0} min", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 Spacer(Modifier.height(4.dp))
-                Text("$${promotion.pricePromotion ?: 0} USD", fontWeight = FontWeight.Bold)
                 Text("Incluye servicios:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 promotion.servicePromotion?.forEach { id ->
                     val serviceName = allServices.find { it.id == id }?.nameService ?: return@forEach
                     Text("- $serviceName", fontSize = 12.sp, color = Color.DarkGray)
                 }
+                Text("$${promotion.pricePromotion} MXN", fontWeight = FontWeight.Bold)
             }
 
             Spacer(Modifier.height(8.dp))

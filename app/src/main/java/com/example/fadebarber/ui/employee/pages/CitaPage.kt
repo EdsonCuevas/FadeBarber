@@ -335,6 +335,14 @@ fun CitaPage(
             ) {
                 selectedAppointment?.let { appointment ->
 
+                    val statusInfo = when (appointment.statusAppointment) {
+                        1 -> Pair("Pendiente", Color(0xFFF59E0B))
+                        2 -> Pair("En curso", Color(0xFF22C55E))
+                        3 -> Pair("Completada", Color(0xFF3B82F6))
+                        4 -> Pair("Cancelada", Color(0xFFEF4444))
+                        else -> Pair("Desconocido", Color.Gray)
+                    }
+
                     // Header - Estado de la Cita
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -354,7 +362,7 @@ fun CitaPage(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier
                                 .background(
-                                    Color(0xFFDCFCE7),
+                                    statusInfo.second.copy(alpha = 0.1f),
                                     RoundedCornerShape(20.dp)
                                 )
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -362,15 +370,17 @@ fun CitaPage(
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
-                                    .background(Color(0xFF22C55E), CircleShape)
+                                    .background(statusInfo.second, CircleShape)
                             )
                             Text(
-                                text = "Activo",
+                                text = statusInfo.first,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF16A34A)
+                                color = statusInfo.second
                             )
                         }
+
+
                     }
 
                     // Card Principal del Servicio
@@ -692,17 +702,17 @@ fun AppointmentCard(
 ) {
     // Determinar color según estado
     val statusColor = when (appointment.statusAppointment) {
-        1 -> Color(0xFF22C55E)  // Verde - Activa
-        2 -> Color(0xFFF97316)  // Naranja - En proceso
-        3 -> Color(0xFF3B82F6)  // Azul - Terminada
-        4 -> Color(0xFFEF4444)  // Rojo - Cancelada
-        else -> Color(0xFF6B7280) // Gris - Desconocido
+        1 -> Color(0xFFF59E0B)
+        2 -> Color(0xFF22C55E)
+        3 -> Color(0xFF3B82F6)
+        4 -> Color(0xFFEF4444)
+        else -> Color(0xFF6B7280)
     }
 
     val statusText = when (appointment.statusAppointment) {
-        1 -> "Activa"
-        2 -> "En proceso"
-        3 -> "Terminada"
+        1 -> "Pendiente"
+        2 -> "En curso"
+        3 -> "Completada"
         4 -> "Cancelada"
         else -> "Desconocido"
     }

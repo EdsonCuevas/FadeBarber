@@ -9,8 +9,8 @@ import com.example.fadebarber.navegation.NavigationItem
 
 object EmployeeNav {
     val items = listOf(
-        NavigationItem("date", "Dates", Icons.Filled.DateRange),
-        NavigationItem("dashboard", "Dashboard", Icons.Filled.Home),
+        NavigationItem("date", "Citas", Icons.Filled.DateRange),
+        NavigationItem("dashboard", "Panel", Icons.Filled.Home),
         NavigationItem("account", "Cuenta", Icons.Filled.AccountCircle),
 
     )

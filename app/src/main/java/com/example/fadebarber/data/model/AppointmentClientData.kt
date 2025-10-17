@@ -14,5 +14,6 @@ data class AppointmentClientData (
     val phoneNumberClient: String? = null,
     val totalPrice:Int? = null,
     val durationTotal: Int? = null,
+    val statusPayment: Int? = null,
     val statusAppointment: Int? = null,
 )

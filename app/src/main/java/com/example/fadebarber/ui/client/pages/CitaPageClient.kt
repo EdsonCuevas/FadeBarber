@@ -1,6 +1,5 @@
 package com.example.fadebarber.ui.client.pages
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +50,7 @@ import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.ui.client.components.QrAppointmentModal
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalTime
@@ -93,7 +93,7 @@ fun CitaPageClient(
         .sortedBy {
             LocalTime.parse(it.timeAppointment, DateTimeFormatter.ofPattern("HH:mm"))
         }
-    Log.d("CitaPage", "Filtered Appointments: $filteredAppointments")
+
 
     Column(
         modifier = modifier
@@ -311,6 +311,14 @@ fun CitaPageClient(
                     )
                 }
             }
+
+        }
+        if (selectedAppointment != null) {
+            QrAppointmentModal(
+                appointment = selectedAppointment!!,
+                onDismiss = { selectedAppointment = null },
+                onCancelAppointment = { /* lógica de cancelación */ }
+            )
         }
     }
 }
@@ -324,18 +332,18 @@ fun ImprovedAppointmentCard(
     onClick: (AppointmentClientData) -> Unit
 ) {
     val statusColor = when (appointment.statusAppointment) {
-        1 -> Color(0xFF10B981) // Activa - Verde
-        2 -> Color(0xFFF59E0B) // En proceso - Amarillo
-        3 -> Color(0xFF2563EB) // Terminada - Azul
+        1 -> Color(0xFFF59E0B) // Pendiente - Verde
+        2 -> Color(0xFF10B981) // En curso - Amarillo
+        3 -> Color(0xFF2563EB) // Completada - Azul
         0 -> Color(0xFFEF4444) // Cancelada - Rojo
         else -> Color(0xFF6B7280)
     }
     val statusText = when (appointment.statusAppointment) {
-        1 -> "Confirmada"
+        1 -> "Pendiente"
         2 -> "En curso"
         3 -> "Completada"
-        0 -> "Cancelada"
-        else -> "Pendiente"
+        4 -> "Cancelada"
+        else -> "Desconocido"
     }
 
     val barbero = users.find { it.id == appointment.idEmployee }

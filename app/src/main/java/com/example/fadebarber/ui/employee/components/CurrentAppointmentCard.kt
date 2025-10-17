@@ -89,7 +89,7 @@ fun CurrentAppointmentCard(
                                 BlinkingDot(size = 10.dp, color = Color(0xFF10B981))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "En proceso",
+                                    text = "En curso",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFF10B981)
