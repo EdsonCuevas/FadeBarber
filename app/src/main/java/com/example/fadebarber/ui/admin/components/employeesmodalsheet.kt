@@ -86,7 +86,7 @@ fun EmployeeModalSheet(
                                     shape = RoundedCornerShape(8.dp),
                                     color = when (client.status) {
                                         "Aceptado" -> Color(0xFFD4EDDA)
-                                        "En Proceso" -> Color(0xFFFFF3CD)
+                                        "En curso" -> Color(0xFFFFF3CD)
                                         else -> Color(0xFFF8D7DA)
                                     }
                                 ) {

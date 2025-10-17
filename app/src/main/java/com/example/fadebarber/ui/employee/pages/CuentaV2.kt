@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,6 +35,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,6 +63,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.DashboardViewModel
+import com.example.fadebarber.ui.client.components.HorarioItem
+import com.example.fadebarber.ui.client.components.SkeletonHorarioItem
 import com.example.fadebarber.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -173,31 +177,10 @@ fun CuentaV2(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Editar Cuenta Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showCuenta = !showCuenta },
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Editar Cuenta",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1976D2)
-                    )
-                    Text(
-                        text = if (showCuenta) "Ocultar formulario" else "Actualiza tu información personal",
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
+            MenuItemWithArrow(
+                text = "Editar Cuenta",
+                onClick = { showCuenta = !showCuenta }
+            )
 
             // Formulario de edición
             AnimatedVisibility(
@@ -549,7 +532,7 @@ fun CuentaV2(
 
             // Gestionar Horario
             Text(
-                text = "Gestionar Horario",
+                text = "Horarios laborales",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
@@ -557,7 +540,7 @@ fun CuentaV2(
             Spacer(modifier = Modifier.height(16.dp))
 
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 modifier = Modifier
@@ -566,27 +549,51 @@ fun CuentaV2(
             ) {
                 AnimatedVisibility(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
+                        .fillMaxHeight()
+                        .fillMaxWidth(),
                     visible = showHorario,
                     enter = expandVertically(),
                     exit = shrinkVertically()
                 ) {
-                    Column(modifier = Modifier.padding(top = 16.dp)) {
-                        val diasOrdenados = listOf(
-                            "monday", "tuesday", "wednesday",
-                            "thursday", "friday", "saturday", "sunday"
-                        )
+                    if (user == null) {
+                        // Skeleton Loading
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            repeat(7) { index ->
+                                SkeletonHorarioItem()
+                                if (index < 6) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
+                            }
+                        }
+                    } else {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            val diasOrdenados = listOf(
+                                "monday" to "Lunes",
+                                "tuesday" to "Martes",
+                                "wednesday" to "Miércoles",
+                                "thursday" to "Jueves",
+                                "friday" to "Viernes",
+                                "saturday" to "Sábado",
+                                "sunday" to "Domingo"
+                            )
 
-                        diasOrdenados.forEach { dia ->
-                            val horario = user?.schedule?.get(dia)
-                            horario?.let {
-                                HorarioItem(
-                                    isOpen = it.available,
-                                    horaInicio = it.start,
-                                    horaFin = it.end,
-                                    dia = dia
-                                )
+                            diasOrdenados.forEachIndexed { index, (diaKey, diaNombre) ->
+                                val horario = user.schedule.get(diaKey)
+                                horario?.let {
+                                    HorarioItem(
+                                        isOpen = it.available,
+                                        horaInicio = it.start.toString(),
+                                        horaFin = it.end.toString(),
+                                        diaNombre = diaNombre
+                                    )
+                                    if (index < diasOrdenados.size - 1) {
+                                        Divider(
+                                            modifier = Modifier.padding(vertical = 12.dp),
+                                            color = Color.LightGray.copy(alpha = 0.3f),
+                                            thickness = 1.dp
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -666,97 +673,6 @@ private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
                 contentDescription = "Ir a $text",
                 tint = Color.Gray
             )
-        }
-    }
-}
-
-@Composable
-fun HorarioItem(
-    isOpen: Boolean,
-    horaInicio: String?,
-    horaFin: String?,
-    dia: String
-) {
-    val diaEsp = when (dia) {
-        "monday" -> "Lunes"
-        "tuesday" -> "Martes"
-        "wednesday" -> "Miércoles"
-        "thursday" -> "Jueves"
-        "friday" -> "Viernes"
-        "saturday" -> "Sábado"
-        "sunday" -> "Domingo"
-        else -> dia
-    }
-
-    Card(
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isOpen) Color(0xFFF0F9FF) else Color(0xFFFEF2F2)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isOpen) Color(0xFF10B981) else Color(0xFFEF4444)
-                        )
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = diaEsp,
-                    fontSize = 14.sp,
-                    color = Color(0xFF374151),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isOpen && !horaFin.isNullOrEmpty()) {
-                    Icon(
-                        painter = painterResource(id = android.R.drawable.ic_menu_recent_history),
-                        contentDescription = "Horario",
-                        tint = Color(0xFF10B981),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${horaInicio} - ${horaFin}",
-                        fontSize = 14.sp,
-                        color = Color(0xFF10B981),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(id = android.R.drawable.ic_lock_power_off),
-                        contentDescription = "Cerrado",
-                        tint = Color(0xFFEF4444),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Descanso",
-                        fontSize = 14.sp,
-                        color = Color(0xFFEF4444),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
         }
     }
 }

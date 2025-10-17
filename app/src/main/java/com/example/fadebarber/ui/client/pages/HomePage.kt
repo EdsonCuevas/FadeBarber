@@ -45,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -89,6 +90,18 @@ fun HomePage(
     viewModel: HomeViewModel = viewModel(),
     user: UserData,
 ) {
+
+    // Iniciar listeners cuando la página se muestre
+    LaunchedEffect(Unit) {
+        viewModel.startRealtimeListeners()
+    }
+
+    // Detener listeners cuando la página se destruya
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.stopRealtimeListeners()
+        }
+    }
 
     var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
 
@@ -438,7 +451,7 @@ fun HomePage(
                                     service = service,
                                     onClick = {
                                         viewModel.addToCart(service) // ✅ Cambio aquí
-                                        alertMessage = "${service.nameService} agregado al carrito 🛒"
+                                        alertMessage = "${service.nameService} agregado al carrito"
                                         alertColor = Color(0xFF10B981)
                                         showAlert = true
                                     }
@@ -456,7 +469,7 @@ fun HomePage(
                             items(filteredPromos) { promo ->
                                 PromotionCard(promotion = promo, allServices = services) {
                                     viewModel.addToCart(promo) // ✅ Cambio aquí
-                                    alertMessage = "${promo.namePromotion} agregado al carrito 🛒"
+                                    alertMessage = "${promo.namePromotion} agregado al carrito"
                                     alertColor = Color(0xFF10B981)
                                     showAlert = true
                                 }
