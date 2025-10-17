@@ -18,7 +18,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "STRIPE_KEY", "\"${project.properties["STRIPE_KEY"]}\"")
 
     }
 
