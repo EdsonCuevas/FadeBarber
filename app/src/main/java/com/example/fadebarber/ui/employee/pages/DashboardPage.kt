@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.HourglassBottom
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,6 +32,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -63,6 +65,7 @@ import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.ui.employee.components.CardAppointment
 import com.example.fadebarber.ui.employee.components.CurrentAppointmentCard
+import com.example.fadebarber.ui.employee.components.QRScannerView
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.launch
@@ -88,6 +91,10 @@ fun DashboardPage(
     var alertMessage by remember { mutableStateOf("") }
     var alertColor by remember { mutableStateOf(Color.Transparent) }
     var showAlert by remember { mutableStateOf(false) }
+
+    // Estado para el escáner QR
+    var showScanner by remember { mutableStateOf(false) }
+    val scannerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val appointments by viewModel.appointments.collectAsState(initial = emptyList())
     val services by viewModel.services.collectAsState(initial = emptyList())
@@ -137,14 +144,18 @@ fun DashboardPage(
     }
 
     // === INTERFAZ ===
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
-            .background(Color.White),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.Start
+            .background(Color.White)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.Start
+        ) {
         /** HEADER CON IMAGEN Y NOMBRE **/
         Column(
             modifier = Modifier
@@ -896,6 +907,42 @@ fun DashboardPage(
                 }
             }
         }
+    }
+
+    // FAB de escaneo QR
+    FloatingActionButton(
+        onClick = { showScanner = true },
+        containerColor = Color(0xFF2563EB),
+        contentColor = Color.White,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(16.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.QrCodeScanner,
+            contentDescription = "Escanear QR"
+        )
+    }
+
+    // Modal para escanear QR
+    if (showScanner) {
+        ModalBottomSheet(
+            sheetState = scannerSheetState,
+            containerColor = Color.Black,
+            onDismissRequest = { showScanner = false }
+        ) {
+            QRScannerView(
+                modifier = Modifier.fillMaxSize(),
+                onResult = { code ->
+                    showScanner = false
+                    alertMessage = "QR detectado: $code"
+                    alertColor = Color(0xFF10B981)
+                    showAlert = true
+                }
+            )
+        }
+    }
+
     }
 
     // Dialog de confirmación de cancelación

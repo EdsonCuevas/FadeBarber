@@ -461,6 +461,74 @@ fun AgendaCartForm(
             }
         }
 
+        // RESUMEN DE SELECCIÓN (agrupado por cantidad)
+        item {
+            val serviceGroups = items.filterIsInstance<ServiceData>().groupBy { it.id }
+            val promotionGroups = items.filterIsInstance<PromotionData>().groupBy { it.id }
+            if (serviceGroups.isNotEmpty() || promotionGroups.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            "Servicios y Promos seleccionados",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                        Spacer(Modifier.height(12.dp))
+
+                        // Servicios agrupados
+                        serviceGroups.values.forEach { group ->
+                            val s = group.first()
+                            val qty = group.size
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(s.nameService ?: "Servicio", fontWeight = FontWeight.SemiBold)
+                                    Text("$${s.priceService} MXN", color = Color(0xFF64748B), fontSize = 12.sp)
+                                }
+                                Text("x$qty", fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.width(8.dp))
+                                Text("$${s.priceService * qty}", fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+
+                        // Promos agrupadas
+                        promotionGroups.values.forEach { group ->
+                            val p = group.first()
+                            val qty = group.size
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(p.namePromotion ?: "Promoción", fontWeight = FontWeight.SemiBold)
+                                    Text("$${p.pricePromotion} MXN", color = Color(0xFF64748B), fontSize = 12.sp)
+                                }
+                                Text("x$qty", fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.width(8.dp))
+                                Text("$${p.pricePromotion * qty}", fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                }
+            }
+        }
+
         // SELECCIÓN DE BARBERO
         item {
             Card(

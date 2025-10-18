@@ -13,11 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,111 +30,81 @@ import com.example.fadebarber.data.model.ServiceData
 
 
 @Composable
-fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
-    Card(
+fun ServiceCard(
+    service: ServiceData,
+    quantity: Int,
+    onIncrement: (ServiceData) -> Unit,
+    onDecrement: (ServiceData) -> Unit
+) {
+    Card (
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick(service) },
+            .clickable { onIncrement(service) },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp,
-            pressedElevation = 2.dp
-        )
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(10.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen del servicio con mejor diseño
             AsyncImage(
                 model = service.imageService,
-                contentDescription = "Imagen del servicio ${service.nameService}",
+                contentDescription = service.nameService,
                 modifier = Modifier
-                    .size(90.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
             )
 
-            Spacer(Modifier.width(16.dp))
-
-            // Contenido principal
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                // Nombre del servicio
-                Text(
-                    text = service.nameService ?: "Servicio",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp,
-                    color = Color(0xFF1A1A1A)
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                // Descripción
-                Text(
-                    text = service.descriptionService ?: "",
-                    fontSize = 14.sp,
-                    color = Color(0xFF666666),
-                    maxLines = 2,
-                    lineHeight = 18.sp
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                // Información adicional en fila
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Duración
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AccessTime,
-                            contentDescription = "Duración",
-                            modifier = Modifier.size(14.dp),
-                            tint = Color(0xFF666666)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "${service.durationService ?: 0} min",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF666666)
-                        )
-                    }
-
-                    Spacer(Modifier.width(12.dp))
-
-                    // Precio
-                    Text(
-                        text = "$${service.priceService} MXN",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color(0xFF0A66C2)
-                    )
-                }
-            }
-
             Spacer(Modifier.width(12.dp))
 
-            // Botón de acción mejorado
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF0A66C2))
-                    .clickable { onClick(service) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "+",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(service.nameService ?: "", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(service.descriptionService ?: "", fontSize = 12.sp, color = Color.Gray)
+                Spacer(Modifier.height(4.dp))
+                Text("⏱ ${service.durationService ?: 0} min", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Spacer(Modifier.height(4.dp))
+                Text("$${service.priceService} MXN", fontWeight = FontWeight.Bold)
+            }
+
+            if (quantity > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE2E8F0))
+                            .clickable { onDecrement(service) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("-", color = Color(0xFF1E293B), fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(quantity.toString(), fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0A66C2))
+                            .clickable { onIncrement(service) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("+", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0A66C2))
+                        .clickable { onIncrement(service) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
