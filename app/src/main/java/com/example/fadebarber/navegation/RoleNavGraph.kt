@@ -23,7 +23,7 @@ import com.example.fadebarber.ui.auth.TermsAndConditionsScreen
 import com.example.fadebarber.ui.client.ClientScreens
 import com.example.fadebarber.ui.employee.EmployeeScreens
 
-enum class UserRole { CLIENT, EMPLOYEE, ADMIN, AUTH }
+enum class UserRole { CLIENT, EMPLOYEE, ADMIN, AUTH, GUEST }
 
 @Composable
 fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: NavHostController) {
@@ -33,6 +33,7 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
         UserRole.EMPLOYEE -> EmployeeNav.items
         UserRole.ADMIN -> AdminNav.items
         UserRole.AUTH -> emptyList()
+        UserRole.GUEST -> ClientNav.items
     }
 
     val startDestination = when (role) {
@@ -40,6 +41,7 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
         UserRole.EMPLOYEE -> "dashboard"    // Dashboard para empleados
         UserRole.ADMIN -> "dashboard"
         UserRole.AUTH -> "login"            // Solo para AUTH
+        UserRole.GUEST -> "home"
     }
 
     Scaffold(
@@ -125,6 +127,22 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
                                 authViewModel = authViewModel,
                                 homeViewModel = homeViewModel,
                                 navController = navController
+                            )
+                        }
+
+                        UserRole.GUEST -> {
+                            // Compartir HomeViewModel también para invitados
+                            val parentEntry = remember(backStackEntry) {
+                                navController.getBackStackEntry("home")
+                            }
+                            val homeViewModel: HomeViewModel = viewModel(parentEntry)
+
+                            ClientScreens(
+                                route = item.route,
+                                authViewModel = authViewModel,
+                                homeViewModel = homeViewModel,
+                                navController = navController,
+                                isGuest = true
                             )
                         }
 

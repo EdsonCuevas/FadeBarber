@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
@@ -87,7 +88,7 @@ fun CartPage(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ShoppingCart,
+                                imageVector = Icons.Default.EventNote,
                                 contentDescription = "Carrito",
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
@@ -96,14 +97,14 @@ fun CartPage(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(
-                                text = "Mi Carrito",
+                                text = "Agendar",
                                 fontSize = 26.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
                                 text = "${items.size} ${if (items.size == 1) "servicio" else "servicios"}",
-                                fontSize = 14.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Normal,
                                 color = Color.White.copy(alpha = 0.85f)
                             )
@@ -163,7 +164,7 @@ fun CartPage(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ShoppingCart,
+                                imageVector = Icons.Default.EventNote,
                                 contentDescription = "Carrito vacío",
                                 tint = Color(0xFF2563EB).copy(alpha = 0.6f),
                                 modifier = Modifier.size(40.dp)
@@ -171,7 +172,7 @@ fun CartPage(
                         }
                         Spacer(modifier = Modifier.height(20.dp))
                         Text(
-                            text = "Tu carrito está vacío",
+                            text = "Tu agenda está vacía",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF1E293B)

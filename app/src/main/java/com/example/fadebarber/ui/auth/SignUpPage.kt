@@ -873,3 +873,4 @@ fun SignUpPage(
         }
     }
 }
+

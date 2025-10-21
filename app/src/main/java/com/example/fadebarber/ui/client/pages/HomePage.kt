@@ -30,9 +30,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -79,9 +81,11 @@ import com.example.fadebarber.data.model.HomeTab
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.ui.client.components.AgendaCartForm
 import com.example.fadebarber.ui.client.components.BarberBanner
+import com.example.fadebarber.ui.client.components.SkeletonHorarioItem
 import com.example.fadebarber.ui.client.components.InfoStatCard
 import com.example.fadebarber.ui.client.components.PromotionCard
 import com.example.fadebarber.ui.client.components.SearchBar
@@ -104,12 +108,14 @@ fun HomePage(
     // Iniciar listeners cuando la página se muestre
     LaunchedEffect(Unit) {
         viewModel.startRealtimeListeners()
+        viewModel.listenToBarberInfo()
     }
 
     // Detener listeners cuando la página se destruya
     DisposableEffect(Unit) {
         onDispose {
             viewModel.stopRealtimeListeners()
+            viewModel.stopListeningToBarberInfo()
         }
     }
 
@@ -263,7 +269,7 @@ fun HomePage(
                                 )
                                 Text(
                                     text = "Hola, ${user.nameUser}",
-                                    fontSize = 14.sp,
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.Normal,
                                     color = Color.White.copy(alpha = 0.85f)
                                 )
@@ -299,7 +305,7 @@ fun HomePage(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ShoppingCart,
+                                    imageVector = Icons.Default.EventNote,
                                     contentDescription = "Carrito",
                                     tint = Color.White,
                                     modifier = Modifier.size(22.dp)
@@ -581,14 +587,14 @@ fun HomePage(
                                                 ) {
                                                     Icon(
                                                         imageVector = androidx.compose.material.icons.Icons.Filled.ListAlt,
-                                                        contentDescription = "Historial",
+                                                        contentDescription = "Historial De Citas",
                                                         tint = Color(0xFF0EA5E9),
                                                         modifier = Modifier.size(22.dp)
                                                     )
                                                 }
                                                 Spacer(modifier = Modifier.width(12.dp))
                                                 Text(
-                                                    text = "Historial",
+                                                    text = "Historial De Citas",
                                                     fontSize = 16.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = Color(0xFF1E293B)
@@ -690,6 +696,9 @@ fun HomePage(
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }
+                        }
+                        item {
+                            HorariosSection(info = info)
                         }
                     }
                 }
@@ -864,6 +873,134 @@ fun EmptyStateCard(message: String) {
                 fontSize = 13.sp,
                 color = Color(0xFF64748B),
                 textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun HorariosSection(info: BarberInfo?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color(0xFFF8FAFC), Color(0xFFEFF6FF))
+                    ),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .padding(20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFF10B981).copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Schedule,
+                        contentDescription = "Horarios",
+                        tint = Color(0xFF10B981)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text("Horarios de atención", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                    Text("Consulta disponibilidad por día", fontSize = 12.sp, color = Color(0xFF64748B))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (info == null) {
+                Column {
+                    repeat(3) {
+                        SkeletonHorarioItem()
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            } else {
+                val diasOrdenados = listOf(
+                    "monday" to "Lunes",
+                    "tuesday" to "Martes",
+                    "wednesday" to "Miércoles",
+                    "thursday" to "Jueves",
+                    "friday" to "Viernes",
+                    "saturday" to "Sábado",
+                    "sunday" to "Domingo"
+                )
+                diasOrdenados.forEach { (key, nombre) ->
+                    val day = info.schedule[key]
+                    HorarioLinea(
+                        diaNombre = nombre,
+                        start = day?.start,
+                        end = day?.end,
+                        abierto = day?.available == true
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HorarioLinea(
+    diaNombre: String,
+    start: String?,
+    end: String?,
+    abierto: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .background(
+                    if (abierto) Color(0xFF10B981).copy(alpha = 0.12f) else Color(0xFFEF4444).copy(alpha = 0.12f),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = diaNombre.first().toString(),
+                color = if (abierto) Color(0xFF10B981) else Color(0xFFEF4444),
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = diaNombre, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E293B))
+            if (abierto) {
+                Text(text = "${start ?: "--:--"} a ${end ?: "--:--"}", fontSize = 13.sp, color = Color(0xFF334155))
+            } else {
+                Text(text = "Cerrado", fontSize = 13.sp, color = Color(0xFF64748B))
+            }
+        }
+        Box(
+            modifier = Modifier
+                .background(
+                    if (abierto) Color(0xFFDCFCE7) else Color(0xFFFEE2E2),
+                    RoundedCornerShape(20.dp)
+                )
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = if (abierto) "Abierto" else "Cerrado",
+                fontSize = 12.sp,
+                color = if (abierto) Color(0xFF065F46) else Color(0xFF7F1D1D)
             )
         }
     }

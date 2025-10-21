@@ -162,6 +162,14 @@ fun CitaPageClient(
             items(days) { day ->
                 val isSelected = selectedDate == day
                 val isToday = day == today
+                // Compute if the user has pending appointments on this day
+                val hasPendingAppointments = appointments.any { appointment ->
+                    val dateStr = appointment.dateAppointment?.substring(0, 10)
+                    val apptDate = dateStr?.let { LocalDate.parse(it, formatter) }
+                    appointment.idClient == user.id &&
+                            apptDate == day &&
+                            appointment.statusAppointment == 1
+                }
 
                 Card(
                     modifier = Modifier
@@ -205,14 +213,21 @@ fun CitaPageClient(
                                 else -> Color(0xFF1E293B)
                             }
                         )
-                        if (isToday && !isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(top = 4.dp)
-                                    .size(6.dp)
-                                    .background(Color(0xFF2563EB), CircleShape)
-                            )
+                        // Indicador de citas pendientes o hoy (placeholder fijo para igualar alturas)
+                        val dotColor = when {
+                            hasPendingAppointments -> Color(0xFFF59E0B)
+                            isToday && !isSelected -> Color(0xFF2563EB)
+                            else -> Color.Transparent
                         }
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .size(6.dp)
+                                .background(
+                                    color = dotColor,
+                                    shape = CircleShape
+                                )
+                        )
                     }
                 }
             }
