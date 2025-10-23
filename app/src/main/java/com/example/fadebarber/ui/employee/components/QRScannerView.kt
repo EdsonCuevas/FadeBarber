@@ -56,6 +56,8 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import androidx.camera.core.ExperimentalGetImage
 import com.google.mlkit.vision.barcode.BarcodeScanner
+import com.google.firebase.database.FirebaseDatabase
+import java.time.LocalDate
 import java.util.concurrent.Executors
 
 @ExperimentalGetImage
@@ -164,6 +166,64 @@ private fun ScannerOverlay(
     }
 }
 
+// Helper: valida el QR y actualiza estado en Firebase
+private fun handleQrScan(
+    context: android.content.Context,
+    code: String,
+    onResult: (String) -> Unit
+) {
+    val mainExecutor = androidx.core.content.ContextCompat.getMainExecutor(context)
+    val appointmentId = code.trim()
+    if (appointmentId.isEmpty()) {
+        onResult("Error: QR inválido")
+        return
+    }
+
+    val ref = FirebaseDatabase.getInstance().getReference("Appointment")
+    ref.child(appointmentId)
+        .get()
+        .addOnSuccessListener(mainExecutor) { snapshot ->
+            if (!snapshot.exists()) {
+                onResult("Error: cita no encontrada")
+                return@addOnSuccessListener
+            }
+            val appt = snapshot.getValue(com.example.fadebarber.data.model.AppointmentClientData::class.java)
+            if (appt == null) {
+                onResult("Error: datos de cita inválidos")
+                return@addOnSuccessListener
+            }
+
+            val todayStr = LocalDate.now().toString()
+            val apptDateStr = appt.dateAppointment?.substring(0, 10)
+            if (apptDateStr != todayStr) {
+                onResult("Error: QR caducado. Fecha de cita: ${apptDateStr ?: "desconocida"}")
+                return@addOnSuccessListener
+            }
+
+            val qrStat = appt.qrStatus ?: 1
+            if (qrStat == 2) {
+                onResult("Error: QR ya utilizado")
+                return@addOnSuccessListener
+            }
+
+            val updates = mapOf(
+                "statusAppointment" to 2,
+                "qrStatus" to 2
+            )
+            ref.child(appointmentId)
+                .updateChildren(updates)
+                .addOnSuccessListener(mainExecutor) {
+                    onResult("Cita validada. Estado actualizado a 'En curso'.")
+                }
+                .addOnFailureListener(mainExecutor) { e ->
+                    onResult("Error al actualizar la cita: ${e.message}")
+                }
+        }
+        .addOnFailureListener(mainExecutor) { e ->
+            onResult("Error al consultar cita: ${e.message}")
+        }
+}
+
 @androidx.annotation.OptIn(ExperimentalGetImage::class)
 @Composable
 fun QRScannerView(
@@ -183,6 +243,9 @@ fun QRScannerView(
         )
     }
 
+    // Evitar procesar múltiples veces el mismo escaneo
+    var processedOnce by remember { mutableStateOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -193,7 +256,7 @@ fun QRScannerView(
         if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
+    Box(modifier = modifier.fillMaxSize().background(Color.White)) {
         // Top bar con botón atrás
         Row(
             modifier = Modifier
@@ -205,11 +268,11 @@ fun QRScannerView(
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
                     contentDescription = "Volver",
-                    tint = Color.White
+                    tint = Color(0xFF2563EB)
                 )
             }
             Spacer(Modifier.size(8.dp))
-            Text("Escanear QR", color = Color.White)
+            Text("Escanear QR", color = Color(0xFF2563EB))
         }
 
         if (hasPermission) {
@@ -226,7 +289,7 @@ fun QRScannerView(
                     .padding(horizontal = 20.dp)
                     .height(420.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0B1220))
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     AndroidView(
@@ -255,7 +318,12 @@ fun QRScannerView(
                                     .build()
 
                                 analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                                    processImageProxy(imageProxy, scanner, onResult)
+                                    processImageProxy(imageProxy, scanner) { value ->
+                                        if (!processedOnce) {
+                                            processedOnce = true
+                                            handleQrScan(context, value, onResult)
+                                        }
+                                    }
                                 }
 
                                 val selector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -292,9 +360,9 @@ fun QRScannerView(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Se requiere permiso de cámara", color = Color.White)
+                Text("Se requiere permiso de cámara", color = Color(0xFF2563EB))
                 Spacer(Modifier.size(8.dp))
-                Text("Por favor acepta el permiso del sistema.", color = Color(0xFF93C5FD))
+                Text("Por favor acepta el permiso del sistema.", color = Color(0xFF2563EB))
             }
         }
     }

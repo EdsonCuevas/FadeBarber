@@ -23,30 +23,51 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.R
-import com.example.fadebarber.ui.admin.components.AppointmentRequest
-import com.example.fadebarber.ui.admin.components.EmployeeModalSheet
+import com.example.fadebarber.data.model.AppointmentClientData
+import com.example.fadebarber.data.model.PromotionData
+import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.ui.admin.viewmodel.AdminEmployeeListViewModel
 
-// MODELO local (ficticio)
-data class Employee(
-    val id: Int,
-    val name: String,
-    val specialty: String,
-    val completedAppointments: Int,
-    val totalAppointments: Int,
-    val clients: List<AppointmentRequest>
-)
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
+import com.example.fadebarber.ui.employee.pages.AppointmentCard
+
 
 @Composable
 fun EmployeeListScreen() {
-    var selectedEmployee by remember { mutableStateOf<Employee?>(null) }
+    val vm: AdminEmployeeListViewModel = viewModel()
+    val barbers by vm.barbers.collectAsState()
+    val services by vm.services.collectAsState()
+    val promotions by vm.promotions.collectAsState()
+    val users by vm.users.collectAsState()
+
+    LaunchedEffect(Unit) { vm.startListeners() }
+    DisposableEffect(Unit) {
+        onDispose { vm.stopListeners() }
+    }
+
+    var expandedBarberId by remember { mutableStateOf<String?>(null) }
+
+    // Derivados
+    val todayAppointments = remember(barbers, users) { vm.todayAppointments() }
+    val onlineCount = remember(barbers) {
+        barbers.count { vm.isUserOnline(it.id) }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF0D47A1), Color(0xFF1976D2))
+                    listOf(Color(0xFFF8FAFF), Color(0xFFF0F4FF))
                 )
             )
     ) {
@@ -60,13 +81,13 @@ fun EmployeeListScreen() {
             Icon(
                 imageVector = Icons.Default.CalendarToday,
                 contentDescription = null,
-                tint = Color.White
+                tint = Color(0xFF1F2937)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Empleados",
                 fontSize = 22.sp,
-                color = Color.White,
+                color = Color(0xFF1F2937),
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -81,40 +102,54 @@ fun EmployeeListScreen() {
             StatCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.CalendarToday,
-                number = "40",
-                label = "Citas"
+                number = todayAppointments.size.toString(),
+                label = "Citas hoy"
             )
 
             StatCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.People,
-                number = "4",
-                label = "Empleados"
+                number = onlineCount.toString(),
+                label = "Activos en línea"
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Lista de empleados (sin mostrar clientes aquí)
+        // Lista de empleados
+        val sortedBarbers = remember(barbers) {
+            barbers.sortedWith(compareByDescending<UserData> { vm.isUserOnline(it.id) }
+                .thenBy { it.nameUser.lowercase() })
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(sampleEmployees()) { employee ->
+            items(sortedBarbers, key = { it.id }) { user ->
+                val (completed, total) = vm.todayTotalsForEmployee(user.id)
+                val apptsForEmployee = vm.appointmentsForEmployeeToday(user.id)
                 EmployeeCard(
-                    employee = employee,
-                    onClick = { selectedEmployee = employee }
+                    user = user,
+                    isOnline = vm.isUserOnline(user.id),
+                    completedAppointments = completed,
+                    totalAppointments = total,
+                    isExpanded = expandedBarberId == user.id,
+                    appointments = apptsForEmployee,
+                    services = services,
+                    promotions = promotions,
+                    users = users,
+                    onToggleExpand = {
+                        expandedBarberId = if (expandedBarberId == user.id) null else user.id
+                    }
                 )
             }
         }
     }
 
-    // Bottom sheet: clientes del empleado seleccionado
-    EmployeeModalSheet(
-        employee = selectedEmployee,
-        onDismiss = { selectedEmployee = null }
-    )
+    // Sheet eliminado: ahora las citas se despliegan dentro de cada tarjeta
+
 }
 
 @Composable
@@ -166,14 +201,23 @@ fun StatCard(
     }
 }
 
-
-
 @Composable
-fun EmployeeCard(employee: Employee, onClick: () -> Unit) {
+fun EmployeeCard(
+    user: UserData,
+    isOnline: Boolean,
+    completedAppointments: Int,
+    totalAppointments: Int,
+    isExpanded: Boolean,
+    appointments: List<AppointmentClientData>,
+    services: List<ServiceData>,
+    promotions: List<PromotionData>,
+    users: List<UserData>,
+    onToggleExpand: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable { onToggleExpand() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp),
@@ -194,8 +238,49 @@ fun EmployeeCard(employee: Employee, onClick: () -> Unit) {
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(employee.name, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                        Text(employee.specialty, fontSize = 13.sp, color = Color(0xFF666666))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(user.nameUser, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isOnline) Color(0xFF10B981) else Color(0xFF9CA3AF))
+                            )
+                        }
+                        Text("Barbero", fontSize = 13.sp, color = Color(0xFF666666))
+                    }
+
+                    IconButton(onClick = onToggleExpand) {
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (isExpanded) "Ocultar citas" else "Ver citas",
+                            tint = Color(0xFF374151)
+                        )
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Column(modifier = Modifier.padding(top = 12.dp)) {
+                        if (appointments.isEmpty()) {
+                            Text("Sin citas para hoy", color = Color.Gray, fontSize = 13.sp)
+                        } else {
+                            appointments.forEach { appt ->
+                                AppointmentCard(
+                                    appointment = appt,
+                                    services = services,
+                                    users = users,
+                                    promotions = promotions,
+                                    onClick = { /* sin acción en admin */ },
+                                    modifier = Modifier.height(92.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -206,11 +291,11 @@ fun EmployeeCard(employee: Employee, onClick: () -> Unit) {
                 color = Color(0xFFF5F5F5),
                 tonalElevation = 0.dp,
                 modifier = Modifier
-                    .align(Alignment.TopEnd) // esquina superior derecha
+                    .align(Alignment.TopEnd)
                     .padding(8.dp)
             ) {
                 Text(
-                    text = "${employee.completedAppointments}/${employee.totalAppointments} citas",
+                    text = "$completedAppointments/$totalAppointments citas",
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     fontSize = 12.sp,
                     color = Color(0xFF333333)
@@ -220,28 +305,55 @@ fun EmployeeCard(employee: Employee, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EmployeeAppointmentsSheet(
+    employee: UserData,
+    appointments: List<AppointmentClientData>,
+    services: List<ServiceData>,
+    promotions: List<PromotionData>,
+    users: List<UserData>,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
-// Datos ficticios para probar
-private fun sampleEmployees() = listOf(
-    Employee(
-        id = 1,
-        name = "Edson Felix",
-        specialty = "Barbero",
-        completedAppointments = 3,
-        totalAppointments = 7,
-        clients = listOf(
-            AppointmentRequest(1, "Alfredo Elizaldi", "Edson Felix", "Corte Barba", "10:00 AM", "Aceptado"),
-            AppointmentRequest(2, "Ricardo Cabanilla", "Edson Felix", "Corte Barba", "12:00 PM", "En Proceso")
-        )
-    ),
-    Employee(
-        id = 2,
-        name = "Gabriel Valencia",
-        specialty = "Barbero",
-        completedAppointments = 3,
-        totalAppointments = 5,
-        clients = listOf(
-            AppointmentRequest(3, "Pedro Martínez", "Gabriel Valencia", "Corte Cabello", "2:00 PM", "Pendiente")
-        )
-    )
-)
+    ModalBottomSheet(
+        onDismissRequest = { onDismiss() },
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Citas de ${employee.nameUser} (hoy)",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (appointments.isEmpty()) {
+                Text("Sin citas para hoy", color = Color.Gray)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxHeight(0.7f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(appointments, key = { it.id ?: "" }) { appt ->
+                        AppointmentCard(
+                            appointment = appt,
+                            services = services,
+                            users = users,
+                            promotions = promotions,
+                            onClick = { /* sin acción en admin */ },
+                            modifier = Modifier.height(92.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

@@ -84,6 +84,33 @@ fun CitaPageClient(
 
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
+    // Helper para actualizar estado de la cita (cancelar = 4)
+    fun updateAppointmentStatusClient(
+        appointmentId: String,
+        newStatus: Int,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        try {
+            if (appointmentId.isBlank()) {
+                onError("ID de cita inválido")
+                return
+            }
+            val updates: Map<String, Any> = mapOf(
+                "statusAppointment" to newStatus
+            )
+            com.google.firebase.database.FirebaseDatabase
+                .getInstance()
+                .getReference("Appointment")
+                .child(appointmentId)
+                .updateChildren(updates)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { e -> onError("Error al actualizar: ${e.message}") }
+        } catch (e: Exception) {
+            onError("Error inesperado: ${e.message}")
+        }
+    }
+
     val filteredAppointments = appointments
         .filter { appointment ->
             val appointmentDate = appointment.dateAppointment?.substring(0, 10)
@@ -332,7 +359,19 @@ fun CitaPageClient(
             QrAppointmentModal(
                 appointment = selectedAppointment!!,
                 onDismiss = { selectedAppointment = null },
-                onCancelAppointment = { /* lógica de cancelación */ }
+                onCancelAppointment = {
+                    val id = selectedAppointment?.id ?: ""
+                    if (id.isNotBlank()) {
+                        updateAppointmentStatusClient(
+                            appointmentId = id,
+                            newStatus = 4,
+                            onSuccess = {
+                                // Opcional: podríamos actualizar UI local, pero el flujo debe refrescarse desde ViewModel
+                            },
+                            onError = { /* TODO: mostrar error si se desea */ }
+                        )
+                    }
+                }
             )
         }
     }

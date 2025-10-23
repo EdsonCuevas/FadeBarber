@@ -1,19 +1,23 @@
 package com.example.fadebarber.ui.client
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
-import androidx.compose.material3.Text
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.data.model.UserData
@@ -21,13 +25,17 @@ import com.example.fadebarber.ui.client.pages.AgendaPage
 import com.example.fadebarber.ui.client.pages.CitaPageClient
 import com.example.fadebarber.ui.client.pages.CuentaPage
 import com.example.fadebarber.ui.client.pages.HomePage
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun ClientScreens(
     route: String,
     authViewModel: AuthViewModel,
     homeViewModel: HomeViewModel,
-    navController: androidx.navigation.NavHostController,
+    navController: NavHostController,
     isGuest: Boolean = false
 ) {
     val user = homeViewModel.currentUser.collectAsState().value
@@ -52,7 +60,10 @@ fun ClientScreens(
             if (user != null) {
                 CuentaPage(authViewModel = authViewModel)
             } else if (isGuest) {
-                GuestGateScreen(navController = navController)
+                GuestGateScreen(
+                    section = "account",
+                    onLoginClick = { navController.navigate("login") }
+                )
             } else {
                 LoadingIndicator()
             }
@@ -61,7 +72,10 @@ fun ClientScreens(
             if (user != null) {
                 CitaPageClient(user = user)
             } else if (isGuest) {
-                GuestGateScreen(navController = navController)
+                GuestGateScreen(
+                    section = "date",
+                    onLoginClick = { navController.navigate("login") }
+                )
             } else {
                 LoadingIndicator()
             }
@@ -89,20 +103,109 @@ private fun LoadingIndicator() {
 }
 
 @Composable
-private fun GuestGateScreen(navController: androidx.navigation.NavHostController) {
+private fun GuestGateScreen(
+    section: String,
+    onLoginClick: () -> Unit
+) {
+    val (title, description, icon) = when (section) {
+        "account" -> Triple(
+            "Acceso restringido a Cuenta",
+            "Crea una cuenta o inicia sesión para gestionar tu perfil.",
+            Icons.Filled.AccountCircle
+        )
+        "date" -> Triple(
+            "Acceso restringido a Citas",
+            "Debes iniciar sesión para ver y gestionar tus citas.",
+            Icons.Filled.EventNote
+        )
+        else -> Triple(
+            "Acceso restringido",
+            "Debes iniciar sesión para continuar.",
+            Icons.Filled.EventNote
+        )
+    }
+
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 24.dp),
+            shape = CardDefaults.shape,
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
         ) {
-            Text(text = "Para acceder a esta sección, crea una cuenta o inicia sesión.")
-            Button(onClick = { navController.navigate("login") }) {
-                Text(text = "Ir al login")
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Icono principal con degradado acorde a colometría
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .padding(bottom = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF0B3DA3),
+                                        Color(0xFF2563EB)
+                                    )
+                                ),
+                                shape = androidx.compose.foundation.shape.CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                Text(
+                    text = title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = description,
+                    fontSize = 14.sp,
+                    color = Color(0xFF64748B)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onLoginClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2563EB),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "Iniciar sesión",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }

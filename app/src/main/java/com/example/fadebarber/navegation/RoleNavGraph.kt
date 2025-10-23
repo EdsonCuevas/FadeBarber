@@ -3,12 +3,14 @@ package com.example.fadebarber.navegation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
 import com.example.fadebarber.navegation.RolesNav.AdminNav
@@ -44,8 +46,39 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
         UserRole.GUEST -> "home"
     }
 
+    // Al cambiar de rol a uno autenticado, redirige al destino inicial correspondiente
+    LaunchedEffect(role) {
+        when (role) {
+            UserRole.CLIENT -> {
+                navController.navigate("home") {
+                    popUpTo("login") { inclusive = true }
+                }
+            }
+            UserRole.EMPLOYEE, UserRole.ADMIN -> {
+                navController.navigate("dashboard") {
+                    popUpTo("login") { inclusive = true }
+                }
+            }
+            UserRole.GUEST -> {
+                navController.navigate("home") {
+                    popUpTo("login") { inclusive = true }
+                }
+            }
+            else -> { /* AUTH no navega automáticamente */ }
+        }
+    }
+
+    // Ocultar barra inferior en rutas de autenticación
+    val backStackEntry = navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry.value?.destination?.route
+    val authRoutes = setOf("login", "signup", "resetpassword", "terms", "privacy")
+
     Scaffold(
-        bottomBar = { if (items.isNotEmpty()) BottomBar(navController, items) }
+        bottomBar = {
+            if (items.isNotEmpty() && (currentRoute !in authRoutes)) {
+                BottomBar(navController, items)
+            }
+        }
     ) { innerPadding ->
         NavHost(
             navController = navController,

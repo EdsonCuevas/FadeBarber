@@ -7,6 +7,7 @@ import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.data.model.ReadingData
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -23,6 +24,7 @@ object FirebaseRepository {
     private val promotionRef = database.getReference("Promotion")
     private val infoRef = database.getReference("Information")
     private val userRef = database.getReference("User")
+    private val readingsRef = database.getReference("Readings")
 
     // ========== FUNCIONES SUSPEND (llamadas únicas) ==========
 
@@ -247,5 +249,104 @@ object FirebaseRepository {
     fun stopListeningToBarbers(listener: ValueEventListener) {
         userRef.removeEventListener(listener)
         Log.d("FirebaseRepository", "Listener de barberos detenido")
+    }
+
+    /**
+     * Escuchar cambios en citas en tiempo real
+     */
+    fun listenToAppointments(onUpdate: (List<AppointmentClientData>) -> Unit): ValueEventListener {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val list = mutableListOf<AppointmentClientData>()
+                    for (child in snapshot.children) {
+                        val appt = child.getValue(AppointmentClientData::class.java)
+                        if (appt != null) list.add(appt)
+                    }
+                    onUpdate(list)
+                    Log.d("FirebaseRepository", "Citas actualizadas: ${list.size}")
+                } catch (e: Exception) {
+                    Log.e("FirebaseRepository", "Error al actualizar citas", e)
+                    onUpdate(emptyList())
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("FirebaseRepository", "Error en listener de citas: ${error.message}")
+                onUpdate(emptyList())
+            }
+        }
+        appointmentRef.addValueEventListener(listener)
+        return listener
+    }
+
+    fun stopListeningToAppointments(listener: ValueEventListener) {
+        appointmentRef.removeEventListener(listener)
+        Log.d("FirebaseRepository", "Listener de citas detenido")
+    }
+
+    /**
+     * Escuchar cambios en lecturas de presencia (Readings) en tiempo real
+     */
+    fun listenToReadings(onUpdate: (List<ReadingData>) -> Unit): ValueEventListener {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val list = mutableListOf<ReadingData>()
+                    for (child in snapshot.children) {
+                        val reading = child.getValue(ReadingData::class.java)
+                        if (reading != null) list.add(reading)
+                    }
+                    onUpdate(list)
+                    Log.d("FirebaseRepository", "Lecturas actualizadas: ${list.size}")
+                } catch (e: Exception) {
+                    Log.e("FirebaseRepository", "Error al actualizar lecturas", e)
+                    onUpdate(emptyList())
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("FirebaseRepository", "Error en listener de lecturas: ${error.message}")
+                onUpdate(emptyList())
+            }
+        }
+        readingsRef.addValueEventListener(listener)
+        return listener
+    }
+
+    fun stopListeningToReadings(listener: ValueEventListener) {
+        readingsRef.removeEventListener(listener)
+        Log.d("FirebaseRepository", "Listener de lecturas detenido")
+    }
+
+    /**
+     * Escuchar lista completa de usuarios
+     */
+    fun listenToUsers(onUpdate: (List<UserData>) -> Unit): ValueEventListener {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                try {
+                    val users = mutableListOf<UserData>()
+                    for (child in snapshot.children) {
+                        val user = child.getValue(UserData::class.java)
+                        if (user != null) users.add(user)
+                    }
+                    onUpdate(users)
+                    Log.d("FirebaseRepository", "Usuarios actualizados: ${users.size}")
+                } catch (e: Exception) {
+                    Log.e("FirebaseRepository", "Error al actualizar usuarios", e)
+                    onUpdate(emptyList())
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("FirebaseRepository", "Error en listener de usuarios: ${error.message}")
+                onUpdate(emptyList())
+            }
+        }
+        userRef.addValueEventListener(listener)
+        return listener
+    }
+
+    fun stopListeningToUsers(listener: ValueEventListener) {
+        userRef.removeEventListener(listener)
+        Log.d("FirebaseRepository", "Listener de usuarios detenido")
     }
 }
