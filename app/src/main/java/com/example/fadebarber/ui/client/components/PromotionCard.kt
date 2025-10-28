@@ -32,14 +32,16 @@ import com.example.fadebarber.data.model.ServiceData
 @Composable
 fun PromotionCard(
     promotion: PromotionData,
-    allServices: List<ServiceData>, // 👈 le pasamos los servicios completos
-    onClick: (PromotionData) -> Unit
+    allServices: List<ServiceData>,
+    quantity: Int,
+    onIncrement: (PromotionData) -> Unit,
+    onDecrement: (PromotionData) -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick(promotion) },
+            .clickable { onIncrement(promotion) },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -70,16 +72,43 @@ fun PromotionCard(
                 Text("$${promotion.pricePromotion} MXN", fontWeight = FontWeight.Bold)
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF0A1F66)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("+", color = Color.White, fontWeight = FontWeight.Bold)
+            if (quantity > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE2E8F0))
+                            .clickable { onDecrement(promotion) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("-", color = Color(0xFF1E293B), fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(quantity.toString(), fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0A1F66))
+                            .clickable { onIncrement(promotion) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("+", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0A1F66))
+                        .clickable { onIncrement(promotion) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

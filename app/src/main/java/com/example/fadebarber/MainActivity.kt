@@ -12,6 +12,7 @@ import com.example.fadebarber.data.AuthState
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.navegation.RoleNavGraph
 import com.example.fadebarber.navegation.UserRole
+import com.example.fadebarber.services.SecretConfig
 import com.jakewharton.threetenabp.AndroidThreeTen
 
 
@@ -22,6 +23,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AndroidThreeTen.init(this)
+        SecretConfig.init(this)
+
+        // DEBUG: Verifica inmediatamente después de init
+        Log.d("MainActivity", "Probando obtener SECRET_STRIPE...")
+        val testKey = SecretConfig.get("SECRET_STRIPE")
+        Log.d("MainActivity", "Resultado: ${if (testKey != null) "✅ FUNCIONA" else "❌ NULL"}")
 
         setContent {
             val navController = rememberNavController()

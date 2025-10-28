@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-     id("com.google.gms.google-services")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -17,6 +17,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+
     }
 
     buildTypes {
@@ -26,6 +28,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
         }
     }
     compileOptions {
@@ -37,41 +40,51 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    packaging {
+        resources {
+            excludes += listOf(
+                "META-INF/LICENSE.md",
+                "META-INF/NOTICE.md"
+            )
+        }
     }
 }
 
- dependencies {
-     implementation(libs.androidx.core.ktx)
-     implementation(libs.androidx.lifecycle.runtime.ktx)
-     implementation(libs.androidx.activity.compose)
-     implementation(platform(libs.androidx.compose.bom))
-     implementation(libs.androidx.ui)
-     implementation(libs.androidx.ui.graphics)
-     implementation(libs.androidx.ui.tooling.preview)
-     implementation(libs.androidx.material3)
-     implementation(libs.androidx.foundation)
-     implementation(libs.firebase.auth)
-     implementation(libs.androidx.runtime.livedata)
-     implementation(libs.androidx.compose.animation.core.lint)
-     implementation(libs.androidx.core.i18n)
-     implementation(libs.places)
-     testImplementation(libs.junit)
-     androidTestImplementation(libs.androidx.junit)
-     androidTestImplementation(libs.androidx.espresso.core)
-     androidTestImplementation(platform(libs.androidx.compose.bom))
-     androidTestImplementation(libs.androidx.ui.test.junit4)
-     debugImplementation(libs.androidx.ui.tooling)
-     debugImplementation(libs.androidx.ui.test.manifest)
-     implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
-     implementation("androidx.compose.ui:ui:1.6.0")
-     implementation("androidx.compose.material3:material3:1.2.0")
-     implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
-     implementation("androidx.activity:activity-compose:1.8.2")
-     implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
-     implementation("com.google.firebase:firebase-auth")
-     implementation("com.google.firebase:firebase-database")
-     implementation("androidx.compose.material:material-icons-extended")
-     implementation("com.airbnb.android:lottie-compose:6.3.0")
+dependencies {
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.foundation)
+    implementation(libs.firebase.auth)
+    implementation(libs.androidx.runtime.livedata)
+    implementation(libs.androidx.compose.animation.core.lint)
+    implementation(libs.androidx.core.i18n)
+    implementation(libs.places)
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
+    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
+    implementation("androidx.compose.ui:ui:1.6.0")
+    implementation("androidx.compose.material3:material3:1.2.0")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-database")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("com.airbnb.android:lottie-compose:6.3.0")
 
 
     implementation("io.coil-kt:coil-compose:2.6.0")
@@ -85,7 +98,7 @@ android {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-database")
     implementation("com.google.firebase:firebase-analytics")
-     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-firestore")
 
     // Coroutines support for Firebase
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
@@ -112,12 +125,30 @@ android {
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 // Firebase Cloud Messaging
-     implementation("com.google.firebase:firebase-messaging:23.4.0")
+    implementation("com.google.firebase:firebase-messaging:23.4.0")
 // Para trabajar con JSON (si no la tienes)
-     implementation("org.json:json:20230618")
+    implementation("org.json:json:20230618")
 // WorkManager (opcional, para notificaciones más avanzadas)
-     implementation("androidx.work:work-runtime-ktx:2.9.0")
- 
-     // fechas
-     implementation("com.jakewharton.threetenabp:threetenabp:1.4.4")
-   }
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    // fechas
+    implementation("com.jakewharton.threetenabp:threetenabp:1.4.4")
+    // Stripe Android SDK
+    implementation("com.stripe:stripe-android:20.49.0")
+    implementation("com.stripe:stripe-android:20.37.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Codigo QR
+    implementation("com.google.zxing:core:3.5.3")
+    // CameraX + ML Kit para escaneo
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation("androidx.compose.material3:material3:1.3.0")
+// Correo
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
+// Env
+    implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
+
+}

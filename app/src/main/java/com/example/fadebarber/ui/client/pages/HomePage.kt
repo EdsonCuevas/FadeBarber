@@ -22,16 +22,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -76,9 +82,12 @@ import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.ui.client.components.AgendaCartForm
 import com.example.fadebarber.ui.client.components.BarberBanner
+import com.example.fadebarber.ui.client.components.InfoStatCard
 import com.example.fadebarber.ui.client.components.PromotionCard
 import com.example.fadebarber.ui.client.components.SearchBar
 import com.example.fadebarber.ui.client.components.ServiceCard
+import com.example.fadebarber.ui.client.components.ValueInfoItem
+import com.example.fadebarber.ui.client.components.EmptyStateCard
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import kotlinx.coroutines.delay
 
@@ -89,6 +98,7 @@ fun HomePage(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(),
     user: UserData,
+    navController: androidx.navigation.NavHostController,
 ) {
 
     // Iniciar listeners cuando la página se muestre
@@ -103,12 +113,13 @@ fun HomePage(
         }
     }
 
-    var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Servicios) }
+    var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Nosotros) }
 
     val info by viewModel.info.collectAsState()
     val services by viewModel.services.collectAsState()
     val promotions by viewModel.promotions.collectAsState()
     val cartItems by viewModel.cartItems.collectAsState() // ✅ Cambio aquí
+    var showAgendaSheet by remember { mutableStateOf(false) }
 
     val barbers by produceState<List<UserData>>(initialValue = emptyList()) {
         value = FirebaseRepository.getBarbers()
@@ -226,7 +237,7 @@ fun HomePage(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
+                            /*Box(
                                 modifier = Modifier
                                     .size(48.dp)
                                     .background(
@@ -236,13 +247,13 @@ fun HomePage(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.ic_reloj),
+                                    painter = painterResource(id = R.drawable.logo_goku),
                                     contentDescription = "Inicio",
                                     tint = Color.White,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(16.dp))*/
                             Column {
                                 Text(
                                     text = info?.barberName ?: "Barbería",
@@ -297,14 +308,23 @@ fun HomePage(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    /*Spacer(modifier = Modifier.height(20.dp))
 
-                    // Search Bar
-                    SearchBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        placeholder = "Buscar servicios o promociones"
-                    )
+                    // Bienvenida
+                    Column {
+                        Text(
+                            text = "Bienvenido a Fade Barber",
+                            color = Color.White,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Estilo premium, atención personalizada y citas a tu medida.",
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 14.sp
+                        )
+                    }*/
                 }
             }
 
@@ -389,7 +409,7 @@ fun HomePage(
                     }
                 }
 
-                // Tabs
+                // Bienvenida / Hero promocional
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -397,47 +417,23 @@ fun HomePage(
                         shape = RoundedCornerShape(20.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        TabRow(
-                            selectedTabIndex = when (selectedTab) {
-                                is HomeTab.Servicios -> 0
-                                is HomeTab.Promociones -> 1
-                                is HomeTab.Nosotros -> 2
-                            },
-                            containerColor = Color.Transparent,
-                            contentColor = Color(0xFF2563EB),
-                            indicator = { tabPositions ->
-                                TabRowDefaults.Indicator(
-                                    Modifier.tabIndicatorOffset(
-                                        tabPositions[
-                                            when (selectedTab) {
-                                                is HomeTab.Servicios -> 0
-                                                is HomeTab.Promociones -> 1
-                                                is HomeTab.Nosotros -> 2
-                                            }
-                                        ]
-                                    ),
-                                    color = Color(0xFF2563EB),
-                                    height = 3.dp
-                                )
-                            }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
                         ) {
-                            listOf(
-                                HomeTab.Servicios,
-                                HomeTab.Promociones,
-                                HomeTab.Nosotros
-                            ).forEach { tab ->
-                                Tab(
-                                    selected = selectedTab::class == tab::class,
-                                    onClick = { selectedTab = tab },
-                                    text = {
-                                        Text(
-                                            text = tab.title,
-                                            fontWeight = if (selectedTab::class == tab::class)
-                                                FontWeight.Bold else FontWeight.Medium
-                                        )
-                                    }
-                                )
-                            }
+                            Text(
+                                text = "Bienvenido a Fade Barber",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Estilo premium, atención personalizada y citas a tu medida.",
+                                fontSize = 14.sp,
+                                color = Color(0xFF64748B)
+                            )
                         }
                     }
                 }
@@ -447,13 +443,18 @@ fun HomePage(
                     is HomeTab.Servicios -> {
                         if (filteredServices.isNotEmpty()) {
                             items(filteredServices) { service ->
+                                val qty = cartItems.count { it is com.example.fadebarber.data.model.ServiceData && (it as com.example.fadebarber.data.model.ServiceData).id == service.id }
                                 ServiceCard(
                                     service = service,
-                                    onClick = {
-                                        viewModel.addToCart(service) // ✅ Cambio aquí
-                                        alertMessage = "${service.nameService} agregado al carrito"
+                                    quantity = qty,
+                                    onIncrement = { s ->
+                                        viewModel.addToCart(s)
+                                        alertMessage = "${s.nameService} agregado al carrito"
                                         alertColor = Color(0xFF10B981)
                                         showAlert = true
+                                    },
+                                    onDecrement = { s ->
+                                        viewModel.removeFromCart(s)
                                     }
                                 )
                             }
@@ -467,12 +468,21 @@ fun HomePage(
                     is HomeTab.Promociones -> {
                         if (filteredPromos.isNotEmpty()) {
                             items(filteredPromos) { promo ->
-                                PromotionCard(promotion = promo, allServices = services) {
-                                    viewModel.addToCart(promo) // ✅ Cambio aquí
-                                    alertMessage = "${promo.namePromotion} agregado al carrito"
-                                    alertColor = Color(0xFF10B981)
-                                    showAlert = true
-                                }
+                                val qty = cartItems.count { it is com.example.fadebarber.data.model.PromotionData && (it as com.example.fadebarber.data.model.PromotionData).id == promo.id }
+                                PromotionCard(
+                                    promotion = promo,
+                                    allServices = services,
+                                    quantity = qty,
+                                    onIncrement = { p ->
+                                        viewModel.addToCart(p)
+                                        alertMessage = "${p.namePromotion} agregado al carrito"
+                                        alertColor = Color(0xFF10B981)
+                                        showAlert = true
+                                    },
+                                    onDecrement = { p ->
+                                        viewModel.removeFromCart(p)
+                                    }
+                                )
                             }
                         } else {
                             item {
@@ -482,6 +492,113 @@ fun HomePage(
                     }
 
                     is HomeTab.Nosotros -> {
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Card(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { navController.navigate("agend") },
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    shape = RoundedCornerShape(16.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(84.dp)
+                                            .background(
+                                                brush = Brush.linearGradient(
+                                                    colors = listOf(Color(0xFFEEF2FF), Color(0xFFE0E7FF))
+                                                ),
+                                                shape = RoundedCornerShape(16.dp)
+                                            )
+                                            .padding(16.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(38.dp)
+                                                        .background(Color(0xFF2563EB).copy(alpha = 0.14f), CircleShape),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_calendar_clock),
+                                                        contentDescription = "Agendar",
+                                                        tint = Color(0xFF2563EB),
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text(
+                                                    text = "Agendar",
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF1E293B)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                Card(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { navController.navigate("date") },
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    shape = RoundedCornerShape(16.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(84.dp)
+                                            .background(
+                                                brush = Brush.linearGradient(
+                                                    colors = listOf(Color(0xFFECFEFF), Color(0xFFE0F2FE))
+                                                ),
+                                                shape = RoundedCornerShape(16.dp)
+                                            )
+                                            .padding(16.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(38.dp)
+                                                        .background(Color(0xFF0EA5E9).copy(alpha = 0.14f), CircleShape),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = androidx.compose.material.icons.Icons.Filled.ListAlt,
+                                                        contentDescription = "Historial",
+                                                        tint = Color(0xFF0EA5E9),
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text(
+                                                    text = "Historial",
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF1E293B)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -494,78 +611,24 @@ fun HomePage(
                                         .fillMaxWidth()
                                         .padding(20.dp)
                                 ) {
-                                    // Header
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
+                                    // Header compacto
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
                                         Box(
                                             modifier = Modifier
-                                                .size(48.dp)
-                                                .background(
-                                                    Color(0xFF2563EB).copy(alpha = 0.1f),
-                                                    RoundedCornerShape(12.dp)
-                                                ),
+                                                .size(40.dp)
+                                                .background(Color(0xFF2563EB).copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = "✂️",
-                                                fontSize = 24.sp
-                                            )
+                                            Text(text = "✂️", fontSize = 20.sp)
                                         }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text(
-                                            text = "Sobre Nosotros",
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF1E293B)
-                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text("Sobre Nosotros", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                                            Text("Calidad, atención y estilo en cada visita.", fontSize = 12.sp, color = Color(0xFF64748B))
+                                        }
                                     }
 
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Historia
-                                    Text(
-                                        text = "Nuestra Historia",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1E293B)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Desde 2015, Fade Barber se ha convertido en el referente de estilo masculino en Colima. Comenzamos como un pequeño local con una gran visión: ofrecer cortes de calidad internacional con el toque personal que caracteriza a nuestra ciudad.",
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF64748B),
-                                        lineHeight = 20.sp
-                                    )
-
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Divider
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(1.dp)
-                                            .background(Color(0xFFE2E8F0))
-                                    )
-
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Misión
-                                    Text(
-                                        text = "Nuestra Misión",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1E293B)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Brindar una experiencia única de barbería moderna, donde cada cliente recibe un servicio personalizado de la más alta calidad, utilizando las mejores técnicas y productos del mercado.",
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF64748B),
-                                        lineHeight = 20.sp
-                                    )
-
-                                    Spacer(modifier = Modifier.height(20.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
 
                                     // Stats Cards
                                     Row(
@@ -602,64 +665,29 @@ fun HomePage(
                                         )
                                     }
 
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Divider
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(1.dp)
-                                            .background(Color(0xFFE2E8F0))
-                                    )
-
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Equipo
-                                    Text(
-                                        text = "Nuestro Equipo",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1E293B)
-                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Contamos con un equipo de barberos profesionales certificados, constantemente capacitados en las últimas tendencias y técnicas de corte. Cada miembro de nuestro equipo está comprometido con la excelencia y la satisfacción del cliente.",
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF64748B),
-                                        lineHeight = 20.sp
-                                    )
 
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Valores
-                                    Text(
-                                        text = "Nuestros Valores",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1E293B)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    ValueInfoItem(
-                                        emoji = "✨",
-                                        title = "Calidad",
-                                        description = "Utilizamos productos premium y técnicas avanzadas"
-                                    )
-                                    ValueInfoItem(
-                                        emoji = "🤝",
-                                        title = "Profesionalismo",
-                                        description = "Servicio personalizado y atención al detalle"
-                                    )
-                                    ValueInfoItem(
-                                        emoji = "⏰",
-                                        title = "Puntualidad",
-                                        description = "Respetamos tu tiempo con citas programadas"
-                                    )
-                                    ValueInfoItem(
-                                        emoji = "💯",
-                                        title = "Satisfacción",
-                                        description = "Tu conformidad es nuestra prioridad"
-                                    )
+                                    // Valores (visual, desplazable)
+                                    LazyRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 4.dp)
+                                    ) {
+                                        items(listOf("Calidad", "Profesionalismo", "Puntualidad", "Satisfacción")) { label ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    fontSize = 12.sp,
+                                                    color = Color(0xFF334155)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }
                         }
@@ -668,29 +696,7 @@ fun HomePage(
             }
         }
 
-        // BottomSheets
-        if (showCartAgenda) {
-            ModalBottomSheet(
-                onDismissRequest = { showCartAgenda = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = Color.White
-            ) {
-                AgendaCartForm(
-                    items = cartItems,
-                    barbers = barbers,
-                    userId = user.id,
-                    onConfirm = { success, message ->
-                        alertMessage = message
-                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
-                        showAlert = true
-                        showCart = false
-                        showCartAgenda = false
-                        viewModel.clearCart() // ✅ Cambio aquí
-                    }
-                )
-            }
-        }
-
+        // 🎯 BOTTOMSHEET DEL CARRITO (PRIMER NIVEL)
         if (showCart) {
             ModalBottomSheet(
                 onDismissRequest = { showCart = false },
@@ -700,10 +706,42 @@ fun HomePage(
                 CartPage(
                     items = cartItems,
                     onClose = { showCart = false },
-                    onRemove = { item -> viewModel.removeFromCart(item) }, // ✅ Cambio aquí
+                    onRemove = { item ->
+                        viewModel.removeFromCart(item)
+                        alertMessage = "❌ Servicio eliminado"
+                        alertColor = Color(0xFFEF4444)
+                        showAlert = true
+                    },
                     onAgendar = {
-                        showCartAgenda = true
+                        // 🎯 Abrir el sheet de agenda SIN cerrar el carrito
+                        showAgendaSheet = true
                     }
+                )
+            }
+        }
+
+        // 🎯 BOTTOMSHEET DE AGENDA (SEGUNDO NIVEL - SE ABRE SOBRE EL CARRITO)
+        if (showAgendaSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showAgendaSheet = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = Color.White
+            ) {
+                AgendaCartForm(
+                    items = cartItems,
+                    barbers = barbers,
+                    userId = user.id,
+                    onConfirm = { success, message ->
+                        alertMessage = if (success) "✅ $message" else "❌ $message"
+                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
+                        showAlert = true
+                        showAgendaSheet = false
+                        showCart = false
+                        if (success) {
+                            viewModel.clearCart()
+                        }
+                    },
+                    user = user
                 )
             }
         }
@@ -737,7 +775,7 @@ fun InfoStatCard(number: String, label: String, modifier: Modifier = Modifier) {
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF64748B),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -817,7 +855,15 @@ fun EmptyStateCard(message: String) {
                 text = message,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1E293B)
+                color = Color(0xFF1E293B),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Explora nuestras otras opciones",
+                fontSize = 13.sp,
+                color = Color(0xFF64748B),
+                textAlign = TextAlign.Center
             )
         }
     }

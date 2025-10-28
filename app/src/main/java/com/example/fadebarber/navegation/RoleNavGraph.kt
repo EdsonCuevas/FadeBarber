@@ -123,7 +123,8 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
                             ClientScreens(
                                 route = item.route,
                                 authViewModel = authViewModel,
-                                homeViewModel = homeViewModel
+                                homeViewModel = homeViewModel,
+                                navController = navController
                             )
                         }
 

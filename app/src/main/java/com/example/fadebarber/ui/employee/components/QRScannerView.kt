@@ -1,0 +1,301 @@
+@file:OptIn(ExperimentalGetImage::class)
+package com.example.fadebarber.ui.employee.components
+
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Canvas
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
+import androidx.camera.core.ExperimentalGetImage
+import com.google.mlkit.vision.barcode.BarcodeScanner
+import java.util.concurrent.Executors
+
+@ExperimentalGetImage
+private fun processImageProxy(
+    imageProxy: ImageProxy,
+    scanner: BarcodeScanner,
+    onResult: (String) -> Unit
+) {
+    val mediaImage = imageProxy.image
+    if (mediaImage != null) {
+        val image = InputImage.fromMediaImage(
+            mediaImage,
+            imageProxy.imageInfo.rotationDegrees
+        )
+        scanner.process(image)
+            .addOnSuccessListener { barcodes ->
+                val value = barcodes.firstOrNull()?.rawValue
+                if (value != null) {
+                    onResult(value)
+                }
+            }
+            .addOnFailureListener {
+                // Ignorar fallos de frame
+            }
+            .addOnCompleteListener {
+                imageProxy.close()
+            }
+    } else {
+        imageProxy.close()
+    }
+}
+
+@Composable
+private fun ScannerOverlay(
+    modifier: Modifier = Modifier,
+    cornerColor: Color = Color(0xFF2563EB),
+    cornerLength: Dp = 32.dp,
+    cornerThickness: Dp = 4.dp
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val l = cornerLength.toPx()
+        val t = cornerThickness.toPx()
+
+        // top-left
+        drawLine(
+            color = cornerColor,
+            start = Offset(0f, 0f),
+            end = Offset(l, 0f),
+            strokeWidth = t,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = cornerColor,
+            start = Offset(0f, 0f),
+            end = Offset(0f, l),
+            strokeWidth = t,
+            cap = StrokeCap.Round
+        )
+        // top-right
+        drawLine(
+            color = cornerColor,
+            start = Offset(w, 0f),
+            end = Offset(w - l, 0f),
+            strokeWidth = t,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = cornerColor,
+            start = Offset(w, 0f),
+            end = Offset(w, l),
+            strokeWidth = t,
+            cap = StrokeCap.Round
+        )
+        // bottom-left
+        drawLine(
+            color = cornerColor,
+            start = Offset(0f, h),
+            end = Offset(l, h),
+            strokeWidth = t,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = cornerColor,
+            start = Offset(0f, h),
+            end = Offset(0f, h - l),
+            strokeWidth = t,
+            cap = StrokeCap.Round
+        )
+        // bottom-right
+        drawLine(
+            color = cornerColor,
+            start = Offset(w, h),
+            end = Offset(w - l, h),
+            strokeWidth = t,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = cornerColor,
+            start = Offset(w, h),
+            end = Offset(w, h - l),
+            strokeWidth = t,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
+@Composable
+fun QRScannerView(
+    modifier: Modifier = Modifier,
+    onResult: (String) -> Unit,
+    onClose: (() -> Unit)? = null
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var hasPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasPermission = granted
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
+        // Top bar con botón atrás
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { onClose?.invoke() }) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "Volver",
+                    tint = Color.White
+                )
+            }
+            Spacer(Modifier.size(8.dp))
+            Text("Escanear QR", color = Color.White)
+        }
+
+        if (hasPermission) {
+            val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+            DisposableEffect(Unit) {
+                onDispose { cameraExecutor.shutdown() }
+            }
+
+            // Card contenedora del preview
+            Card(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(420.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0B1220))
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { ctx ->
+                            val previewView = PreviewView(ctx).apply {
+                                scaleType = PreviewView.ScaleType.FILL_CENTER
+                            }
+
+                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                            cameraProviderFuture.addListener({
+                                val cameraProvider = cameraProviderFuture.get()
+
+                                val preview = Preview.Builder().build().also {
+                                    it.setSurfaceProvider(previewView.surfaceProvider)
+                                }
+
+                                val scanner = BarcodeScanning.getClient(
+                                    BarcodeScannerOptions.Builder()
+                                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                                        .build()
+                                )
+
+                                val analysis = ImageAnalysis.Builder()
+                                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                    .build()
+
+                                analysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                                    processImageProxy(imageProxy, scanner, onResult)
+                                }
+
+                                val selector = CameraSelector.DEFAULT_BACK_CAMERA
+                                try {
+                                    cameraProvider.unbindAll()
+                                    cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        selector,
+                                        preview,
+                                        analysis
+                                    )
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }, ContextCompat.getMainExecutor(ctx))
+
+                            previewView
+                        }
+                    )
+
+                    // Marco de escaneo
+                    ScannerOverlay(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(36.dp)
+                    )
+                }
+            }
+        } else {
+            // Estado sin permiso: solo mensaje + volver
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Se requiere permiso de cámara", color = Color.White)
+                Spacer(Modifier.size(8.dp))
+                Text("Por favor acepta el permiso del sistema.", color = Color(0xFF93C5FD))
+            }
+        }
+    }
+}

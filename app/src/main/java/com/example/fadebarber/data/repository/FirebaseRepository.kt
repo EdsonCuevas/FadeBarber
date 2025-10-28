@@ -4,15 +4,14 @@ import android.util.Log
 import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.AppointmentService
 import com.example.fadebarber.data.model.BarberInfo
+import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
-import com.example.fadebarber.data.model.PromotionData
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.tasks.await
-import kotlin.jvm.java
 
 object FirebaseRepository {
 
@@ -105,16 +104,16 @@ object FirebaseRepository {
         }
     }
 
-    suspend fun saveAppointment(appointment: AppointmentClientData): Boolean {
+    suspend fun saveAppointment(appointment: AppointmentClientData): String? {
         return try {
             val ref = appointmentRef.push()
-            val id = ref.key ?: return false
+            val id = ref.key ?: return null
             val withId = appointment.copy(id = id)
             ref.setValue(withId).await()
-            true
+            id
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            null
         }
     }
 

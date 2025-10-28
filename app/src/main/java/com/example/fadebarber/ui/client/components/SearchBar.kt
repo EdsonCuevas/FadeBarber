@@ -24,27 +24,31 @@ import androidx.compose.ui.unit.sp
 fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    placeholder: String = "Buscar..."
+    placeholder: String = "Buscar...",
+    compact: Boolean = false
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(if (compact) 16.dp else 20.dp))
             .background(Color(0xFFF1F1F1))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(
+                horizontal = if (compact) 8.dp else 12.dp,
+                vertical = if (compact) 6.dp else 8.dp
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Default.Search,
             contentDescription = "Buscar",
             tint = Color.Gray,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(if (compact) 16.dp else 20.dp)
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
         TextField(
             value = query,
             onValueChange = onQueryChange,
-            placeholder = { Text(placeholder, fontSize = 14.sp, color = Color.Gray) },
+            placeholder = { Text(placeholder, fontSize = if (compact) 12.sp else 14.sp, color = Color.Gray) },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
@@ -53,7 +57,7 @@ fun SearchBar(
                 unfocusedIndicatorColor = Color.Transparent
             ),
             modifier = Modifier.weight(1f),
-            singleLine = true, // evita multilinea
+            singleLine = true,
         )
     }
 }

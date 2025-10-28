@@ -30,11 +30,16 @@ import com.example.fadebarber.data.model.ServiceData
 
 
 @Composable
-fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
+fun ServiceCard(
+    service: ServiceData,
+    quantity: Int,
+    onIncrement: (ServiceData) -> Unit,
+    onDecrement: (ServiceData) -> Unit
+) {
     Card (
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick(service) },
+            .clickable { onIncrement(service) },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(10.dp)
@@ -63,14 +68,43 @@ fun ServiceCard(service: ServiceData, onClick: (ServiceData) -> Unit) {
                 Text("$${service.priceService} MXN", fontWeight = FontWeight.Bold)
             }
 
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF0A66C2)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("+", color = Color.White, fontWeight = FontWeight.Bold)
+            if (quantity > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE2E8F0))
+                            .clickable { onDecrement(service) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("-", color = Color(0xFF1E293B), fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(quantity.toString(), fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0A66C2))
+                            .clickable { onIncrement(service) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("+", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0A66C2))
+                        .clickable { onIncrement(service) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

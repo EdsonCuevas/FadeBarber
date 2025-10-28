@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
+import com.example.fadebarber.ui.client.pages.AgendaPage
 import com.example.fadebarber.ui.client.pages.CitaPageClient
 import com.example.fadebarber.ui.client.pages.CuentaPage
 import com.example.fadebarber.ui.client.pages.HomePage
@@ -17,14 +18,15 @@ import com.example.fadebarber.ui.client.pages.HomePage
 fun ClientScreens(
     route: String,
     authViewModel: AuthViewModel,
-    homeViewModel: HomeViewModel
+    homeViewModel: HomeViewModel,
+    navController: androidx.navigation.NavHostController
 ) {
     val user = homeViewModel.currentUser.collectAsState().value
 
     when (route) {
         "home" -> {
             if (user != null) {
-                HomePage(user = user, viewModel = homeViewModel)
+                HomePage(user = user, viewModel = homeViewModel, navController = navController)
             } else {
                 LoadingIndicator()
             }
@@ -39,6 +41,13 @@ fun ClientScreens(
         "date" -> {
             if (user != null) {
                 CitaPageClient(user = user)
+            } else {
+                LoadingIndicator()
+            }
+        }
+        "agend" -> {
+            if (user != null) {
+                AgendaPage(user = user, viewModel = homeViewModel)
             } else {
                 LoadingIndicator()
             }
