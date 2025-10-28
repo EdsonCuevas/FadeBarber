@@ -51,7 +51,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -113,6 +115,7 @@ fun AgendaCartForm(
     val dbFormatter = DateTimeFormatter.ofPattern("HH:mm")
     val displayFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var occupiedTimeStrings by remember { mutableStateOf<Set<String>>(emptySet()) }
     var currentAppts by remember { mutableStateOf<List<AppointmentClientData>>(emptyList()) }
@@ -130,13 +133,13 @@ fun AgendaCartForm(
     val canConfirm by remember {
         derivedStateOf {
             selectedBarber != null &&
-            selectedDate != null &&
-            selectedTime != null &&
-            (!requiresManualInfo || (
-                manualName.trim().isNotBlank() &&
-                Patterns.EMAIL_ADDRESS.matcher(manualEmail.trim()).matches() &&
-                manualPhone.trim().length >= 10
-            ))
+                    selectedDate != null &&
+                    selectedTime != null &&
+                    (!requiresManualInfo || (
+                            manualName.trim().isNotBlank() &&
+                                    Patterns.EMAIL_ADDRESS.matcher(manualEmail.trim()).matches() &&
+                                    manualPhone.trim().length >= 10
+                            ))
         }
     }
 
@@ -229,6 +232,8 @@ fun AgendaCartForm(
                                 fromPassword = "rvemlhzgtkzcqjnv"
                             )
                         }
+
+                        // Mostrar notificación push de cita agendada
 
                         occupiedTimeStrings = occupiedTimeStrings + requestedSlots
                         paymentState = PaymentState.SUCCESS
@@ -920,23 +925,26 @@ fun AgendaCartForm(
                                         val isSelected = selectedTime != null &&
                                                 selectedTime!!.format(dbFormatter) == slotKey
 
+                                        // Verificar si la hora ya pasó (para el día actual)
+                                        val isPastTime = selectedDate == LocalDate.now() && slot.isBefore(LocalTime.now())
+
                                         Button(
                                             onClick = {
-                                                if (!isOccupied) {
+                                                if (!isOccupied && !isPastTime) {
                                                     selectedTime = slot
                                                     currentStep = if (requiresManualInfo) BookingStep.CLIENT else BookingStep.PAYMENT
                                                 }
                                             },
-                                            enabled = !isOccupied,
+                                            enabled = !isOccupied && !isPastTime,
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = when {
                                                     isSelected -> Color(0xFF2563EB)
-                                                    isOccupied -> Color(0xFFF1F5F9)
+                                                    isOccupied || isPastTime -> Color(0xFFF1F5F9)
                                                     else -> Color(0xFFF8FAFC)
                                                 },
                                                 contentColor = when {
                                                     isSelected -> Color.White
-                                                    isOccupied -> Color(0xFF94A3B8)
+                                                    isOccupied || isPastTime -> Color(0xFF94A3B8)
                                                     else -> Color(0xFF1E293B)
                                                 },
                                                 disabledContainerColor = Color(0xFFF1F5F9),
@@ -1388,6 +1396,8 @@ fun AgendaCartForm(
                                             fromPassword = "rvemlhzgtkzcqjnv"
                                         )
                                     }
+
+                                    // Mostrar notificación push de cita agendada
 
                                     occupiedTimeStrings = occupiedTimeStrings + requestedSlots
                                     paymentState = PaymentState.SUCCESS
