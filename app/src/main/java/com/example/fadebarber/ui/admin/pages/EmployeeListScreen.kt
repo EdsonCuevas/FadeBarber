@@ -411,6 +411,8 @@ fun UpcomingAppointmentItem(
     val client = users.find { it.id == appointment.idClient }
     val service = services.firstOrNull { it.id == appointment.serviceId?.firstOrNull() }
 
+    var showBottomSheet by remember { mutableStateOf(false) }
+
     val statusColor = when (appointment.statusAppointment) {
         1 -> Color(0xFFF97316) // Pendiente
         2 -> Color(0xFF8B5CF6) // Confirmada
@@ -493,7 +495,7 @@ fun UpcomingAppointmentItem(
 
             // Botón Ver Detalles
             Button(
-                onClick = { /* Ver detalles */ },
+                onClick = { showBottomSheet = true },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2563EB)
@@ -508,5 +510,213 @@ fun UpcomingAppointmentItem(
                 )
             }
         }
+    }
+
+    // Bottom Sheet con detalles de la cita
+    if (showBottomSheet) {
+        AppointmentDetailsBottomSheet(
+            appointment = appointment,
+            barber = barber,
+            client = client,
+            service = service,
+            statusColor = statusColor,
+            statusText = statusText,
+            onDismiss = { showBottomSheet = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppointmentDetailsBottomSheet(
+    appointment: AppointmentClientData,
+    barber: UserData?,
+    client: UserData?,
+    service: ServiceData?,
+    statusColor: Color,
+    statusText: String,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        containerColor = Color.White,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            // Título
+            Text(
+                text = "Detalles de la Cita",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937)
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Estado
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Estado",
+                    fontSize = 14.sp,
+                    color = Color(0xFF6B7280),
+                    fontWeight = FontWeight.Medium
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = statusColor.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = statusText,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = statusColor
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = Color(0xFFE5E7EB))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Información del Cliente
+            DetailSection(title = "Cliente") {
+                DetailRow(
+                    label = "Nombre",
+                    value = client?.nameUser ?: appointment.nameClient ?: "No disponible"
+                )
+                if (client?.correoUser?.isNotEmpty() == true || appointment.emailClient?.isNotEmpty() == true) {
+                    DetailRow(
+                        label = "Email",
+                        value = client?.correoUser ?: appointment.emailClient ?: "No disponible"
+                    )
+                }
+                if (client?.phoneNumberUser?.isNotEmpty() == true || appointment.phoneNumberClient?.isNotEmpty() == true) {
+                    DetailRow(
+                        label = "Teléfono",
+                        value = client?.phoneNumberUser ?: appointment.phoneNumberClient ?: "No disponible"
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Información de la Cita
+            DetailSection(title = "Información de la Cita") {
+                DetailRow(
+                    label = "Fecha",
+                    value = appointment.dateAppointment ?: "No disponible"
+                )
+                DetailRow(
+                    label = "Hora",
+                    value = appointment.timeAppointment ?: "No disponible"
+                )
+                DetailRow(
+                    label = "Duración",
+                    value = "${appointment.durationTotal ?: 0} min"
+                )
+                DetailRow(
+                    label = "Servicio",
+                    value = service?.nameService ?: "No disponible"
+                )
+                DetailRow(
+                    label = "Barbero",
+                    value = barber?.nameUser ?: "No disponible"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Información de Pago
+            DetailSection(title = "Pago") {
+                DetailRow(
+                    label = "Total",
+                    value = "${appointment.totalPrice ?: 0}"
+                )
+                DetailRow(
+                    label = "Método",
+                    value = appointment.methodPayment ?: "No especificado"
+                )
+                DetailRow(
+                    label = "Estado de Pago",
+                    value = if (appointment.statusPayment == 1) "Pagado" else "Pendiente"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Botón Cerrar
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF2563EB)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(vertical = 14.dp)
+            ) {
+                Text(
+                    text = "Cerrar",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun DetailSection(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column {
+        Text(
+            text = title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF1F2937)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        content()
+    }
+}
+
+@Composable
+fun DetailRow(
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            color = Color(0xFF6B7280)
+        )
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF1F2937)
+        )
     }
 }
