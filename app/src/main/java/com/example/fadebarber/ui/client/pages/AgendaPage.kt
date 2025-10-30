@@ -66,6 +66,7 @@ import androidx.compose.runtime.produceState
 import com.example.fadebarber.ui.client.components.AgendaCartForm
 import com.example.fadebarber.data.repository.FirebaseRepository
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.res.painterResource
 import com.example.fadebarber.R
@@ -177,7 +178,7 @@ fun AgendaPage(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ShoppingCart,
+                                imageVector = Icons.Default.EventNote,
                                 contentDescription = "Carrito",
                                 tint = Color.White,
                                 modifier = Modifier.size(22.dp)

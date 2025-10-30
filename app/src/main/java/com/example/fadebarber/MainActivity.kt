@@ -13,6 +13,8 @@ import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.navegation.RoleNavGraph
 import com.example.fadebarber.navegation.UserRole
 import com.example.fadebarber.services.SecretConfig
+import com.example.fadebarber.utils.CloudinaryHelper
+//import com.example.fadebarber.ui.theme.FadeBarberTheme
 import com.jakewharton.threetenabp.AndroidThreeTen
 
 
@@ -24,6 +26,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         AndroidThreeTen.init(this)
         SecretConfig.init(this)
+        CloudinaryHelper.initialize(this)
 
         // DEBUG: Verifica inmediatamente después de init
         Log.d("MainActivity", "Probando obtener SECRET_STRIPE...")
@@ -46,6 +49,10 @@ class MainActivity : ComponentActivity() {
                         3 -> UserRole.ADMIN
                         else -> UserRole.AUTH
                     }
+                }
+                is AuthState.Guest -> {
+                    Log.d("MainActivity", "Usuario invitado -> GUEST")
+                    UserRole.GUEST
                 }
                 else -> {
                     Log.d("MainActivity", "Usuario no autenticado -> AUTH")

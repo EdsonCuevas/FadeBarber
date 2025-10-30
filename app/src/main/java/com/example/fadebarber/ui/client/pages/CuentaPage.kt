@@ -1,60 +1,32 @@
 package com.example.fadebarber.ui.client.pages
 
+import android.net.Uri
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,13 +35,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
-import com.example.fadebarber.ui.client.components.SkeletonHorarioItem
+import com.example.fadebarber.utils.CloudinaryHelper
 import com.example.fadebarber.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
-import com.example.fadebarber.ui.client.components.HorarioItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +52,7 @@ fun CuentaPage(
 ) {
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
-    val barberInfo = viewModel.info.collectAsState().value
+
     val context = LocalContext.current
 
     // Regex patterns
@@ -92,6 +64,8 @@ fun CuentaPage(
     var editableName by remember { mutableStateOf("") }
     var editableEmail by remember { mutableStateOf("") }
     var editablePhone by remember { mutableStateOf("") }
+    var profileImageUrl by remember { mutableStateOf("") }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     // Estados originales para restaurar al cancelar
     var originalName by remember { mutableStateOf("") }
@@ -105,13 +79,14 @@ fun CuentaPage(
 
     var showCuenta by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
-    var showHorario by remember { mutableStateOf(true) }
 
     // Estados de carga y edición
     var isLoading by remember { mutableStateOf(false) }
     var isLoadingPassword by remember { mutableStateOf(false) }
     var isEditingProfile by remember { mutableStateOf(false) }
     var isEditingPassword by remember { mutableStateOf(false) }
+    var isUploadingImage by remember { mutableStateOf(false) }
+    var uploadProgress by remember { mutableStateOf(0) }
 
     // Estados para alertas
     var alertMessage by remember { mutableStateOf("") }
@@ -123,6 +98,55 @@ fun CuentaPage(
     val isPhoneValid = editablePhone.isEmpty() || phoneRegex.matches(editablePhone)
     val isNewPasswordValid = newPassword.isEmpty() || passwordRegex.matches(newPassword)
 
+    // Launcher para seleccionar imagen
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedImageUri = it
+            val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return@let
+
+            // Subir imagen a Cloudinary
+            CloudinaryHelper.uploadProfileImage(
+                context = context,
+                imageUri = it,
+                userId = userId,
+                onSuccess = { downloadUrl ->
+                    profileImageUrl = downloadUrl
+                    updateProfileImageUrl(
+                        imageUrl = downloadUrl,
+                        viewModel = viewModel,
+                        onShowAlert = { message, color ->
+                            alertMessage = message
+                            alertColor = color
+                            showAlert = true
+                        }
+                    )
+                    isUploadingImage = false
+                    uploadProgress = 0
+                },
+                onError = { error ->
+                    alertMessage = error
+                    alertColor = Color(0xFFEF4444)
+                    showAlert = true
+                    isUploadingImage = false
+                    uploadProgress = 0
+                },
+                onProgress = { progress ->
+                    uploadProgress = progress
+                    if (progress > 0 && !isUploadingImage) {
+                        isUploadingImage = true
+                    }
+                }
+            )
+        }
+    }
+
+    // Inicializar Cloudinary
+    LaunchedEffect(Unit) {
+        CloudinaryHelper.initialize(context)
+    }
+
     // Cargar datos del usuario
     LaunchedEffect(Unit, user) {
         Log.d("CuentaPage", "CuentaPage se está mostrando")
@@ -131,6 +155,7 @@ fun CuentaPage(
             editableName = it.nameUser
             editableEmail = it.correoUser
             editablePhone = it.phoneNumberUser
+            profileImageUrl = it.photoURL
             originalName = it.nameUser
             originalEmail = it.correoUser
             originalPhone = it.phoneNumberUser
@@ -139,15 +164,11 @@ fun CuentaPage(
         Log.d("EmployeeScreens", "Iniciando configuración FCM...")
         NotificationHelper.saveUserToken()
         Log.d("EmployeeScreens", "Token FCM configurado")
-
-        // Iniciar listener de horarios en tiempo real
-        viewModel.listenToBarberInfo()
     }
 
     DisposableEffect(Unit) {
         onDispose {
             Log.d("CuentaPage", "Deteniendo listener de horarios")
-            viewModel.stopListeningToBarberInfo()
         }
     }
 
@@ -159,24 +180,78 @@ fun CuentaPage(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Perfil del usuario
+            // Perfil del usuario con imagen
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF2196F3)),
+                    modifier = Modifier.size(100.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Person,
-                        contentDescription = "Avatar",
-                        tint = Color.White,
-                        modifier = Modifier.size(40.dp)
-                    )
+                    // Imagen de perfil
+                    if (profileImageUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model = profileImageUrl,
+                            contentDescription = "Foto de perfil",
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .border(3.dp, Color(0xFF2196F3), CircleShape),
+                            contentScale = ContentScale.Crop,
+                            error = painterResource(id = android.R.drawable.ic_menu_gallery)
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF2196F3)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = "Avatar por defecto",
+                                tint = Color.White,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
+                    }
+
+                    // Botón para editar foto con progreso
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF2196F3))
+                            .clickable(enabled = !isUploadingImage) {
+                                imagePickerLauncher.launch("image/*")
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isUploadingImage) {
+                            CircularProgressIndicator(
+                                progress = uploadProgress / 100f,
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "$uploadProgress%",
+                                fontSize = 6.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.CameraAlt,
+                                contentDescription = "Cambiar foto",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -549,80 +624,6 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Gestionar Horario
-            Text(
-                text = "Horarios laborales",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                AnimatedVisibility(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(),
-                    visible = showHorario,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
-                    if (barberInfo == null) {
-                        // Skeleton Loading
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            repeat(7) { index ->
-                                SkeletonHorarioItem()
-                                if (index < 6) {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                }
-                            }
-                        }
-                    } else {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            val diasOrdenados = listOf(
-                                "monday" to "Lunes",
-                                "tuesday" to "Martes",
-                                "wednesday" to "Miércoles",
-                                "thursday" to "Jueves",
-                                "friday" to "Viernes",
-                                "saturday" to "Sábado",
-                                "sunday" to "Domingo"
-                            )
-
-                            diasOrdenados.forEachIndexed { index, (diaKey, diaNombre) ->
-                                val horario = barberInfo.schedule.get(diaKey)
-                                horario?.let {
-                                    HorarioItem(
-                                        isOpen = it.available,
-                                        horaInicio = it.start.toString(),
-                                        horaFin = it.end.toString(),
-                                        diaNombre = diaNombre
-                                    )
-                                    if (index < diasOrdenados.size - 1) {
-                                        Divider(
-                                            modifier = Modifier.padding(vertical = 12.dp),
-                                            color = Color.LightGray.copy(alpha = 0.3f),
-                                            thickness = 1.dp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Spacer(modifier = Modifier.height(32.dp))
-
             // Cerrar Sesión
             Card(
                 modifier = Modifier
@@ -746,6 +747,41 @@ private fun CustomAlert(
                 }
             }
         }
+    }
+}
+
+// Función para actualizar la URL de la imagen en Firebase Database
+private fun updateProfileImageUrl(
+    imageUrl: String,
+    viewModel: HomeViewModel,
+    onShowAlert: (String, Color) -> Unit
+) {
+    try {
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        if (firebaseUser == null) {
+            onShowAlert("Usuario no autenticado", Color(0xFFEF4444))
+            return
+        }
+
+        val userId = firebaseUser.uid
+        val database = FirebaseDatabase.getInstance().getReference("User")
+
+        database.child(userId)
+            .child("photoURL")
+            .setValue(imageUrl)
+            .addOnSuccessListener {
+                Log.d("UpdateImage", "URL de imagen actualizada en Firebase")
+                viewModel.loadCurrentUser()
+                onShowAlert("Foto de perfil actualizada", Color(0xFF10B981))
+            }
+            .addOnFailureListener { e ->
+                Log.e("UpdateImage", "Error actualizando URL", e)
+                onShowAlert("Error actualizando foto: ${e.message}", Color(0xFFEF4444))
+            }
+
+    } catch (e: Exception) {
+        Log.e("UpdateImage", "Error general", e)
+        onShowAlert("Error inesperado: ${e.message}", Color(0xFFEF4444))
     }
 }
 

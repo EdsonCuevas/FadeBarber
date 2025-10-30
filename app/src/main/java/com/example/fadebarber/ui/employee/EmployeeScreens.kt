@@ -12,9 +12,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.data.HomeViewModel
+import com.example.fadebarber.ui.client.pages.CuentaPage
 import com.example.fadebarber.ui.employee.pages.AgendarEmpleadoPage
 import com.example.fadebarber.ui.employee.pages.CitaPage
-import com.example.fadebarber.ui.employee.pages.CuentaV2
 import com.example.fadebarber.ui.employee.pages.DashboardPage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +57,7 @@ fun EmployeeScreens(
 
         "account" -> {
             if (user != null) {
-                CuentaV2(authViewModel = authViewModel)
+                CuentaPage(authViewModel = authViewModel)
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),

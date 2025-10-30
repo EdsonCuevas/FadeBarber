@@ -151,4 +151,16 @@ dependencies {
 // Env
     implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
 
+    // Cloudinary para subir imágenes
+    implementation("com.cloudinary:cloudinary-android:2.5.0")
+
+    // Coil para cargar imágenes desde URLs (AsyncImage)
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Activity Compose para el launcher de selección de imágenes
+    implementation("androidx.activity:activity-compose:1.8.2")
+
+    // OkHttp (requerido por Cloudinary)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
 }

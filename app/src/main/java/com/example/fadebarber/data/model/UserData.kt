@@ -7,6 +7,7 @@ data class UserData(
     val categoryUser: Int = 0,
     val passwordUser: String = "",
     val phoneNumberUser: String = "",
+    val photoURL: String = "",
     val schedule: Map<String, ScheduleDay> = emptyMap(),
     val statusUser: Int = 0,
     val activeUser: Boolean = true

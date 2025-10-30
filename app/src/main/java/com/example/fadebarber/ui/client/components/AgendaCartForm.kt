@@ -39,6 +39,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,7 +51,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -68,6 +71,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sendEmailWithQR
+import android.util.Patterns
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -82,6 +86,10 @@ enum class PaymentState {
     ERROR           // Error en el pago
 }
 
+enum class BookingStep {
+    BARBER, DATE, TIME, CLIENT, PAYMENT
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AgendaCartForm(
@@ -91,10 +99,12 @@ fun AgendaCartForm(
     onConfirm: (Boolean, String) -> Unit,
     user: UserData
 ) {
+
     var selectedBarber by remember { mutableStateOf<String?>(null) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
     var selectedPayment by remember { mutableStateOf("Efectivo") }
+    var currentStep by remember { mutableStateOf(BookingStep.BARBER) }
 
     // Estados de procesamiento
     var paymentState by remember { mutableStateOf(PaymentState.IDLE) }
@@ -105,9 +115,44 @@ fun AgendaCartForm(
     val dbFormatter = DateTimeFormatter.ofPattern("HH:mm")
     val displayFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var occupiedTimeStrings by remember { mutableStateOf<Set<String>>(emptySet()) }
     var currentAppts by remember { mutableStateOf<List<AppointmentClientData>>(emptyList()) }
+
+    // Datos de cliente para invitado/empleado
+    val isEmployee = user.categoryUser == 2
+    val requiresManualInfo = userId.isBlank() || isEmployee
+    var manualName by remember { mutableStateOf("") }
+    var manualEmail by remember { mutableStateOf("") }
+    var manualPhone by remember { mutableStateOf("") }
+    var showManualNameError by remember { mutableStateOf(false) }
+    var showManualEmailError by remember { mutableStateOf(false) }
+    var showManualPhoneError by remember { mutableStateOf(false) }
+
+    val canConfirm by remember {
+        derivedStateOf {
+            selectedBarber != null &&
+                    selectedDate != null &&
+                    selectedTime != null &&
+                    (!requiresManualInfo || (
+                            manualName.trim().isNotBlank() &&
+                                    Patterns.EMAIL_ADDRESS.matcher(manualEmail.trim()).matches() &&
+                                    manualPhone.trim().length >= 10
+                            ))
+        }
+    }
+
+    fun validateManualData(): Boolean {
+        if (!requiresManualInfo) return true
+        val name = manualName.trim()
+        val email = manualEmail.trim()
+        val phone = manualPhone.trim()
+        showManualNameError = name.isBlank()
+        showManualEmailError = !Patterns.EMAIL_ADDRESS.matcher(email).matches()
+        showManualPhoneError = phone.length < 10
+        return !(showManualNameError || showManualEmailError || showManualPhoneError)
+    }
 
     // 🎯 Hook para manejar el pago con Stripe con control de múltiples intentos
     val iniciarPagoStripe = rememberStripePayment(
@@ -136,15 +181,23 @@ fun AgendaCartForm(
                     val servicePrice = items.filterIsInstance<ServiceData>().sumOf { it.priceService ?: 0 }
                     val promotionPrice = items.filterIsInstance<PromotionData>().sumOf { it.pricePromotion ?: 0 }
 
+                    // Determinar datos del cliente según modo
+                    val clientName = if (requiresManualInfo) manualName.trim() else user.nameUser
+                    val clientEmail = if (requiresManualInfo) manualEmail.trim() else user.correoUser
+                    val clientPhone = if (requiresManualInfo) manualPhone.trim() else user.phoneNumberUser
+
                     val appointment = AppointmentClientData(
                         id = null,
-                        idClient = userId,
+                        idClient = userId.takeIf { !isEmployee && it.isNotBlank() },
                         idEmployee = selectedBarber!!,
                         serviceId = serviceIds,
                         idPromotion = promoIds,
                         dateAppointment = selectedDate.toString(),
                         timeAppointment = requestedStart.format(dbFormatter),
                         methodPayment = selectedPayment,
+                        nameClient = clientName,
+                        emailClient = clientEmail,
+                        phoneNumberClient = clientPhone,
                         totalPrice = servicePrice + promotionPrice,
                         statusAppointment = 1,
                         statusPayment = 2,
@@ -168,9 +221,9 @@ fun AgendaCartForm(
                         // Enviar correo con QR
                         withContext(Dispatchers.IO) {
                             sendEmailWithQR(
-                                to = user.correoUser,
+                                to = clientEmail,
                                 subject = "Confirmación de cita - FadeBarber",
-                                clientName = user.nameUser,
+                                clientName = clientName,
                                 barberName = nameBarber,
                                 date = formatDate(selectedDate.toString()),
                                 time = requestedStart.format(dbFormatter),
@@ -179,6 +232,8 @@ fun AgendaCartForm(
                                 fromPassword = "rvemlhzgtkzcqjnv"
                             )
                         }
+
+                        // Mostrar notificación push de cita agendada
 
                         occupiedTimeStrings = occupiedTimeStrings + requestedSlots
                         paymentState = PaymentState.SUCCESS
@@ -570,63 +625,87 @@ fun AgendaCartForm(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        barbers.forEach { barber ->
-                            val isSelected = selectedBarber == barber.id
-                            Card(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { selectedBarber = barber.id },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFF8FAFC)
-                                ),
-                                shape = RoundedCornerShape(16.dp),
-                                elevation = CardDefaults.cardElevation(
-                                    defaultElevation = if (isSelected) 6.dp else 0.dp
-                                )
-                            ) {
-                                Column(
+                    if (currentStep != BookingStep.BARBER && selectedBarber != null) {
+                        val barberName = barbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Barbero: $barberName",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF1E293B)
+                            )
+                            OutlinedButton(onClick = { currentStep = BookingStep.BARBER }) {
+                                Text("Cambiar")
+                            }
+                        }
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            barbers.forEach { barber ->
+                                val isSelected = selectedBarber == barber.id
+                                Card(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(48.dp)
-                                            .background(
-                                                if (isSelected) Color.White.copy(alpha = 0.2f)
-                                                else Color(0xFF2563EB).copy(alpha = 0.1f),
-                                                CircleShape
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = barber.nameUser.firstOrNull()?.uppercase() ?: "B",
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) Color.White else Color(0xFF2563EB)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        barber.nameUser,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isSelected) Color.White else Color(0xFF1E293B),
-                                        textAlign = TextAlign.Center
+                                        .weight(1f)
+                                        .clickable {
+                                            selectedBarber = barber.id
+                                            selectedDate = null
+                                            selectedTime = null
+                                            currentStep = BookingStep.DATE
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFF8FAFC)
+                                    ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    elevation = CardDefaults.cardElevation(
+                                        defaultElevation = if (isSelected) 6.dp else 0.dp
                                     )
-                                    if (isSelected) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Icon(
-                                            imageVector = Icons.Default.CheckCircle,
-                                            contentDescription = "Seleccionado",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(16.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .background(
+                                                    if (isSelected) Color.White.copy(alpha = 0.2f)
+                                                    else Color(0xFF2563EB).copy(alpha = 0.1f),
+                                                    CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = barber.nameUser.firstOrNull()?.uppercase() ?: "B",
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) Color.White else Color(0xFF2563EB)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            barber.nameUser,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isSelected) Color.White else Color(0xFF1E293B),
+                                            textAlign = TextAlign.Center
                                         )
+                                        if (isSelected) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = "Seleccionado",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -678,65 +757,85 @@ fun AgendaCartForm(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            items(availableDays) { day ->
-                                val isSelected = selectedDate == day
-                                val isToday = day == today
+                        val isExpandedDate = currentStep == BookingStep.DATE
+                        if (!isExpandedDate && selectedDate != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Fecha: ${formatDate(selectedDate!!.toString())}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                OutlinedButton(onClick = { currentStep = BookingStep.DATE }) {
+                                    Text("Cambiar")
+                                }
+                            }
+                        } else {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                items(availableDays) { day ->
+                                    val isSelected = selectedDate == day
+                                    val isToday = day == today
 
-                                Card(
-                                    modifier = Modifier
-                                        .width(70.dp)
-                                        .clickable {
-                                            selectedDate = day
-                                            selectedTime = null
-                                        },
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = when {
-                                            isSelected -> Color(0xFF2563EB)
-                                            else -> Color(0xFFF8FAFC)
-                                        }
-                                    ),
-                                    shape = RoundedCornerShape(16.dp),
-                                    elevation = CardDefaults.cardElevation(
-                                        defaultElevation = if (isSelected) 6.dp else 0.dp
-                                    )
-                                ) {
-                                    Column(
+                                    Card(
                                         modifier = Modifier
-                                            .padding(vertical = 14.dp)
-                                            .fillMaxWidth(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
+                                            .width(70.dp)
+                                            .clickable {
+                                                selectedDate = day
+                                                selectedTime = null
+                                                currentStep = BookingStep.TIME
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = when {
+                                                isSelected -> Color(0xFF2563EB)
+                                                else -> Color(0xFFF8FAFC)
+                                            }
+                                        ),
+                                        shape = RoundedCornerShape(16.dp),
+                                        elevation = CardDefaults.cardElevation(
+                                            defaultElevation = if (isSelected) 6.dp else 0.dp
+                                        )
                                     ) {
-                                        Text(
-                                            text = day.dayOfWeek.getDisplayName(
-                                                TextStyle.SHORT,
-                                                Locale("es")
-                                            ).uppercase(),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = when {
-                                                isSelected -> Color.White.copy(alpha = 0.9f)
-                                                else -> Color(0xFF94A3B8)
-                                            }
-                                        )
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
-                                            text = day.dayOfMonth.toString(),
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = when {
-                                                isSelected -> Color.White
-                                                else -> Color(0xFF1E293B)
-                                            }
-                                        )
-                                        if (isToday && !isSelected) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .padding(top = 4.dp)
-                                                    .size(6.dp)
-                                                    .background(Color(0xFF2563EB), CircleShape)
+                                        Column(
+                                            modifier = Modifier
+                                                .padding(vertical = 14.dp)
+                                                .fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = day.dayOfWeek.getDisplayName(
+                                                    TextStyle.SHORT,
+                                                    Locale("es")
+                                                ).uppercase(),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = when {
+                                                    isSelected -> Color.White.copy(alpha = 0.9f)
+                                                    else -> Color(0xFF94A3B8)
+                                                }
                                             )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = day.dayOfMonth.toString(),
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = when {
+                                                    isSelected -> Color.White
+                                                    else -> Color(0xFF1E293B)
+                                                }
+                                            )
+                                            if (isToday && !isSelected) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .padding(top = 4.dp)
+                                                        .size(6.dp)
+                                                        .background(Color(0xFF2563EB), CircleShape)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -793,7 +892,24 @@ fun AgendaCartForm(
                         val key = selectedDate!!.dayOfWeek.name.lowercase(Locale.ENGLISH)
                         val daySchedule = schedule?.get(key)
 
-                        if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
+                        val isExpandedTime = currentStep == BookingStep.TIME
+                        if (!isExpandedTime && selectedTime != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Hora: ${selectedTime!!.format(displayFormatter)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                OutlinedButton(onClick = { currentStep = BookingStep.TIME }) {
+                                    Text("Cambiar")
+                                }
+                            }
+                        } else if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
                             val start = LocalTime.parse(daySchedule.start, dbFormatter)
                             val end = LocalTime.parse(daySchedule.end, dbFormatter)
 
@@ -809,18 +925,26 @@ fun AgendaCartForm(
                                         val isSelected = selectedTime != null &&
                                                 selectedTime!!.format(dbFormatter) == slotKey
 
+                                        // Verificar si la hora ya pasó (para el día actual)
+                                        val isPastTime = selectedDate == LocalDate.now() && slot.isBefore(LocalTime.now())
+
                                         Button(
-                                            onClick = { if (!isOccupied) selectedTime = slot },
-                                            enabled = !isOccupied,
+                                            onClick = {
+                                                if (!isOccupied && !isPastTime) {
+                                                    selectedTime = slot
+                                                    currentStep = if (requiresManualInfo) BookingStep.CLIENT else BookingStep.PAYMENT
+                                                }
+                                            },
+                                            enabled = !isOccupied && !isPastTime,
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = when {
                                                     isSelected -> Color(0xFF2563EB)
-                                                    isOccupied -> Color(0xFFF1F5F9)
+                                                    isOccupied || isPastTime -> Color(0xFFF1F5F9)
                                                     else -> Color(0xFFF8FAFC)
                                                 },
                                                 contentColor = when {
                                                     isSelected -> Color.White
-                                                    isOccupied -> Color(0xFF94A3B8)
+                                                    isOccupied || isPastTime -> Color(0xFF94A3B8)
                                                     else -> Color(0xFF1E293B)
                                                 },
                                                 disabledContainerColor = Color(0xFFF1F5F9),
@@ -855,6 +979,173 @@ fun AgendaCartForm(
                                     color = Color(0xFFEF4444),
                                     fontWeight = FontWeight.Medium
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // DATOS DEL CLIENTE (invitado/empleado)
+        item {
+            if (requiresManualInfo) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(
+                                        Color(0xFF2563EB).copy(alpha = 0.1f),
+                                        RoundedCornerShape(8.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Cliente",
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                "Datos del Cliente",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val isExpandedClient = currentStep == BookingStep.CLIENT
+                        val hasManualValues = manualName.isNotBlank() && manualEmail.isNotBlank() && manualPhone.isNotBlank()
+
+                        if (!isExpandedClient && hasManualValues) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    "Nombre: ${manualName}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    "Correo: ${manualEmail}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    "Teléfono: ${manualPhone}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                OutlinedButton(onClick = { currentStep = BookingStep.CLIENT }) {
+                                    Text("Cambiar")
+                                }
+                            }
+                        } else {
+                            OutlinedTextField(
+                                value = manualName,
+                                onValueChange = {
+                                    manualName = it
+                                    if (showManualNameError) showManualNameError = it.trim().isBlank()
+                                },
+                                label = { Text("Nombre") },
+                                isError = showManualNameError,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            if (showManualNameError) {
+                                Text(
+                                    "Ingresa el nombre",
+                                    color = Color(0xFFEF4444),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = manualEmail,
+                                onValueChange = {
+                                    manualEmail = it
+                                    if (showManualEmailError) showManualEmailError = !Patterns.EMAIL_ADDRESS.matcher(it.trim()).matches()
+                                },
+                                label = { Text("Correo") },
+                                isError = showManualEmailError,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            if (showManualEmailError) {
+                                Text(
+                                    "Correo inválido",
+                                    color = Color(0xFFEF4444),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = manualPhone,
+                                onValueChange = {
+                                    val digits = it.filter { ch -> ch.isDigit() }
+                                    manualPhone = digits
+                                    if (showManualPhoneError) showManualPhoneError = digits.length < 10
+                                },
+                                label = { Text("Teléfono") },
+                                isError = showManualPhoneError,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            if (showManualPhoneError) {
+                                Text(
+                                    "Teléfono inválido (mínimo 10 dígitos)",
+                                    color = Color(0xFFEF4444),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Usaremos estos datos para enviarte la confirmación",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    if (validateManualData()) {
+                                        currentStep = BookingStep.PAYMENT
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF2563EB)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text("Continuar", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -1035,6 +1326,16 @@ fun AgendaCartForm(
                                 return@launch
                             }
 
+                            // Validación de datos del cliente para invitado/empleado
+                            if (requiresManualInfo) {
+                                if (!validateManualData()) {
+                                    isProcessing = false
+                                    errorMessage = "Ingresa nombre, correo válido y teléfono (10 dígitos)"
+                                    paymentState = PaymentState.ERROR
+                                    return@launch
+                                }
+                            }
+
                             // Procesar según método de pago
                             if (selectedPayment == "Efectivo") {
                                 // Mostrar pantalla de procesamiento
@@ -1046,15 +1347,23 @@ fun AgendaCartForm(
                                 val servicePrice = items.filterIsInstance<ServiceData>().sumOf { it.priceService ?: 0 }
                                 val promotionPrice = items.filterIsInstance<PromotionData>().sumOf { it.pricePromotion ?: 0 }
 
+                                // Determinar datos del cliente según modo
+                                val clientName = if (requiresManualInfo) manualName.trim() else user.nameUser
+                                val clientEmail = if (requiresManualInfo) manualEmail.trim() else user.correoUser
+                                val clientPhone = if (requiresManualInfo) manualPhone.trim() else user.phoneNumberUser
+
                                 val appointment = AppointmentClientData(
                                     id = null,
-                                    idClient = userId,
+                                    idClient = userId.takeIf { !isEmployee && it.isNotBlank() },
                                     idEmployee = selectedBarber!!,
                                     serviceId = serviceIds,
                                     idPromotion = promoIds,
                                     dateAppointment = selectedDate.toString(),
                                     timeAppointment = requestedStart.format(dbFormatter),
                                     methodPayment = selectedPayment,
+                                    nameClient = clientName,
+                                    emailClient = clientEmail,
+                                    phoneNumberClient = clientPhone,
                                     totalPrice = servicePrice + promotionPrice,
                                     statusAppointment = 1,
                                     statusPayment = 1,
@@ -1076,9 +1385,9 @@ fun AgendaCartForm(
                                     // Enviar correo con QR
                                     withContext(Dispatchers.IO) {
                                         sendEmailWithQR(
-                                            to = user.correoUser,
+                                            to = clientEmail,
                                             subject = "Confirmación de cita - FadeBarber",
-                                            clientName = user.nameUser,
+                                            clientName = clientName,
                                             barberName = nameBarber,
                                             date = formatDate(selectedDate.toString()),
                                             time = requestedStart.format(dbFormatter),
@@ -1087,6 +1396,8 @@ fun AgendaCartForm(
                                             fromPassword = "rvemlhzgtkzcqjnv"
                                         )
                                     }
+
+                                    // Mostrar notificación push de cita agendada
 
                                     occupiedTimeStrings = occupiedTimeStrings + requestedSlots
                                     paymentState = PaymentState.SUCCESS
@@ -1123,7 +1434,7 @@ fun AgendaCartForm(
                     defaultElevation = 4.dp,
                     pressedElevation = 8.dp
                 ),
-                enabled = !isProcessing
+                enabled = !isProcessing && canConfirm
             ) {
                 if (isProcessing) {
                     Row(

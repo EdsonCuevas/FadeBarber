@@ -53,6 +53,8 @@ import com.example.fadebarber.R
 import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.PromotionData
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalTime
@@ -695,10 +697,11 @@ fun CitaPage(
 @Composable
 fun AppointmentCard(
     appointment: AppointmentClientData,
-    services: List<Any>,
-    users: List<Any>,
-    promotions: List<Any>,
-    onClick: (AppointmentClientData) -> Unit
+    services: List<ServiceData>,
+    users: List<UserData>,
+    promotions: List<PromotionData>,
+    onClick: (AppointmentClientData) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     // Determinar color según estado
     val statusColor = when (appointment.statusAppointment) {
@@ -718,9 +721,7 @@ fun AppointmentCard(
     }
 
     // Obtener nombre del cliente
-    val client = users.find {
-        if (it is UserData) it.id == appointment.idClient else false
-    } as? UserData
+    val client = users.find { it.id == appointment.idClient }
 
     // Obtener servicios
     val titles = mutableListOf<String>()
@@ -729,12 +730,7 @@ fun AppointmentCard(
     if (appointment.idPromotion.isNotEmpty()) {
         val validPromotionIds = appointment.idPromotion.filterNotNull()
         if (validPromotionIds.isNotEmpty()) {
-            val firstPromotion = promotions.find {
-                if (it is com.example.fadebarber.data.model.PromotionData)
-                    it.id == validPromotionIds.firstOrNull()
-                else false
-            } as? com.example.fadebarber.data.model.PromotionData
-
+            val firstPromotion = promotions.find { it.id == validPromotionIds.firstOrNull() }
             if (firstPromotion != null) {
                 val totalPromotions = validPromotionIds.size
                 titles.add(
@@ -751,13 +747,9 @@ fun AppointmentCard(
     // Servicios
     if (appointment.serviceId.isNotEmpty()) {
         val validServiceIds = appointment.serviceId.filterNotNull()
-        val selectedServices = services.filter {
-            if (it is com.example.fadebarber.data.model.ServiceData)
-                it.id in validServiceIds
-            else false
-        }
+        val selectedServices = services.filter { it.id in validServiceIds }
         if (selectedServices.isNotEmpty()) {
-            val firstService = selectedServices[0] as com.example.fadebarber.data.model.ServiceData
+            val firstService = selectedServices[0]
             titles.add(
                 if (selectedServices.size > 1) {
                     "${firstService.nameService} + ${selectedServices.size - 1} más"

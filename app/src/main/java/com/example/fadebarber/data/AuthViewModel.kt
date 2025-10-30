@@ -17,8 +17,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-
-
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -50,8 +48,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         checkAuthStatus()
-
     }
+
     fun updateRegisterName(value: String) { _registerName.value = value }
     fun updateRegisterPhone(value: String) { _registerPhone.value = value }
     fun updateRegisterEmail(value: String) { _registerEmail.value = value }
@@ -59,10 +57,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun updateRegisterConfirmPassword(value: String) { _registerConfirmPassword.value = value }
     fun updateTermsAccepted(value: Boolean) { _termsAccepted.value = value }
 
-
-    fun clearAuthState() {
-        _authState.value = null
-    }
 
     fun clearRegisterForm() {
         _registerName.value = ""
@@ -149,7 +143,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
     }
 
-    fun signup(name: String, email: String, password: String, phone: String) {
+    fun signup(name: String, email: String, password: String, phone: String, profileImageUrl: String = "") {
         if (email.isEmpty() || password.isEmpty() || name.isEmpty() || phone.isEmpty()) {
             _authState.value = AuthState.Error("Todos los campos deben de ser llenados.")
             return
@@ -170,7 +164,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             phoneNumberUser = phone,
                             activeUser = true,
                             categoryUser = 1, // Cliente por defecto
-                            statusUser = 1
+                            statusUser = 1,
+                            photoURL = profileImageUrl // URL de imagen (puede estar vacía)
                         )
 
                         database.child(uid).setValue(user)
@@ -180,26 +175,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                         if (emailTask.isSuccessful) {
                                             _authState.value = AuthState.EmailSent
                                         } else {
-                                            _authState.value = AuthState.Error(
-                                                emailTask.exception?.message
-                                                    ?: "Error enviando correo de verificación"
-                                            )
+                                            _authState.value = AuthState.Error("No se pudo enviar el correo de verificación")
                                         }
                                     }
                             }
                             .addOnFailureListener { e ->
-                                _authState.value = AuthState.Error(e.message ?: "Error al guardar el usuario")
+                                _authState.value = AuthState.Error("Error al registrar usuario: ${e.message}")
                             }
                     } else {
-                        _authState.value = AuthState.Error("No se encontró el ID del usuario")
+                        _authState.value = AuthState.Error("No se pudo obtener el usuario")
                     }
                 } else {
-                    _authState.value = AuthState.Error(task.exception?.message ?: "Algo salió mal")
+                    _authState.value = AuthState.Error("Error en el registro: ${task.exception?.message}")
                 }
             }
     }
 
     fun resetPassword(email: String, onResult: (success: Boolean, error: String?) -> Unit) {
+        if (email.isEmpty()) {
+            onResult(false, "Correo electrónico requerido")
+            return
+        }
+
         auth.sendPasswordResetEmail(email)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
@@ -213,9 +210,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         auth.signOut()
         viewModelScope.launch {
-            UserPreferences.saveUserRole(appContext, -1)
-            _authState.postValue(AuthState.Unauthenticated)
+            UserPreferences.saveUserRole(appContext, 0)
         }
+        _authState.value = AuthState.Unauthenticated
     }
 
     fun resetAuthState() {
@@ -225,6 +222,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun prepareForSignUp() {
         _authState.value = AuthState.Unauthenticated
     }
+
+    // Invitado
+    fun loginAsGuest() {
+        _authState.value = AuthState.Guest
+    }
 }
 
 sealed class AuthState {
@@ -233,12 +235,8 @@ sealed class AuthState {
     object Loading : AuthState()
     object EmailSent : AuthState()
     data class Error(val message: String) : AuthState()
-
-
+    object Guest : AuthState()
 }
-
-
-
 
 class Event<T> {
     private var content: T? = null
@@ -264,4 +262,3 @@ class Event<T> {
         content = null
     }
 }
-
