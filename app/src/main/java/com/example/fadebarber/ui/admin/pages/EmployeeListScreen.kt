@@ -1,23 +1,19 @@
 package com.example.fadebarber.ui.admin.pages
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -26,27 +22,18 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.R
 import com.example.fadebarber.data.model.AppointmentClientData
-import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
-import com.example.fadebarber.ui.admin.viewmodel.AdminEmployeeListViewModel
+import com.example.fadebarber.ui.admin.viewmodel.AdminDashboardViewModel
+import java.util.*
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.ExpandLess
-import com.example.fadebarber.ui.employee.pages.AppointmentCard
-
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EmployeeListScreen() {
-    val vm: AdminEmployeeListViewModel = viewModel()
+fun DashboardAdminScreen() {
+    val vm: AdminDashboardViewModel = viewModel()
     val barbers by vm.barbers.collectAsState()
+    val appointments by vm.appointments.collectAsState()
     val services by vm.services.collectAsState()
-    val promotions by vm.promotions.collectAsState()
     val users by vm.users.collectAsState()
 
     LaunchedEffect(Unit) { vm.startListeners() }
@@ -54,306 +41,682 @@ fun EmployeeListScreen() {
         onDispose { vm.stopListeners() }
     }
 
-    var expandedBarberId by remember { mutableStateOf<String?>(null) }
-
-    // Derivados
-    val todayAppointments = remember(barbers, users) { vm.todayAppointments() }
-    val onlineCount = remember(barbers) {
-        barbers.count { vm.isUserOnline(it.id) }
+    // Calcular estadísticas
+    val todayAppointments = remember(appointments) {
+        appointments.filter { vm.isToday(it.dateAppointment) }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFFF8FAFF), Color(0xFFF0F4FF))
-                )
-            )
-    ) {
-        // Header
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, top = 16.dp, bottom = 12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.CalendarToday,
-                contentDescription = null,
-                tint = Color(0xFF1F2937)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Empleados",
-                fontSize = 22.sp,
-                color = Color(0xFF1F2937),
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+    val completedCount = todayAppointments.count { it.statusAppointment == 4 }
+    val inProgressCount = todayAppointments.count { it.statusAppointment == 3 }
+    val pendingCount = todayAppointments.count { it.statusAppointment == 1 }
 
-        // Estadísticas (con íconos)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.CalendarToday,
-                number = todayAppointments.size.toString(),
-                label = "Citas hoy"
-            )
+    // Barberos activos
+    val activeBarbers = remember(todayAppointments, barbers) {
+        barbers.filter { barber ->
+            todayAppointments.any { it.idEmployee == barber.id }
+        }.map { barber ->
+            val apptCount = todayAppointments.count { it.idEmployee == barber.id }
+            barber to apptCount
+        }.sortedByDescending { it.second }
+    }
 
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.People,
-                number = onlineCount.toString(),
-                label = "Activos en línea"
-            )
-        }
+    // Próximas citas
+    val upcomingAppointments = remember(todayAppointments) {
+        todayAppointments
+            .filter { it.statusAppointment != 4 && it.statusAppointment != 5 }
+            .sortedBy { it.timeAppointment }
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Lista de empleados
-        val sortedBarbers = remember(barbers) {
-            barbers.sortedWith(compareByDescending<UserData> { vm.isUserOnline(it.id) }
-                .thenBy { it.nameUser.lowercase() })
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(sortedBarbers, key = { it.id }) { user ->
-                val (completed, total) = vm.todayTotalsForEmployee(user.id)
-                val apptsForEmployee = vm.appointmentsForEmployeeToday(user.id)
-                EmployeeCard(
-                    user = user,
-                    isOnline = vm.isUserOnline(user.id),
-                    completedAppointments = completed,
-                    totalAppointments = total,
-                    isExpanded = expandedBarberId == user.id,
-                    appointments = apptsForEmployee,
-                    services = services,
-                    promotions = promotions,
-                    users = users,
-                    onToggleExpand = {
-                        expandedBarberId = if (expandedBarberId == user.id) null else user.id
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "BarberPro Admin",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Panel de Control",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
                     }
+                },
+                actions = {
+                    IconButton(onClick = { /* Notificaciones */ }) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notificaciones",
+                            tint = Color.White
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF2563EB)
                 )
-            }
-        }
-    }
-
-    // Sheet eliminado: ahora las citas se despliegan dentro de cada tarjeta
-
-}
-
-@Composable
-fun StatCard(
-    modifier: Modifier = Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    number: String,
-    label: String
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(0.dp),
-        border = BorderStroke(1.dp, Color(0xFFE0E0E0))
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(36.dp),
-                tint = Color(0xFF0D47A1)
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = number,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-                Text(
-                    text = label,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF444444)
-                )
-            }
         }
-    }
-}
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF5F5F5))
+                .padding(paddingValues),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header con fecha y total de citas
+            item {
+                Column {
+                    val calendar = Calendar.getInstance()
+                    val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
+                    val month = when (calendar.get(Calendar.MONTH)) {
+                        Calendar.JANUARY -> "Enero"
+                        Calendar.FEBRUARY -> "Febrero"
+                        Calendar.MARCH -> "Marzo"
+                        Calendar.APRIL -> "Abril"
+                        Calendar.MAY -> "Mayo"
+                        Calendar.JUNE -> "Junio"
+                        Calendar.JULY -> "Julio"
+                        Calendar.AUGUST -> "Agosto"
+                        Calendar.SEPTEMBER -> "Septiembre"
+                        Calendar.OCTOBER -> "Octubre"
+                        Calendar.NOVEMBER -> "Noviembre"
+                        Calendar.DECEMBER -> "Diciembre"
+                        else -> ""
+                    }
+                    val dayOfWeek = when (calendar.get(Calendar.DAY_OF_WEEK)) {
+                        Calendar.MONDAY -> "Lunes"
+                        Calendar.TUESDAY -> "Martes"
+                        Calendar.WEDNESDAY -> "Miércoles"
+                        Calendar.THURSDAY -> "Jueves"
+                        Calendar.FRIDAY -> "Viernes"
+                        Calendar.SATURDAY -> "Sábado"
+                        Calendar.SUNDAY -> "Domingo"
+                        else -> ""
+                    }
 
-@Composable
-fun EmployeeCard(
-    user: UserData,
-    isOnline: Boolean,
-    completedAppointments: Int,
-    totalAppointments: Int,
-    isExpanded: Boolean,
-    appointments: List<AppointmentClientData>,
-    services: List<ServiceData>,
-    promotions: List<PromotionData>,
-    users: List<UserData>,
-    onToggleExpand: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onToggleExpand() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp),
-        border = BorderStroke(1.dp, Color(0xFFE0E0E0))
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // FOTO DE PERFIL
-                    Image(
-                        painter = painterResource(id = R.drawable.profilelogo),
-                        contentDescription = "Perfil",
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(user.nameUser, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isOnline) Color(0xFF10B981) else Color(0xFF9CA3AF))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column {
+                            Text(
+                                text = "Hoy, $dayOfMonth $month",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                            Text(
+                                text = dayOfWeek,
+                                fontSize = 14.sp,
+                                color = Color(0xFF6B7280)
                             )
                         }
-                        Text("Barbero", fontSize = 13.sp, color = Color(0xFF666666))
-                    }
 
-                    IconButton(onClick = onToggleExpand) {
-                        Icon(
-                            imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                            contentDescription = if (isExpanded) "Ocultar citas" else "Ver citas",
-                            tint = Color(0xFF374151)
+                        // Total de citas
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = todayAppointments.size.toString(),
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2563EB)
+                            )
+                            Text(
+                                text = "Citas",
+                                fontSize = 14.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Estadísticas (Completadas, En Progreso, Pendiente)
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatChip(
+                        modifier = Modifier.weight(1f),
+                        count = completedCount,
+                        label = "Completadas",
+                        color = Color(0xFF10B981)
+                    )
+                    StatChip(
+                        modifier = Modifier.weight(1f),
+                        count = inProgressCount,
+                        label = "En Progreso",
+                        color = Color(0xFF3B82F6)
+                    )
+                    StatChip(
+                        modifier = Modifier.weight(1f),
+                        count = pendingCount,
+                        label = "Pendiente",
+                        color = Color(0xFFF97316)
+                    )
+                }
+            }
+
+            // Barberos Activos Header
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Barberos Activos",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
+                    TextButton(onClick = { /* Ver todos */ }) {
+                        Text(
+                            text = "Ver Todos",
+                            fontSize = 14.sp,
+                            color = Color(0xFF2563EB)
                         )
                     }
                 }
+            }
 
-                AnimatedVisibility(
-                    visible = isExpanded,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
+            // Lista de barberos activos
+            items(activeBarbers) { (barber, count) ->
+                BarberActiveItem(
+                    barber = barber,
+                    appointmentCount = count,
+                    isOnline = vm.isUserOnline(barber.id)
+                )
+            }
+
+            // Próximas Citas Header
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.padding(top = 12.dp)) {
-                        if (appointments.isEmpty()) {
-                            Text("Sin citas para hoy", color = Color.Gray, fontSize = 13.sp)
-                        } else {
-                            appointments.forEach { appt ->
-                                AppointmentCard(
-                                    appointment = appt,
-                                    services = services,
-                                    users = users,
-                                    promotions = promotions,
-                                    onClick = { /* sin acción en admin */ },
-                                    modifier = Modifier.height(92.dp)
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
-                            }
-                        }
+                    Text(
+                        text = "Próximas Citas",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
+                    TextButton(onClick = { /* Ver agenda */ }) {
+                        Text(
+                            text = "Ver Agenda",
+                            fontSize = 14.sp,
+                            color = Color(0xFF2563EB)
+                        )
                     }
                 }
             }
 
-            // Texto de citas en la esquina superior derecha
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF5F5F5),
-                tonalElevation = 0.dp,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-            ) {
+            // Lista de próximas citas
+            items(upcomingAppointments) { appointment ->
+                UpcomingAppointmentItem(
+                    appointment = appointment,
+                    barbers = barbers,
+                    services = services,
+                    users = users
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun StatChip(
+    modifier: Modifier = Modifier,
+    count: Int,
+    label: String,
+    color: Color
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = count.toString(),
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = Color(0xFF6B7280)
+        )
+    }
+}
+
+@Composable
+fun BarberActiveItem(
+    barber: UserData,
+    appointmentCount: Int,
+    isOnline: Boolean
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Foto de perfil con indicador de estado
+            Box {
+                Image(
+                    painter = painterResource(id = R.drawable.profilelogo),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                )
+                // Indicador de estado
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(
+                            when {
+                                isOnline -> Color(0xFF10B981)
+                                else -> Color(0xFFEF4444)
+                            }
+                        )
+                        .align(Alignment.BottomEnd)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Nombre y estado
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "$completedAppointments/$totalAppointments citas",
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    fontSize = 12.sp,
-                    color = Color(0xFF333333)
+                    text = barber.nameUser,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF1F2937)
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when {
+                                    isOnline -> Color(0xFF10B981)
+                                    appointmentCount > 0 -> Color(0xFF3B82F6)
+                                    else -> Color(0xFFEF4444)
+                                }
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = when {
+                            isOnline -> "Disponible"
+                            appointmentCount > 0 -> "En Servicio"
+                            else -> "Ocupado"
+                        },
+                        fontSize = 13.sp,
+                        color = when {
+                            isOnline -> Color(0xFF10B981)
+                            appointmentCount > 0 -> Color(0xFF3B82F6)
+                            else -> Color(0xFFEF4444)
+                        }
+                    )
+                }
+            }
+
+            // Contador de citas
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = appointmentCount.toString(),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2563EB)
+                )
+                Text(
+                    text = "Citas hoy",
+                    fontSize = 11.sp,
+                    color = Color(0xFF9CA3AF)
                 )
             }
         }
+    }
+}
+
+@Composable
+fun UpcomingAppointmentItem(
+    appointment: AppointmentClientData,
+    barbers: List<UserData>,
+    services: List<ServiceData>,
+    users: List<UserData>
+) {
+    val barber = barbers.find { it.id == appointment.idEmployee }
+    val client = users.find { it.id == appointment.idClient }
+    val service = services.firstOrNull { it.id == appointment.serviceId?.firstOrNull() }
+
+    var showBottomSheet by remember { mutableStateOf(false) }
+
+    val statusColor = when (appointment.statusAppointment) {
+        1 -> Color(0xFFF97316) // Pendiente
+        2 -> Color(0xFF8B5CF6) // Confirmada
+        3 -> Color(0xFF3B82F6) // En progreso
+        else -> Color(0xFF9CA3AF)
+    }
+
+    val statusText = when (appointment.statusAppointment) {
+        1 -> "Pendiente"
+        2 -> "Confirmada"
+        3 -> "En Progreso"
+        else -> "Desconocido"
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Hora con indicador de color
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(statusColor)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = appointment.timeAppointment ?: "00:00",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Badge de estado
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = statusColor.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = statusText,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = statusColor
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Nombre del cliente
+            Text(
+                text = client?.nameUser ?: appointment.nameClient ?: "Cliente",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1F2937)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Servicio y barbero
+            Text(
+                text = "${service?.nameService ?: "Servicio"} • ${barber?.nameUser ?: "Barbero"}",
+                fontSize = 13.sp,
+                color = Color(0xFF6B7280)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Botón Ver Detalles
+            Button(
+                onClick = { showBottomSheet = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF2563EB)
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Ver Detalles",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+
+    // Bottom Sheet con detalles de la cita
+    if (showBottomSheet) {
+        AppointmentDetailsBottomSheet(
+            appointment = appointment,
+            barber = barber,
+            client = client,
+            service = service,
+            statusColor = statusColor,
+            statusText = statusText,
+            onDismiss = { showBottomSheet = false }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EmployeeAppointmentsSheet(
-    employee: UserData,
-    appointments: List<AppointmentClientData>,
-    services: List<ServiceData>,
-    promotions: List<PromotionData>,
-    users: List<UserData>,
+fun AppointmentDetailsBottomSheet(
+    appointment: AppointmentClientData,
+    barber: UserData?,
+    client: UserData?,
+    service: ServiceData?,
+    statusColor: Color,
+    statusText: String,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
-        onDismissRequest = { onDismiss() },
+        onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        containerColor = Color.White,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
+            // Título
             Text(
-                text = "Citas de ${employee.nameUser} (hoy)",
-                style = MaterialTheme.typography.titleLarge
+                text = "Detalles de la Cita",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937)
             )
-            Spacer(modifier = Modifier.height(12.dp))
 
-            if (appointments.isEmpty()) {
-                Text("Sin citas para hoy", color = Color.Gray)
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxHeight(0.7f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Estado
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Estado",
+                    fontSize = 14.sp,
+                    color = Color(0xFF6B7280),
+                    fontWeight = FontWeight.Medium
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = statusColor.copy(alpha = 0.15f)
                 ) {
-                    items(appointments, key = { it.id ?: "" }) { appt ->
-                        AppointmentCard(
-                            appointment = appt,
-                            services = services,
-                            users = users,
-                            promotions = promotions,
-                            onClick = { /* sin acción en admin */ },
-                            modifier = Modifier.height(92.dp)
-                        )
-                    }
+                    Text(
+                        text = statusText,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = statusColor
+                    )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = Color(0xFFE5E7EB))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Información del Cliente
+            DetailSection(title = "Cliente") {
+                DetailRow(
+                    label = "Nombre",
+                    value = client?.nameUser ?: appointment.nameClient ?: "No disponible"
+                )
+                if (client?.correoUser?.isNotEmpty() == true || appointment.emailClient?.isNotEmpty() == true) {
+                    DetailRow(
+                        label = "Email",
+                        value = client?.correoUser ?: appointment.emailClient ?: "No disponible"
+                    )
+                }
+                if (client?.phoneNumberUser?.isNotEmpty() == true || appointment.phoneNumberClient?.isNotEmpty() == true) {
+                    DetailRow(
+                        label = "Teléfono",
+                        value = client?.phoneNumberUser ?: appointment.phoneNumberClient ?: "No disponible"
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Información de la Cita
+            DetailSection(title = "Información de la Cita") {
+                DetailRow(
+                    label = "Fecha",
+                    value = appointment.dateAppointment ?: "No disponible"
+                )
+                DetailRow(
+                    label = "Hora",
+                    value = appointment.timeAppointment ?: "No disponible"
+                )
+                DetailRow(
+                    label = "Duración",
+                    value = "${appointment.durationTotal ?: 0} min"
+                )
+                DetailRow(
+                    label = "Servicio",
+                    value = service?.nameService ?: "No disponible"
+                )
+                DetailRow(
+                    label = "Barbero",
+                    value = barber?.nameUser ?: "No disponible"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Información de Pago
+            DetailSection(title = "Pago") {
+                DetailRow(
+                    label = "Total",
+                    value = "${appointment.totalPrice ?: 0}"
+                )
+                DetailRow(
+                    label = "Método",
+                    value = appointment.methodPayment ?: "No especificado"
+                )
+                DetailRow(
+                    label = "Estado de Pago",
+                    value = if (appointment.statusPayment == 1) "Pagado" else "Pendiente"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Botón Cerrar
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF2563EB)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(vertical = 14.dp)
+            ) {
+                Text(
+                    text = "Cerrar",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+fun DetailSection(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column {
+        Text(
+            text = title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF1F2937)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        content()
+    }
+}
+
+@Composable
+fun DetailRow(
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            color = Color(0xFF6B7280)
+        )
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF1F2937)
+        )
     }
 }
