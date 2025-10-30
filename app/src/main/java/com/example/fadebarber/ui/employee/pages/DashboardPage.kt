@@ -106,6 +106,39 @@ fun DashboardPage(
         systemUiController.setStatusBarColor(color = Color.Transparent, darkIcons = false)
     }
 
+    // Local helper to update appointment status (avoids unresolved reference issues)
+    fun updateAppointmentStatusLocal(
+        appointmentId: String,
+        newStatus: Int,
+        context: android.content.Context,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        Log.d("UpdateAppointment", "Actualizando cita $appointmentId a estado $newStatus")
+        try {
+            if (appointmentId.isBlank()) {
+                onError("ID de cita inválido")
+                return
+            }
+            val database = FirebaseDatabase.getInstance().getReference("Appointment")
+            val updates: Map<String, Any> = mapOf(
+                "statusAppointment" to newStatus
+            )
+            database.child(appointmentId)
+                .updateChildren(updates)
+                .addOnSuccessListener {
+                    Log.d("UpdateAppointment", "Estado actualizado correctamente")
+                    onSuccess()
+                }
+                .addOnFailureListener { e ->
+                    Log.e("UpdateAppointment", "Error actualizando estado", e)
+                    onError("Error al actualizar: ${e.message}")
+                }
+        } catch (e: Exception) {
+            Log.e("UpdateAppointment", "Error general", e)
+            onError("Error inesperado: ${e.message}")
+        }
+    }
     // === Lógica de próxima cita ===
     val currentTime = LocalTime.now()
     val formatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -156,51 +189,51 @@ fun DashboardPage(
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.Start
         ) {
-        /** HEADER CON IMAGEN Y NOMBRE **/
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(
-                    RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                )
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF1E3A8A),
-                            Color(0xFF3B82F6)
-                        )
-                    )
-                )
-                .padding(24.dp)
-        ) {
-            Row(
+            /** HEADER CON IMAGEN Y NOMBRE **/
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Hola, ${user.nameUser}",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        lineHeight = 32.sp
+                    .clip(
+                        RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                     )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        repeat(4) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_start),
-                                contentDescription = "Estrella llena",
-                                tint = Color(0xFFFFC107),
-                                modifier = Modifier.size(18.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF1E3A8A),
+                                Color(0xFF3B82F6)
                             )
-                        }
-                        /*Icon(
+                        )
+                    )
+                    .padding(24.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Hola, ${user.nameUser}",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            lineHeight = 32.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        /*Row(verticalAlignment = Alignment.CenterVertically) {
+                            repeat(4) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_start),
+                                    contentDescription = "Estrella llena",
+                                    tint = Color(0xFFFFC107),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Icon(
                             painter = painterResource(id = R.drawable.ic_start),
                             contentDescription = "Estrella vacía",
                             tint = Color(0xFFFFC107),
@@ -213,429 +246,495 @@ fun DashboardPage(
                             color = Color.White.copy(alpha = 0.9f),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
-                        )*/
+                        )
+                        }*/
+                    }
+
+                    Box {
+                        Image(
+                            painter = painterResource(id = R.drawable.perfil),
+                            contentDescription = "Imagen de perfil",
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
                     }
                 }
 
-                Box {
-                    Image(
-                        painter = painterResource(id = R.drawable.perfil),
-                        contentDescription = "Imagen de perfil",
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = null
+                ) {
+                    Row(
                         modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Próxima cita",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = nextAppointmentText,
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    Color.White.copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_reloj),
+                                contentDescription = "Reloj",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
             }
+                
+                /** CARD PRINCIPAL DE CITA EN CURSO **/
+                CurrentAppointmentCard(
+                    appointments = appointments,
+                    users = users,
+                    selectedAppointment = selectedAppointment,
+                    user = user,
+                    scope = scope,
+                    onAppointmentClick = {
+                        selectedAppointment = it
+                        scope.launch { sheetState.show() }
+                    }
+                )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
-                shape = RoundedCornerShape(16.dp),
-                border = null
-            ) {
+                /** TITULO CITAS PENDIENTES **/
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Próxima cita",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = nextAppointmentText,
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(
-                                Color.White.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(12.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_reloj),
-                            contentDescription = "Reloj",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        /** CARD PRINCIPAL DE CITA EN CURSO **/
-        CurrentAppointmentCard(
-            appointments = appointments,
-            users = users,
-            selectedAppointment = selectedAppointment,
-            user = user,
-            scope = scope,
-            onAppointmentClick = {
-                selectedAppointment = it
-                scope.launch { sheetState.show() }
-            }
-        )
-
-        /** TITULO CITAS PENDIENTES **/
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Text(
-                "Citas Pendientes",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(start = 20.dp)
-            )
-        }
-
-        /** LISTADO DE CITAS **/
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val userAppointments = appointments
-                .filter { it.statusAppointment == 1 && it.idEmployee == user.id }
-
-            val todayAppointmentsFiltered = userAppointments
-                .filter { appointment ->
-                    val appointmentDate = LocalDate.parse(appointment.dateAppointment)
-                    appointmentDate == today
-                }
-                .sortedBy {
-                    LocalTime.parse(it.timeAppointment, formatter)
-                }
-
-            if (todayAppointmentsFiltered.isNotEmpty()) {
-                todayAppointmentsFiltered.forEach { appointment ->
-                    CardAppointment(
-                        appointment = appointment,
-                        services = services,
-                        users = users,
-                        promotions = promotions,
-                        onAppointmentClick = {
-                            selectedAppointment = it
-                            scope.launch { sheetState.show() }
-                        }
+                    Text(
+                        "Citas Pendientes",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        modifier = Modifier.padding(start = 20.dp)
                     )
                 }
-            } else {
-                Spacer(modifier = Modifier.height(16.dp))
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_calendar_clock),
-                    contentDescription = "Calendario",
-                    tint = Color(0xFF2563EB),
-                    modifier = Modifier.size(50.dp)
-                )
-                Text(
-                    text = "No hay citas disponibles",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2563EB)
-                )
-            }
-        }
 
-        /** MODAL BOTTOM SHEET **/
-        if (selectedAppointment != null) {
-            ModalBottomSheet(
-                sheetState = sheetState,
-                containerColor = Color.White,
-                onDismissRequest = { selectedAppointment = null }
-            ) {
+                /** LISTADO DE CITAS **/
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    selectedAppointment?.let { appointment ->
+                    val userAppointments = appointments
+                        .filter { it.statusAppointment == 1 && it.idEmployee == user.id }
 
-                        // Header - Estado de la Cita
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Estado de la Cita",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1E293B)
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            val statusInfo = when (appointment.statusAppointment) {
-                                1 -> Pair("Pendiente", Color(0xFFF59E0B))
-                                2 -> Pair("En curso", Color(0xFF22C55E))
-                                4 -> Pair("Cancelada", Color(0xFFEF4444))
-                                else -> Pair("Desconocido", Color.Gray)
-                            }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier
-                                    .background(
-                                        statusInfo.second.copy(alpha = 0.1f),
-                                        RoundedCornerShape(20.dp)
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(statusInfo.second, CircleShape)
-                                )
-                                Text(
-                                    text = statusInfo.first,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = statusInfo.second
-                                )
-                            }
+                    val todayAppointmentsFiltered = userAppointments
+                        .filter { appointment ->
+                            val appointmentDate = LocalDate.parse(appointment.dateAppointment)
+                            appointmentDate == today
+                        }
+                        .sortedBy {
+                            LocalTime.parse(it.timeAppointment, formatter)
                         }
 
-                        // Card Principal del Servicio
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            shape = RoundedCornerShape(16.dp)
+                    if (todayAppointmentsFiltered.isNotEmpty()) {
+                        todayAppointmentsFiltered.forEach { appointment ->
+                            CardAppointment(
+                                appointment = appointment,
+                                services = services,
+                                users = users,
+                                promotions = promotions,
+                                onAppointmentClick = {
+                                    selectedAppointment = it
+                                    scope.launch { sheetState.show() }
+                                }
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_calendar_clock),
+                            contentDescription = "Calendario",
+                            tint = Color(0xFF2563EB),
+                            modifier = Modifier.size(50.dp)
+                        )
+                        Text(
+                            text = "No hay citas disponibles",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2563EB)
+                        )
+                    }
+                }
+
+                /** MODAL BOTTOM SHEET **/
+                if (selectedAppointment != null) {
+                    ModalBottomSheet(
+                        sheetState = sheetState,
+                        containerColor = Color.White,
+                        onDismissRequest = { selectedAppointment = null }
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White)
+                                .padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(20.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            selectedAppointment?.let { appointment ->
+
+                                // Header - Estado de la Cita
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(48.dp)
-                                            .background(
-                                                Color(0xFFE6F0FF),
-                                                RoundedCornerShape(12.dp)
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(text = "✂", fontSize = 24.sp)
+                                    Text(
+                                        text = "Estado de la Cita",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF1E293B)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    val statusInfo = when (appointment.statusAppointment) {
+                                        1 -> Pair("Pendiente", Color(0xFFF59E0B))
+                                        2 -> Pair("En curso", Color(0xFF22C55E))
+                                        4 -> Pair("Cancelada", Color(0xFFEF4444))
+                                        else -> Pair("Desconocido", Color.Gray)
                                     }
 
-                                    Column {
-                                        val titles = mutableListOf<String>()
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier
+                                            .background(
+                                                statusInfo.second.copy(alpha = 0.1f),
+                                                RoundedCornerShape(20.dp)
+                                            )
+                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .background(statusInfo.second, CircleShape)
+                                        )
+                                        Text(
+                                            text = statusInfo.first,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = statusInfo.second
+                                        )
+                                    }
+                                }
 
-                                        if (appointment.idPromotion.isNotEmpty()) {
-                                            val validPromotionIds = appointment.idPromotion.filterNotNull()
-                                            if (validPromotionIds.isNotEmpty()) {
-                                                val firstPromotion = promotions.find {
-                                                    it.id == validPromotionIds.firstOrNull()
-                                                }
-                                                if (firstPromotion != null) {
-                                                    val totalPromotions = validPromotionIds.size
-                                                    titles.add(
-                                                        if (totalPromotions > 1) {
-                                                            "${firstPromotion.namePromotion} + ${totalPromotions - 1} más"
-                                                        } else {
-                                                            firstPromotion.namePromotion ?: "Promoción"
+                                // Card Principal del Servicio
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .background(
+                                                        Color(0xFFE6F0FF),
+                                                        RoundedCornerShape(12.dp)
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(text = "✂", fontSize = 24.sp)
+                                            }
+
+                                            Column {
+                                                val titles = mutableListOf<String>()
+
+                                                if (appointment.idPromotion.isNotEmpty()) {
+                                                    val validPromotionIds =
+                                                        appointment.idPromotion.filterNotNull()
+                                                    if (validPromotionIds.isNotEmpty()) {
+                                                        val firstPromotion = promotions.find {
+                                                            it.id == validPromotionIds.firstOrNull()
                                                         }
+                                                        if (firstPromotion != null) {
+                                                            val totalPromotions =
+                                                                validPromotionIds.size
+                                                            titles.add(
+                                                                if (totalPromotions > 1) {
+                                                                    "${firstPromotion.namePromotion} + ${totalPromotions - 1} más"
+                                                                } else {
+                                                                    firstPromotion.namePromotion
+                                                                        ?: "Promoción"
+                                                                }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                if (appointment.serviceId.isNotEmpty()) {
+                                                    val validServiceIds =
+                                                        appointment.serviceId.filterNotNull()
+                                                    val selectedServices =
+                                                        services.filter { it.id in validServiceIds }
+                                                    if (selectedServices.isNotEmpty()) {
+                                                        titles.add(
+                                                            if (selectedServices.size > 1) {
+                                                                "${selectedServices[0].nameService} + ${selectedServices.size - 1} más"
+                                                            } else {
+                                                                selectedServices[0].nameService
+                                                                    ?: "Servicio"
+                                                            }
+                                                        )
+                                                    }
+                                                }
+
+                                                if (titles.isNotEmpty()) {
+                                                    Text(
+                                                        text = titles[0],
+                                                        fontSize = 20.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF1E293B)
                                                     )
                                                 }
+
+                                                val client =
+                                                    users.find { it.id == appointment.idClient }
+                                                Text(
+                                                    text = "con ${client?.nameUser ?: "Cliente"}",
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF64748B)
+                                                )
                                             }
+                                        }
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.DateRange,
+                                                    contentDescription = "Fecha",
+                                                    tint = Color.Black,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = appointment.dateAppointment.orEmpty(),
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF64748B)
+                                                )
+                                            }
+
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.AccessTime,
+                                                    contentDescription = "Hora",
+                                                    tint = Color.Black,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = appointment.timeAppointment ?: "0:00",
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color(0xFF1E293B)
+                                                )
+                                            }
+                                        }
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.AttachMoney,
+                                                    contentDescription = "Precio",
+                                                    tint = Color.Black,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = "${appointment.totalPrice ?: "0"}.00 ${appointment.methodPayment ?: ""}",
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF64748B)
+                                                )
+                                            }
+
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.HourglassBottom,
+                                                    contentDescription = "Duración",
+                                                    tint = Color.Black,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = "${appointment.durationTotal ?: "0"} min",
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF64748B)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Lista de Servicios
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Text(
+                                            text = "Detalles del servicio",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1E293B)
+                                        )
+
+                                        if (appointment.idPromotion.isNotEmpty()) {
+                                            appointment.idPromotion.filterNotNull()
+                                                .forEach { promotionId ->
+                                                    val promotion =
+                                                        promotions.find { it.id == promotionId }
+                                                    promotion?.let { promo ->
+                                                        Column(
+                                                            verticalArrangement = Arrangement.spacedBy(
+                                                                4.dp
+                                                            )
+                                                        ) {
+                                                            Text(
+                                                                text = "Promoción: ${promo.namePromotion}",
+                                                                fontSize = 14.sp,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = Color(0xFF7C3AED),
+                                                            )
+
+                                                            promo.servicePromotion?.forEach { serviceId ->
+                                                                val service =
+                                                                    services.find { it.id == serviceId }
+                                                                service?.let { srv ->
+                                                                    Row(
+                                                                        modifier = Modifier.padding(
+                                                                            start = 12.dp
+                                                                        ),
+                                                                        verticalAlignment = Alignment.Top,
+                                                                        horizontalArrangement = Arrangement.spacedBy(
+                                                                            8.dp
+                                                                        )
+                                                                    ) {
+                                                                        Box(
+                                                                            modifier = Modifier
+                                                                                .size(6.dp)
+                                                                                .background(
+                                                                                    Color(0xFF64748B),
+                                                                                    CircleShape
+                                                                                )
+                                                                                .padding(top = 8.dp)
+                                                                        )
+                                                                        Column {
+                                                                            Text(
+                                                                                text = srv.nameService
+                                                                                    ?: "Servicio",
+                                                                                fontSize = 13.sp,
+                                                                                fontWeight = FontWeight.Medium,
+                                                                                color = Color(
+                                                                                    0xFF374151
+                                                                                )
+                                                                            )
+                                                                            if (!srv.descriptionService.isNullOrBlank()) {
+                                                                                Text(
+                                                                                    text = srv.descriptionService,
+                                                                                    fontSize = 12.sp,
+                                                                                    color = Color(
+                                                                                        0xFF6B7280
+                                                                                    )
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                         }
 
                                         if (appointment.serviceId.isNotEmpty()) {
-                                            val validServiceIds = appointment.serviceId.filterNotNull()
-                                            val selectedServices = services.filter { it.id in validServiceIds }
-                                            if (selectedServices.isNotEmpty()) {
-                                                titles.add(
-                                                    if (selectedServices.size > 1) {
-                                                        "${selectedServices[0].nameService} + ${selectedServices.size - 1} más"
-                                                    } else {
-                                                        selectedServices[0].nameService ?: "Servicio"
-                                                    }
-                                                )
-                                            }
-                                        }
-
-                                        if (titles.isNotEmpty()) {
-                                            Text(
-                                                text = titles[0],
-                                                fontSize = 20.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF1E293B)
-                                            )
-                                        }
-
-                                        val client = users.find { it.id == appointment.idClient }
-                                        Text(
-                                            text = "con ${client?.nameUser ?: "Cliente"}",
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF64748B)
-                                        )
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.DateRange,
-                                            contentDescription = "Fecha",
-                                            tint = Color.Black,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Text(
-                                            text = appointment.dateAppointment.orEmpty(),
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF64748B)
-                                        )
-                                    }
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.AccessTime,
-                                            contentDescription = "Hora",
-                                            tint = Color.Black,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Text(
-                                            text = appointment.timeAppointment ?: "0:00",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF1E293B)
-                                        )
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.AttachMoney,
-                                            contentDescription = "Precio",
-                                            tint = Color.Black,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Text(
-                                            text = "${appointment.totalPrice ?: "0"}.00 ${appointment.methodPayment ?: ""}",
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF64748B)
-                                        )
-                                    }
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.HourglassBottom,
-                                            contentDescription = "Duración",
-                                            tint = Color.Black,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Text(
-                                            text = "${appointment.durationTotal ?: "0"} min",
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF64748B)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Lista de Servicios
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Text(
-                                    text = "Detalles del servicio",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF1E293B)
-                                )
-
-                                if (appointment.idPromotion.isNotEmpty()) {
-                                    appointment.idPromotion.filterNotNull().forEach { promotionId ->
-                                        val promotion = promotions.find { it.id == promotionId }
-                                        promotion?.let { promo ->
-                                            Column(
-                                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Text(
-                                                    text = "Promoción: ${promo.namePromotion}",
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = Color(0xFF7C3AED),
-                                                )
-
-                                                promo.servicePromotion?.forEach { serviceId ->
-                                                    val service = services.find { it.id == serviceId }
+                                            appointment.serviceId.filterNotNull()
+                                                .forEach { serviceId ->
+                                                    val service =
+                                                        services.find { it.id == serviceId }
                                                     service?.let { srv ->
                                                         Row(
-                                                            modifier = Modifier.padding(start = 12.dp),
                                                             verticalAlignment = Alignment.Top,
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            horizontalArrangement = Arrangement.spacedBy(
+                                                                8.dp
+                                                            )
                                                         ) {
                                                             Box(
                                                                 modifier = Modifier
                                                                     .size(6.dp)
                                                                     .background(
-                                                                        Color(0xFF64748B),
+                                                                        Color(0xFF3B82F6),
                                                                         CircleShape
                                                                     )
                                                                     .padding(top = 8.dp)
                                                             )
                                                             Column {
                                                                 Text(
-                                                                    text = srv.nameService ?: "Servicio",
-                                                                    fontSize = 13.sp,
+                                                                    text = srv.nameService
+                                                                        ?: "Servicio",
+                                                                    fontSize = 14.sp,
                                                                     fontWeight = FontWeight.Medium,
                                                                     color = Color(0xFF374151)
                                                                 )
@@ -650,425 +749,356 @@ fun DashboardPage(
                                                         }
                                                     }
                                                 }
-                                            }
+                                        }
+
+                                        if (appointment.serviceId.isEmpty() && appointment.idPromotion.isEmpty()) {
+                                            Text(
+                                                text = "No hay servicios especificados",
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF6B7280),
+                                                fontStyle = FontStyle.Italic
+                                            )
                                         }
                                     }
                                 }
 
-                                if (appointment.serviceId.isNotEmpty()) {
-                                    appointment.serviceId.filterNotNull().forEach { serviceId ->
-                                        val service = services.find { it.id == serviceId }
-                                        service?.let { srv ->
-                                            Row(
-                                                verticalAlignment = Alignment.Top,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(6.dp)
-                                                        .background(
-                                                            Color(0xFF3B82F6),
-                                                            CircleShape
-                                                        )
-                                                        .padding(top = 8.dp)
-                                                )
-                                                Column {
-                                                    Text(
-                                                        text = srv.nameService ?: "Servicio",
-                                                        fontSize = 14.sp,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = Color(0xFF374151)
-                                                    )
-                                                    if (!srv.descriptionService.isNullOrBlank()) {
-                                                        Text(
-                                                            text = srv.descriptionService,
-                                                            fontSize = 12.sp,
-                                                            color = Color(0xFF6B7280)
-                                                        )
+                                // Botones de Acción
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    // Mostrar botón Empezar o Finalizar según el estado
+                                    when (appointment.statusAppointment) {
+                                        1 -> { // Activo - Mostrar Empezar
+                                            Button(
+                                                onClick = {
+                                                    // Validar si hay otra cita en proceso
+                                                    val hasRunningAppointment = appointments.any {
+                                                        it.idEmployee == user.id &&
+                                                                it.statusAppointment == 2 &&
+                                                                it.id != appointment.id
                                                     }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
 
-                                if (appointment.serviceId.isEmpty() && appointment.idPromotion.isEmpty()) {
-                                    Text(
-                                        text = "No hay servicios especificados",
-                                        fontSize = 13.sp,
-                                        color = Color(0xFF6B7280),
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                }
-                            }
-                        }
-
-                        // Botones de Acción
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Mostrar botón Empezar o Finalizar según el estado
-                            when (appointment.statusAppointment) {
-                                1 -> { // Activo - Mostrar Empezar
-                                    Button(
-                                        onClick = {
-                                            // Validar si hay otra cita en proceso
-                                            val hasRunningAppointment = appointments.any {
-                                                it.idEmployee == user.id &&
-                                                        it.statusAppointment == 2 &&
-                                                        it.id != appointment.id
-                                            }
-
-                                            if (hasRunningAppointment) {
-                                                alertMessage = "Ya hay una cita en proceso. Finalízala antes de comenzar otra."
-                                                alertColor = Color(0xFFEF4444)
-                                                showAlert = true
-                                            } else {
-                                                updateAppointmentStatus(
-                                                    appointmentId = appointment.id ?: "",
-                                                    newStatus = 2,
-                                                    context = context,
-                                                    onSuccess = {
-                                                        alertMessage = "Cita iniciada correctamente"
-                                                        alertColor = Color(0xFF10B981)
-                                                        showAlert = true
-                                                        selectedAppointment = null
-                                                        scope.launch { sheetState.hide() }
-                                                    },
-                                                    onError = { error ->
-                                                        alertMessage = error
+                                                    if (hasRunningAppointment) {
+                                                        alertMessage =
+                                                            "Ya hay una cita en proceso. Finalízala antes de comenzar otra."
                                                         alertColor = Color(0xFFEF4444)
                                                         showAlert = true
+                                                    } else {
+                                                        updateAppointmentStatusLocal(
+                                                            appointmentId = appointment.id ?: "",
+                                                            newStatus = 2,
+                                                            context = context,
+                                                            onSuccess = {
+                                                                alertMessage =
+                                                                    "Cita iniciada correctamente"
+                                                                alertColor = Color(0xFF10B981)
+                                                                showAlert = true
+                                                                selectedAppointment = null
+                                                                scope.launch { sheetState.hide() }
+                                                            },
+                                                            onError = { error ->
+                                                                alertMessage = error
+                                                                alertColor = Color(0xFFEF4444)
+                                                                showAlert = true
+                                                            }
+                                                        )
                                                     }
+                                                },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(56.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFF3B82F6)
+                                                ),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_user),
+                                                        contentDescription = "Empezar",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Empezar",
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color.White
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        2 -> { // En Proceso - Mostrar Finalizar
+                                            Button(
+                                                onClick = {
+                                                    updateAppointmentStatusLocal(
+                                                        appointmentId = appointment.id ?: "",
+                                                        newStatus = 3, // Estado finalizado
+                                                        context = context,
+                                                        onSuccess = {
+                                                            alertMessage =
+                                                                "Cita finalizada correctamente"
+                                                            alertColor = Color(0xFF10B981)
+                                                            showAlert = true
+                                                            selectedAppointment = null
+                                                            scope.launch { sheetState.hide() }
+                                                        },
+                                                        onError = { error ->
+                                                            alertMessage = error
+                                                            alertColor = Color(0xFFEF4444)
+                                                            showAlert = true
+                                                        }
+                                                    )
+                                                },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(56.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFF10B981)
+                                                ),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_user),
+                                                        contentDescription = "Finalizar",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Finalizar Cita",
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color.White
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        4 -> { // Cancelada - Mostrar Reactivar
+                                            Button(
+                                                onClick = {
+                                                    updateAppointmentStatusLocal(
+                                                        appointmentId = appointment.id ?: "",
+                                                        newStatus = 1, // Reactivar a estado activo
+                                                        context = context,
+                                                        onSuccess = {
+                                                            alertMessage =
+                                                                "Cita reactivada correctamente"
+                                                            alertColor = Color(0xFF10B981)
+                                                            showAlert = true
+                                                            selectedAppointment = null
+                                                            scope.launch { sheetState.hide() }
+                                                        },
+                                                        onError = { error ->
+                                                            alertMessage = error
+                                                            alertColor = Color(0xFFEF4444)
+                                                            showAlert = true
+                                                        }
+                                                    )
+                                                },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(56.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFF3B82F6)
+                                                ),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_user),
+                                                        contentDescription = "Reactivar",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Reactivar Cita",
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color.White
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Botón Cancelar (siempre visible excepto si ya está cancelada o finalizada)
+                                    if (appointment.statusAppointment == 1) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                showCancelDialog = true
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(56.dp),
+                                            border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_user),
+                                                    contentDescription = "Cancelar",
+                                                    tint = Color(0xFFEF4444),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Text(
+                                                    text = "Cancelar Cita",
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color(0xFFEF4444)
                                                 )
                                             }
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(56.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF3B82F6)
-                                        ),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_user),
-                                                contentDescription = "Empezar",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Text(
-                                                text = "Empezar",
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.White
-                                            )
                                         }
                                     }
                                 }
-                                2 -> { // En Proceso - Mostrar Finalizar
-                                    Button(
-                                        onClick = {
-                                            updateAppointmentStatus(
-                                                appointmentId = appointment.id ?: "",
-                                                newStatus = 3, // Estado finalizado
-                                                context = context,
-                                                onSuccess = {
-                                                    alertMessage = "Cita finalizada correctamente"
-                                                    alertColor = Color(0xFF10B981)
-                                                    showAlert = true
-                                                    selectedAppointment = null
-                                                    scope.launch { sheetState.hide() }
-                                                },
-                                                onError = { error ->
-                                                    alertMessage = error
-                                                    alertColor = Color(0xFFEF4444)
-                                                    showAlert = true
-                                                }
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(56.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF10B981)
-                                        ),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_user),
-                                                contentDescription = "Finalizar",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Text(
-                                                text = "Finalizar Cita",
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-                                4 -> { // Cancelada - Mostrar Reactivar
-                                    Button(
-                                        onClick = {
-                                            updateAppointmentStatus(
-                                                appointmentId = appointment.id ?: "",
-                                                newStatus = 1, // Reactivar a estado activo
-                                                context = context,
-                                                onSuccess = {
-                                                    alertMessage = "Cita reactivada correctamente"
-                                                    alertColor = Color(0xFF10B981)
-                                                    showAlert = true
-                                                    selectedAppointment = null
-                                                    scope.launch { sheetState.hide() }
-                                                },
-                                                onError = { error ->
-                                                    alertMessage = error
-                                                    alertColor = Color(0xFFEF4444)
-                                                    showAlert = true
-                                                }
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(56.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF3B82F6)
-                                        ),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_user),
-                                                contentDescription = "Reactivar",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Text(
-                                                text = "Reactivar Cita",
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-                            }
 
-                            // Botón Cancelar (siempre visible excepto si ya está cancelada o finalizada)
-                            if (appointment.statusAppointment == 1) {
-                                OutlinedButton(
-                                    onClick = {
-                                        showCancelDialog = true
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(56.dp),
-                                    border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_user),
-                                            contentDescription = "Cancelar",
-                                            tint = Color(0xFFEF4444),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Text(
-                                            text = "Cancelar Cita",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFFEF4444)
-                                        )
-                                    }
-                                }
+                                Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
-        }
-    }
 
-    // FAB de escaneo QR
-    FloatingActionButton(
-        onClick = { showScanner = true },
-        containerColor = Color(0xFF2563EB),
-        contentColor = Color.White,
-        modifier = Modifier
-            .align(Alignment.BottomEnd)
-            .padding(16.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Filled.QrCodeScanner,
-            contentDescription = "Escanear QR"
-        )
-    }
-
-    // Modal para escanear QR
-    if (showScanner) {
-        ModalBottomSheet(
-            sheetState = scannerSheetState,
-            containerColor = Color.Black,
-            onDismissRequest = { showScanner = false }
-        ) {
-            QRScannerView(
-                modifier = Modifier.fillMaxSize(),
-                onResult = { code ->
-                    showScanner = false
-                    alertMessage = "QR detectado: $code"
-                    alertColor = Color(0xFF10B981)
-                    showAlert = true
+            // FAB de escaneo QR
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                FloatingActionButton(
+                    onClick = { showScanner = true },
+                    containerColor = Color(0xFF2563EB),
+                    contentColor = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.QrCodeScanner,
+                        contentDescription = "Escanear QR"
+                    )
                 }
-            )
-        }
-    }
+            }
 
-    }
+            // Modal para escanear QR
+            if (showScanner) {
+                ModalBottomSheet(
+                    sheetState = scannerSheetState,
+                    containerColor = Color.White,
+                    onDismissRequest = { showScanner = false }
+                ) {
+                    QRScannerView(
+                        modifier = Modifier.fillMaxSize(),
+                        onResult = { code ->
+                            showScanner = false
+                            alertMessage = "QR detectado: $code"
+                            alertColor = Color(0xFF10B981)
+                            showAlert = true
+                        },
+                        onClose = { showScanner = false }
+                    )
+                }
+            }
 
-    // Dialog de confirmación de cancelación
-    if (showCancelDialog && selectedAppointment != null) {
-        AlertDialog(
-            onDismissRequest = { showCancelDialog = false },
-            title = {
-                Text(
-                    text = "Cancelar Cita",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
-            },
-            text = {
-                Text(
-                    text = "¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.",
-                    fontSize = 16.sp,
-                    color = Color(0xFF64748B)
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        selectedAppointment?.let { appointment ->
-                            updateAppointmentStatus(
-                                appointmentId = appointment.id ?: "",
-                                newStatus = 4,
-                                context = context,
-                                onSuccess = {
-                                    alertMessage = "Cita cancelada correctamente"
-                                    alertColor = Color(0xFF10B981)
-                                    showAlert = true
-                                    showCancelDialog = false
-                                    selectedAppointment = null
-                                    scope.launch { sheetState.hide() }
-                                },
-                                onError = { error ->
-                                    alertMessage = error
-                                    alertColor = Color(0xFFEF4444)
-                                    showAlert = true
-                                    showCancelDialog = false
+            // Dialog de confirmación de cancelación
+            if (showCancelDialog && selectedAppointment != null) {
+                AlertDialog(
+                    onDismissRequest = { showCancelDialog = false },
+                    title = {
+                        Text(
+                            text = "Cancelar Cita",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.",
+                            fontSize = 16.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                selectedAppointment?.let { appointment ->
+                                    updateAppointmentStatusLocal(
+                                        appointmentId = appointment.id ?: "",
+                                        newStatus = 4,
+                                        context = context,
+                                        onSuccess = {
+                                            alertMessage = "Cita cancelada correctamente"
+                                            alertColor = Color(0xFF10B981)
+                                            showAlert = true
+                                            showCancelDialog = false
+                                            selectedAppointment = null
+                                            scope.launch { sheetState.hide() }
+                                        },
+                                        onError = { error ->
+                                            alertMessage = error
+                                            alertColor = Color(0xFFEF4444)
+                                            showAlert = true
+                                            showCancelDialog = false
+                                        }
+                                    )
                                 }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFEF4444)
                             )
+                        ) {
+                            Text("Sí, cancelar", color = Color.White)
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFEF4444)
-                    )
-                ) {
-                    Text("Sí, cancelar", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCancelDialog = false }) {
-                    Text("No, mantener", color = Color(0xFF64748B))
-                }
-            },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(16.dp)
-        )
-    }
-
-    // Alerta de mensajes
-    if (showAlert) {
-        AlertDialog(
-            onDismissRequest = { showAlert = false },
-            title = {
-                Text(
-                    text = if (alertColor == Color(0xFF10B981)) "Éxito" else "Error",
-                    fontWeight = FontWeight.Bold
+                    dismissButton = {
+                        TextButton(onClick = { showCancelDialog = false }) {
+                            Text("No, mantener", color = Color(0xFF64748B))
+                        }
+                    },
+                    containerColor = Color.White,
+                    shape = RoundedCornerShape(16.dp)
                 )
-            },
-            text = {
-                Text(text = alertMessage)
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showAlert = false },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = alertColor
-                    )
-                ) {
-                    Text("Aceptar", color = Color.White)
-                }
-            },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(16.dp)
-        )
-    }
-}
+            }
 
-// Función para actualizar el estado de la cita
-private fun updateAppointmentStatus(
-    appointmentId: String,
-    newStatus: Int,
-    context: android.content.Context,
-    onSuccess: () -> Unit,
-    onError: (String) -> Unit
-) {
-    Log.d("UpdateAppointment", "Actualizando cita $appointmentId a estado $newStatus")
-
-    try {
-        if (appointmentId.isBlank()) {
-            onError("ID de cita inválido")
-            return
+            // Alerta de mensajes
+            if (showAlert) {
+                AlertDialog(
+                    onDismissRequest = { showAlert = false },
+                    title = {
+                        Text(
+                            text = if (alertColor == Color(0xFF10B981)) "Éxito" else "Error",
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Text(text = alertMessage)
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { showAlert = false },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = alertColor
+                            )
+                        ) {
+                            Text("Aceptar", color = Color.White)
+                        }
+                    },
+                    containerColor = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                )
+            }
         }
-
-        val database = FirebaseDatabase.getInstance().getReference("Appointment")
-
-        val updates: Map<String, Any> = mapOf(
-            "statusAppointment" to newStatus
-        )
-
-        database.child(appointmentId)
-            .updateChildren(updates)
-            .addOnSuccessListener {
-                Log.d("UpdateAppointment", "Estado actualizado correctamente")
-                onSuccess()
-            }
-            .addOnFailureListener { e ->
-                Log.e("UpdateAppointment", "Error actualizando estado", e)
-                onError("Error al actualizar: ${e.message}")
-            }
-
-    } catch (e: Exception) {
-        Log.e("UpdateAppointment", "Error general", e)
-        onError("Error inesperado: ${e.message}")
     }
-}

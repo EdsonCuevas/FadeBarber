@@ -65,11 +65,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
-import com.example.fadebarber.ui.client.components.SkeletonHorarioItem
+
 import com.example.fadebarber.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
-import com.example.fadebarber.ui.client.components.HorarioItem
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +80,7 @@ fun CuentaPage(
 ) {
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
-    val barberInfo = viewModel.info.collectAsState().value
+    
     val context = LocalContext.current
 
     // Regex patterns
@@ -105,7 +105,7 @@ fun CuentaPage(
 
     var showCuenta by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
-    var showHorario by remember { mutableStateOf(true) }
+    
 
     // Estados de carga y edición
     var isLoading by remember { mutableStateOf(false) }
@@ -141,13 +141,13 @@ fun CuentaPage(
         Log.d("EmployeeScreens", "Token FCM configurado")
 
         // Iniciar listener de horarios en tiempo real
-        viewModel.listenToBarberInfo()
+        
     }
 
     DisposableEffect(Unit) {
         onDispose {
             Log.d("CuentaPage", "Deteniendo listener de horarios")
-            viewModel.stopListeningToBarberInfo()
+            
         }
     }
 
@@ -546,80 +546,6 @@ fun CuentaPage(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Gestionar Horario
-            Text(
-                text = "Horarios laborales",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                AnimatedVisibility(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(),
-                    visible = showHorario,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
-                    if (barberInfo == null) {
-                        // Skeleton Loading
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            repeat(7) { index ->
-                                SkeletonHorarioItem()
-                                if (index < 6) {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                }
-                            }
-                        }
-                    } else {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            val diasOrdenados = listOf(
-                                "monday" to "Lunes",
-                                "tuesday" to "Martes",
-                                "wednesday" to "Miércoles",
-                                "thursday" to "Jueves",
-                                "friday" to "Viernes",
-                                "saturday" to "Sábado",
-                                "sunday" to "Domingo"
-                            )
-
-                            diasOrdenados.forEachIndexed { index, (diaKey, diaNombre) ->
-                                val horario = barberInfo.schedule.get(diaKey)
-                                horario?.let {
-                                    HorarioItem(
-                                        isOpen = it.available,
-                                        horaInicio = it.start.toString(),
-                                        horaFin = it.end.toString(),
-                                        diaNombre = diaNombre
-                                    )
-                                    if (index < diasOrdenados.size - 1) {
-                                        Divider(
-                                            modifier = Modifier.padding(vertical = 12.dp),
-                                            color = Color.LightGray.copy(alpha = 0.3f),
-                                            thickness = 1.dp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
 
             Spacer(modifier = Modifier.height(32.dp))
 

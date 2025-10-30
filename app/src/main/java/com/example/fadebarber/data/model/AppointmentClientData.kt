@@ -16,4 +16,5 @@ data class AppointmentClientData (
     val durationTotal: Int? = null,
     val statusPayment: Int? = null,
     val statusAppointment: Int? = null,
+    val qrStatus: Int? = 1
 )

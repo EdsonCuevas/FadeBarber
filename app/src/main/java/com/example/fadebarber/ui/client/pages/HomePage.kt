@@ -1,96 +1,38 @@
-package com.example.fadebarber.ui.client.pages
+package com.example.fadebarber.ui.screens
 
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ListAlt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.fadebarber.R
-import com.example.fadebarber.data.AuthViewModel
+import androidx.navigation.NavHostController
 import com.example.fadebarber.data.HomeViewModel
-import com.example.fadebarber.data.model.HomeTab
-import com.example.fadebarber.data.model.PromotionData
-import com.example.fadebarber.data.model.ServiceData
+import com.example.fadebarber.data.model.BarberInfo
 import com.example.fadebarber.data.model.UserData
-import com.example.fadebarber.data.repository.FirebaseRepository
-import com.example.fadebarber.ui.client.components.AgendaCartForm
-import com.example.fadebarber.ui.client.components.BarberBanner
-import com.example.fadebarber.ui.client.components.InfoStatCard
-import com.example.fadebarber.ui.client.components.PromotionCard
-import com.example.fadebarber.ui.client.components.SearchBar
-import com.example.fadebarber.ui.client.components.ServiceCard
-import com.example.fadebarber.ui.client.components.ValueInfoItem
-import com.example.fadebarber.ui.client.components.EmptyStateCard
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
-import kotlinx.coroutines.delay
-
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,652 +40,382 @@ fun HomePage(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(),
     user: UserData,
-    navController: androidx.navigation.NavHostController,
+    navController: NavHostController,
 ) {
+    val info by viewModel.info.collectAsState()
+    val appointments by viewModel.appointments.collectAsState()
+    val services by viewModel.services.collectAsState()
+    val context = LocalContext.current
+    var showHoursDialog by remember { mutableStateOf(false) }
 
-    // Iniciar listeners cuando la página se muestre
+    // Iniciar listeners cuando se compone la pantalla
     LaunchedEffect(Unit) {
         viewModel.startRealtimeListeners()
+        viewModel.listenToBarberInfo()
     }
 
-    // Detener listeners cuando la página se destruya
+    // Detener listeners cuando se sale de la pantalla
     DisposableEffect(Unit) {
         onDispose {
             viewModel.stopRealtimeListeners()
+            viewModel.stopListeningToBarberInfo()
         }
     }
 
-    var selectedTab by remember { mutableStateOf<HomeTab>(HomeTab.Nosotros) }
+    val scrollState = rememberScrollState()
 
-    val info by viewModel.info.collectAsState()
-    val services by viewModel.services.collectAsState()
-    val promotions by viewModel.promotions.collectAsState()
-    val cartItems by viewModel.cartItems.collectAsState() // ✅ Cambio aquí
-    var showAgendaSheet by remember { mutableStateOf(false) }
+    // Próxima cita del usuario (programada y futura)
+    val today = LocalDate.now()
+    val nowTime = LocalTime.now()
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
+    val localeEs = remember { Locale("es", "ES") }
+    val dateFormatterEs = remember { DateTimeFormatter.ofPattern("EEEE, d MMM", localeEs) }
 
-    val barbers by produceState<List<UserData>>(initialValue = emptyList()) {
-        value = FirebaseRepository.getBarbers()
+    val nextAppointment = remember(appointments, user.id) {
+        appointments
+            .filter { appt ->
+                appt.idClient == user.id &&
+                        appt.statusAppointment == 1 &&
+                        !appt.dateAppointment.isNullOrBlank() &&
+                        !appt.timeAppointment.isNullOrBlank()
+            }
+            .mapNotNull { appt ->
+                val dateStr = appt.dateAppointment?.take(10)
+                val date = try { dateStr?.let { LocalDate.parse(it) } } catch (_: Exception) { null }
+                val time = try { appt.timeAppointment?.let { LocalTime.parse(it, timeFormatter) } } catch (_: Exception) { null }
+                if (date != null && time != null) appt to (date to time) else null
+            }
+            .filter { (_, dt) ->
+                val (date, time) = dt
+                date.isAfter(today) || (date.isEqual(today) && time.isAfter(nowTime))
+            }
+            .sortedWith(compareBy({ it.second.first }, { it.second.second }))
+            .firstOrNull()
+            ?.first
     }
 
-    var showAlert by remember { mutableStateOf(false) }
-    var alertMessage by remember { mutableStateOf<String?>(null) }
-    var alertColor by remember { mutableStateOf(Color(0xFF10B981)) }
+    val nextDateText = nextAppointment?.dateAppointment?.take(10)?.let {
+        try {
+            val d = LocalDate.parse(it)
+            val formatted = d.format(dateFormatterEs)
+            formatted.replaceFirstChar { ch -> if (ch.isLowerCase()) ch.titlecase(localeEs) else ch.toString() }
+        } catch (_: Exception) { null }
+    } ?: "Sin próximas citas"
 
-    var searchQuery by remember { mutableStateOf("") }
-
-    var showCart by remember { mutableStateOf(false) }
-
-    var showCartAgenda by remember { mutableStateOf(false) }
-
-    val context = LocalContext.current
-
-    // Status bar color matching CitaPageClient
-    val systemUiController = rememberSystemUiController()
-    SideEffect {
-        systemUiController.setStatusBarColor(color = Color(0xFF1E3A8A), darkIcons = false)
+    val nextTimeText = nextAppointment?.timeAppointment ?: ""
+    val serviceNames = nextAppointment?.serviceId?.filterNotNull()?.mapNotNull { sid ->
+        services.firstOrNull { it.id == sid }?.nameService
+    } ?: emptyList()
+    val servicesSummary = when {
+        serviceNames.isEmpty() -> ""
+        serviceNames.size == 1 -> serviceNames[0]
+        else -> "${serviceNames[0]} + ${serviceNames.size - 1} más"
     }
 
-    // Filtros
-    val filteredServices = services.filter { service ->
-        searchQuery.isBlank() ||
-                service.nameService!!.contains(searchQuery, ignoreCase = true) ||
-                service.descriptionService!!.contains(searchQuery, ignoreCase = true)
-    }
-
-    val filteredPromos = promotions.filter { promo ->
-        searchQuery.isBlank() ||
-                promo.namePromotion!!.contains(searchQuery, ignoreCase = true)
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-
-        // Alerta flotante
-        AnimatedVisibility(
-            visible = showAlert && alertMessage != null,
-            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .verticalScroll(scrollState)
+    ) {
+        // Header con degradado azul marino y saludo dentro
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .zIndex(2f)
+                .height(180.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF1E3A8A), Color(0xFF2563EB))
+                    )
+                )
         ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = alertColor),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Face,
+                            contentDescription = "Logo",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "FadeBarber",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Tu Barbería de confianza",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Hola ${user.nameUser}",
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "¿Listo para tu próximo corte?",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        }
+
+        // Contenido
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+
+            // Botones de acción flotantes
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = (-40).dp)
+                    .zIndex(2f),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                shape = RoundedCornerShape(16.dp)
+            ){
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        ActionButton(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Default.DateRange,
+                            text = "Agendar",
+                            onClick = { navController.navigate("agend") },
+                            containerColor = Color.White,
+                            textColor = Color(0xFF4B83FA),
+                            iconTint = Color(0xFF4B83FA)
+                        )
+
+                        ActionButton(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Default.Refresh,
+                            text = "Mi Historial",
+                            onClick = { navController.navigate("date") },
+                            containerColor = Color.White,
+                            textColor = Color(0xFF4B83FA),
+                            iconTint = Color(0xFF4B83FA)
+                        )
+                    }
+            }
+
+            Column(
+                modifier = Modifier.offset(y = (-25).dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+
+            // Próxima Cita
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF4B83FA)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    // Icono de reloj como fondo decorativo
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.20f),
+                        modifier = Modifier
+                            .size(96.dp)
+                            .align(Alignment.BottomEnd)
+                    )
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccessTime,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Mi Cita",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Text(
+                            text = nextDateText,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        val detailsText = if (nextTimeText.isNotBlank() && servicesSummary.isNotBlank()) {
+                            "$nextTimeText • $servicesSummary"
+                        } else if (nextTimeText.isNotBlank()) {
+                            nextTimeText
+                        } else if (servicesSummary.isNotBlank()) {
+                            servicesSummary
+                        } else {
+                            ""
+                        }
+                        if (detailsText.isNotBlank()) {
+                            Text(
+                                text = detailsText,
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Ubicación
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val gmmIntentUri = Uri.parse("geo:0,0?q=Universidad+de+Colima+Campus+Naranjo")
+                        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                        mapIntent.setPackage("com.google.android.apps.maps")
+                        context.startActivity(mapIntent)
+                    },
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (alertColor == Color(0xFF10B981))
-                                Icons.Default.CheckCircle else Icons.Default.Error,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = alertMessage ?: "",
-                            color = Color.White,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    TextButton(onClick = { showAlert = false }) {
-                        Text("✕", color = Color.White, fontSize = 18.sp)
-                    }
-                }
-            }
-
-            LaunchedEffect(alertMessage) {
-                if (alertMessage != null) {
-                    delay(2000L)
-                    showAlert = false
-                }
-            }
-        }
-
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(Color(0xFFF5F7FA))
-        ) {
-            // HEADER MEJORADO (igual a CitaPageClient)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF1E3A8A), Color(0xFF2563EB))
-                        )
-                    )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp)
-                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            /*Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(
-                                        Color.White.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(14.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.logo_goku),
-                                    contentDescription = "Inicio",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))*/
-                            Column {
-                                Text(
-                                    text = info?.barberName ?: "Barbería",
-                                    fontSize = 26.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Hola, ${user.nameUser}",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Normal,
-                                    color = Color.White.copy(alpha = 0.85f)
-                                )
-                            }
-                        }
-
-                        // Carrito con badge
-                        BadgedBox(
-                            badge = {
-                                if (cartItems.isNotEmpty()) {
-                                    Badge(
-                                        containerColor = Color(0xFFEF4444),
-                                        contentColor = Color.White
-                                    ) {
-                                        Text(
-                                            text = cartItems.size.toString(),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            },
+                        Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(40.dp)
                                 .background(
-                                    Color.White.copy(alpha = 0.15f),
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clickable { showCart = true }
+                                    Color(0xFF2563EB).copy(alpha = 0.1f),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ShoppingCart,
-                                    contentDescription = "Carrito",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    /*Spacer(modifier = Modifier.height(20.dp))
-
-                    // Bienvenida
-                    Column {
-                        Text(
-                            text = "Bienvenido a Fade Barber",
-                            color = Color.White,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Estilo premium, atención personalizada y citas a tu medida.",
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 14.sp
-                        )
-                    }*/
-                }
-            }
-
-            // CONTENIDO CON LazyColumn
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Banner
-                item {
-                    BarberBanner(info?.barberBanner)
-                }
-
-                // Dirección
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                // Abrir Google Maps con la ubicación de Universidad de Colima Campus Naranjo
-                                val gmmIntentUri =
-                                    Uri.parse("geo:0,0?q=Universidad+de+Colima+Campus+Naranjo")
-                                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-                                mapIntent.setPackage("com.google.android.apps.maps")
-                                context.startActivity(mapIntent)
-                            },
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(
-                                            Color(0xFF2563EB).copy(alpha = 0.1f),
-                                            CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = "Ubicación",
-                                        tint = Color(0xFF2563EB),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Ubicación",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF64748B),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        text = "Universidad de Colima Campus Naranjo",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF1E293B)
-                                    )
-                                }
-                            }
                             Icon(
-                                painter = painterResource(id = android.R.drawable.ic_menu_directions),
-                                contentDescription = "Abrir en Maps",
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = "Ubicación",
                                 tint = Color(0xFF2563EB),
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    }
-                }
-
-                // Bienvenida / Hero promocional
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp)
-                        ) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
                             Text(
-                                text = "Bienvenido a Fade Barber",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = "Ubicación",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "Universidad de Colima Campus Naranjo",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF1E293B)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Estilo premium, atención personalizada y citas a tu medida.",
-                                fontSize = 14.sp,
-                                color = Color(0xFF64748B)
-                            )
                         }
                     }
+                    Icon(
+                        imageVector = Icons.Default.Map,
+                        contentDescription = "Abrir en Maps",
+                        tint = Color(0xFF2563EB),
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
+            }
 
-                // Contenido según tab seleccionado
-                when (selectedTab) {
-                    is HomeTab.Servicios -> {
-                        if (filteredServices.isNotEmpty()) {
-                            items(filteredServices) { service ->
-                                val qty = cartItems.count { it is com.example.fadebarber.data.model.ServiceData && (it as com.example.fadebarber.data.model.ServiceData).id == service.id }
-                                ServiceCard(
-                                    service = service,
-                                    quantity = qty,
-                                    onIncrement = { s ->
-                                        viewModel.addToCart(s)
-                                        alertMessage = "${s.nameService} agregado al carrito"
-                                        alertColor = Color(0xFF10B981)
-                                        showAlert = true
-                                    },
-                                    onDecrement = { s ->
-                                        viewModel.removeFromCart(s)
-                                    }
-                                )
-                            }
-                        } else {
-                            item {
-                                EmptyStateCard(message = "No hay servicios disponibles")
-                            }
-                        }
-                    }
+            
 
-                    is HomeTab.Promociones -> {
-                        if (filteredPromos.isNotEmpty()) {
-                            items(filteredPromos) { promo ->
-                                val qty = cartItems.count { it is com.example.fadebarber.data.model.PromotionData && (it as com.example.fadebarber.data.model.PromotionData).id == promo.id }
-                                PromotionCard(
-                                    promotion = promo,
-                                    allServices = services,
-                                    quantity = qty,
-                                    onIncrement = { p ->
-                                        viewModel.addToCart(p)
-                                        alertMessage = "${p.namePromotion} agregado al carrito"
-                                        alertColor = Color(0xFF10B981)
-                                        showAlert = true
-                                    },
-                                    onDecrement = { p ->
-                                        viewModel.removeFromCart(p)
-                                    }
-                                )
-                            }
-                        } else {
-                            item {
-                                EmptyStateCard(message = "No hay promociones disponibles")
-                            }
-                        }
-                    }
 
-                    is HomeTab.Nosotros -> {
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { navController.navigate("agend") },
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                                    shape = RoundedCornerShape(16.dp),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(84.dp)
-                                            .background(
-                                                brush = Brush.linearGradient(
-                                                    colors = listOf(Color(0xFFEEF2FF), Color(0xFFE0E7FF))
-                                                ),
-                                                shape = RoundedCornerShape(16.dp)
-                                            )
-                                            .padding(16.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(38.dp)
-                                                        .background(Color(0xFF2563EB).copy(alpha = 0.14f), CircleShape),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(id = R.drawable.ic_calendar_clock),
-                                                        contentDescription = "Agendar",
-                                                        tint = Color(0xFF2563EB),
-                                                        modifier = Modifier.size(22.dp)
-                                                    )
-                                                }
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Text(
-                                                    text = "Agendar",
-                                                    fontSize = 16.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF1E293B)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { navController.navigate("date") },
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                                    shape = RoundedCornerShape(16.dp),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(84.dp)
-                                            .background(
-                                                brush = Brush.linearGradient(
-                                                    colors = listOf(Color(0xFFECFEFF), Color(0xFFE0F2FE))
-                                                ),
-                                                shape = RoundedCornerShape(16.dp)
-                                            )
-                                            .padding(16.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(38.dp)
-                                                        .background(Color(0xFF0EA5E9).copy(alpha = 0.14f), CircleShape),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = androidx.compose.material.icons.Icons.Filled.ListAlt,
-                                                        contentDescription = "Historial",
-                                                        tint = Color(0xFF0EA5E9),
-                                                        modifier = Modifier.size(22.dp)
-                                                    )
-                                                }
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Text(
-                                                    text = "Historial",
-                                                    fontSize = 16.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF1E293B)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                shape = RoundedCornerShape(20.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(20.dp)
-                                ) {
-                                    // Header compacto
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .background(Color(0xFF2563EB).copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(text = "✂️", fontSize = 20.sp)
-                                        }
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Text("Sobre Nosotros", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
-                                            Text("Calidad, atención y estilo en cada visita.", fontSize = 12.sp, color = Color(0xFF64748B))
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Stats Cards
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        InfoStatCard(
-                                            number = "9+",
-                                            label = "Años de experiencia",
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        InfoStatCard(
-                                            number = "5K+",
-                                            label = "Clientes satisfechos",
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        InfoStatCard(
-                                            number = "15+",
-                                            label = "Servicios premium",
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        InfoStatCard(
-                                            number = "★ 4.9",
-                                            label = "Calificación promedio",
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    // Valores (visual, desplazable)
-                                    LazyRow(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 4.dp)
-                                    ) {
-                                        items(listOf("Calidad", "Profesionalismo", "Puntualidad", "Satisfacción")) { label ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .background(Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-                                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                                            ) {
-                                                Text(
-                                                    text = label,
-                                                    fontSize = 12.sp,
-                                                    color = Color(0xFF334155)
-                                                )
-                                            }
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
-                            }
-                        }
-                    }
-                }
+            HorariosSection(info = info)
             }
         }
 
-        // 🎯 BOTTOMSHEET DEL CARRITO (PRIMER NIVEL)
-        if (showCart) {
-            ModalBottomSheet(
-                onDismissRequest = { showCart = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = Color.White
-            ) {
-                CartPage(
-                    items = cartItems,
-                    onClose = { showCart = false },
-                    onRemove = { item ->
-                        viewModel.removeFromCart(item)
-                        alertMessage = "❌ Servicio eliminado"
-                        alertColor = Color(0xFFEF4444)
-                        showAlert = true
-                    },
-                    onAgendar = {
-                        // 🎯 Abrir el sheet de agenda SIN cerrar el carrito
-                        showAgendaSheet = true
-                    }
-                )
-            }
-        }
+    }
+}
 
-        // 🎯 BOTTOMSHEET DE AGENDA (SEGUNDO NIVEL - SE ABRE SOBRE EL CARRITO)
-        if (showAgendaSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showAgendaSheet = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = Color.White
-            ) {
-                AgendaCartForm(
-                    items = cartItems,
-                    barbers = barbers,
-                    userId = user.id,
-                    onConfirm = { success, message ->
-                        alertMessage = if (success) "✅ $message" else "❌ $message"
-                        alertColor = if (success) Color(0xFF10B981) else Color(0xFFEF4444)
-                        showAlert = true
-                        showAgendaSheet = false
-                        showCart = false
-                        if (success) {
-                            viewModel.clearCart()
-                        }
-                    },
-                    user = user
-                )
-            }
+@Composable
+fun ActionButton(
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    onClick: () -> Unit,
+    containerColor: Color = Color.White,
+    textColor: Color = Color(0xFF2196F3),
+    iconTint: Color = Color(0xFF2196F3)
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(96.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(8.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = text,
+                fontSize = 14.sp,
+                color = textColor,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
@@ -782,48 +454,9 @@ fun InfoStatCard(number: String, label: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ValueInfoItem(emoji: String, title: String, description: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    Color(0xFF2563EB).copy(alpha = 0.1f),
-                    RoundedCornerShape(10.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = emoji, fontSize = 20.sp)
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B)
-            )
-            Text(
-                text = description,
-                fontSize = 13.sp,
-                color = Color(0xFF64748B),
-                lineHeight = 18.sp
-            )
-        }
-    }
-}
-
-@Composable
-fun EmptyStateCard(message: String) {
+fun HorariosSection(info: BarberInfo?) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -831,39 +464,119 @@ fun EmptyStateCard(message: String) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(40.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(
-                        Color(0xFF2563EB).copy(alpha = 0.1f),
-                        CircleShape
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color(0xFFF8FAFC), Color(0xFFEFF6FF))
                     ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_calendar_clock),
-                    contentDescription = "Sin contenido",
-                    tint = Color(0xFF2563EB).copy(alpha = 0.6f),
-                    modifier = Modifier.size(40.dp)
+                    shape = RoundedCornerShape(20.dp)
                 )
+                .padding(20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFF10B981).copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Schedule,
+                        contentDescription = "Horarios",
+                        tint = Color(0xFF10B981)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text("Horarios de atención", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                    Text("Consulta disponibilidad por día", fontSize = 12.sp, color = Color(0xFF64748B))
+                }
             }
-            Spacer(modifier = Modifier.height(20.dp))
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (info == null) {
+                /*Column {
+                    repeat(3) {
+                        SkeletonHorarioItem()
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }*/
+            } else {
+                val diasOrdenados = listOf(
+                    "monday" to "Lunes",
+                    "tuesday" to "Martes",
+                    "wednesday" to "Miércoles",
+                    "thursday" to "Jueves",
+                    "friday" to "Viernes",
+                    "saturday" to "Sábado",
+                    "sunday" to "Domingo"
+                )
+                diasOrdenados.forEach { (key, nombre) ->
+                    val day = info.schedule[key]
+                    HorarioLinea(
+                        diaNombre = nombre,
+                        start = day?.start,
+                        end = day?.end,
+                        abierto = day?.available == true
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun HorarioLinea(
+    diaNombre: String,
+    start: String?,
+    end: String?,
+    abierto: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .background(
+                    if (abierto) Color(0xFF10B981).copy(alpha = 0.12f) else Color(0xFFEF4444).copy(alpha = 0.12f),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = message,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1E293B),
-                textAlign = TextAlign.Center
+                text = diaNombre.first().toString(),
+                color = if (abierto) Color(0xFF10B981) else Color(0xFFEF4444),
+                fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(8.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = diaNombre, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E293B))
+            if (abierto) {
+                Text(text = "${start ?: "--:--"} a ${end ?: "--:--"}", fontSize = 13.sp, color = Color(0xFF334155))
+            } else {
+                Text(text = "Cerrado", fontSize = 13.sp, color = Color(0xFF64748B))
+            }
+        }
+        Box(
+            modifier = Modifier
+                .background(
+                    if (abierto) Color(0xFFDCFCE7) else Color(0xFFFEE2E2),
+                    RoundedCornerShape(20.dp)
+                )
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
             Text(
-                text = "Explora nuestras otras opciones",
-                fontSize = 13.sp,
-                color = Color(0xFF64748B),
-                textAlign = TextAlign.Center
+                text = if (abierto) "Abierto" else "Cerrado",
+                fontSize = 12.sp,
+                color = if (abierto) Color(0xFF065F46) else Color(0xFF7F1D1D)
             )
         }
     }

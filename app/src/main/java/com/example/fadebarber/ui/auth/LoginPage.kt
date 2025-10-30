@@ -76,59 +76,41 @@ fun LoginPage(
     onNavigateToSignUp: () -> Unit,
     onNavigateResetP: () -> Unit
 ) {
+    val authState by viewModel.authState.observeAsState(AuthState.Unauthenticated)
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     var showEmailError by remember { mutableStateOf(false) }
     var showPasswordError by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val authState = viewModel.authState.observeAsState()
-    val context = LocalContext.current
+
+    val emailRegex = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")
+    val passwordRegex = Regex("^.{6,}$")
+
     val focusManager = LocalFocusManager.current
 
-    // Regex de validaciones
-    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
-    val passwordRegex = "^(?=.*[0-9]).{8,}$".toRegex()
-    val isEmailValid = emailRegex.matches(email)
-    val isPasswordValid = passwordRegex.matches(password)
-
-    LaunchedEffect(authState.value) {
-        when (val state = authState.value) {
+    LaunchedEffect(authState) {
+        when (authState) {
+            is AuthState.Loading -> isProcessing = true
             is AuthState.Authenticated -> {
                 isProcessing = false
-                errorMessage = null
-                showEmailError = false
-                showPasswordError = false
-                onLoginSuccess(state.role)
+                val role = (authState as AuthState.Authenticated).role
+                onLoginSuccess(role)
+            }
+            is AuthState.EmailSent -> {
+                isProcessing = false
+                errorMessage = "Se envió un correo de verificación. Por favor, revisa tu bandeja de entrada."
             }
             is AuthState.Error -> {
                 isProcessing = false
-                errorMessage = null
-                val isInvalidCredentials = state.message?.contains("invalid", ignoreCase = true) == true ||
-                        state.message?.contains("credentials", ignoreCase = true) == true ||
-                        state.message?.contains("wrong", ignoreCase = true) == true ||
-                        state.message?.contains("not found", ignoreCase = true) == true ||
-                        state.message?.contains("incorrect", ignoreCase = true) == true
-
-                if (isInvalidCredentials) {
-                    errorMessage = "Correo electrónico o contraseña inválidos"
-                } else if (state.message?.contains("email") != true &&
-                    state.message?.contains("verification") != true &&
-                    state.message?.contains("verificado") != true) {
-                    errorMessage = state.message // Mostrar otros mensajes de error
-                    scope.launch {
-                        delay(3000)
-                        errorMessage = null
-                    }
-                }
+                errorMessage = (authState as AuthState.Error).message
             }
-            is AuthState.Loading -> {
-                isProcessing = true
-                errorMessage = null
+            is AuthState.Guest -> {
+                isProcessing = false
+                // La navegación al home se maneja por RoleNavGraph
             }
-            else -> {}
+            else -> isProcessing = false
         }
     }
 
@@ -137,46 +119,25 @@ fun LoginPage(
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1E3A8A), Color(0xFF2563EB))
+                    colors = listOf(
+                        Color(0xFF1E3A8A),
+                        Color(0xFF1D4ED8)
+                    )
                 )
             )
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { focusManager.clearFocus() })
+            }
+            .imePadding()
     ) {
         Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .pointerInput(Unit) {
-                    detectTapGestures {
-                        focusManager.clearFocus()
-                    }
-                }
-                .imePadding(),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(top = 48.dp)
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Logo con fondo circular
-            Box(
-                modifier = Modifier
-                    .background(
-                        Color.White.copy(alpha = 0.15f),
-                        shape = CircleShape
-                    )
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.logo_goku),
-                    contentDescription = "Logo",
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                )
-            }
-
-
-            Spacer(modifier = Modifier.height(20.dp))
 
             /**Text(
                 text = "Bienvenido",
@@ -476,25 +437,28 @@ fun LoginPage(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // SIGN UP BUTTON
+                    // GUEST LOGIN BUTTON
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(6.dp)
+                        .background(Color(0xFFF1F1F1), shape = RoundedCornerShape(12.dp)),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-
-                        /**TextButton(
+                        TextButton(
                             onClick = {
+                                errorMessage = null
+                                viewModel.loginAsGuest()
                             }
                         ) {
                             Text(
-                                text = "Accede como invitado",
+                                text = "Ingresar sin cuenta",
                                 fontSize = 14.sp,
                                 color = Color(0xFF2563EB),
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        **/
                     }
                 }
             }
