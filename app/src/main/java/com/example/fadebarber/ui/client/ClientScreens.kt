@@ -24,11 +24,11 @@ import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.ui.client.pages.AgendaPage
 import com.example.fadebarber.ui.client.pages.CitaPageClient
 import com.example.fadebarber.ui.client.pages.CuentaPage
-import com.example.fadebarber.ui.client.pages.HomePage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.runtime.collectAsState
+import com.example.fadebarber.ui.screens.HomePage
 
 @Composable
 fun ClientScreens(

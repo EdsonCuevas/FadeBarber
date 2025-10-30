@@ -25,6 +25,7 @@ class HomeViewModel : ViewModel() {
     private val _info = MutableStateFlow<BarberInfo?>(null)
     private val _currentUser = MutableStateFlow<UserData?>(null)
     private val _cartItems = MutableStateFlow<List<Any>>(emptyList())
+    private val _appointments = MutableStateFlow<List<com.example.fadebarber.data.model.AppointmentClientData>>(emptyList())
 
     val services: StateFlow<List<ServiceData>> = _services
     val promotions: StateFlow<List<PromotionData>> = _promotions
@@ -32,6 +33,7 @@ class HomeViewModel : ViewModel() {
     val info: StateFlow<BarberInfo?> = _info
     val currentUser: StateFlow<UserData?> = _currentUser
     val cartItems: StateFlow<List<Any>> = _cartItems
+    val appointments: StateFlow<List<com.example.fadebarber.data.model.AppointmentClientData>> = _appointments
 
     private val auth = FirebaseAuth.getInstance()
     private val database = FirebaseDatabase.getInstance().getReference("User")
@@ -42,6 +44,7 @@ class HomeViewModel : ViewModel() {
     private var servicesListener: ValueEventListener? = null
     private var promotionsListener: ValueEventListener? = null
     private var barbersListener: ValueEventListener? = null
+    private var appointmentsListener: ValueEventListener? = null
 
     init {
         viewModelScope.launch {
@@ -75,6 +78,7 @@ class HomeViewModel : ViewModel() {
         startServicesListener()
         startPromotionsListener()
         startBarbersListener()
+        startAppointmentsListener()
         Log.d("HomeViewModel", "Todos los listeners de HomePage iniciados")
     }
 
@@ -85,6 +89,7 @@ class HomeViewModel : ViewModel() {
         stopServicesListener()
         stopPromotionsListener()
         stopBarbersListener()
+        stopAppointmentsListener()
         Log.d("HomeViewModel", "Todos los listeners de HomePage detenidos")
     }
 
@@ -133,6 +138,22 @@ class HomeViewModel : ViewModel() {
         barbersListener?.let {
             FirebaseRepository.stopListeningToBarbers(it)
             barbersListener = null
+        }
+    }
+
+    /**
+     * Listener para citas en tiempo real
+     */
+    private fun startAppointmentsListener() {
+        appointmentsListener = FirebaseRepository.listenToAppointments { appts ->
+            _appointments.value = appts
+        }
+    }
+
+    private fun stopAppointmentsListener() {
+        appointmentsListener?.let {
+            FirebaseRepository.stopListeningToAppointments(it)
+            appointmentsListener = null
         }
     }
 
