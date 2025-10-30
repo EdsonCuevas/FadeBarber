@@ -17,8 +17,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-
-
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -50,7 +48,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         checkAuthStatus()
-
     }
 
     fun updateRegisterName(value: String) { _registerName.value = value }
@@ -60,10 +57,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun updateRegisterConfirmPassword(value: String) { _registerConfirmPassword.value = value }
     fun updateTermsAccepted(value: Boolean) { _termsAccepted.value = value }
 
-
-    fun clearAuthState() {
-        _authState.value = null
-    }
 
     fun clearRegisterForm() {
         _registerName.value = ""
@@ -150,7 +143,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
     }
 
-    fun signup(name: String, email: String, password: String, phone: String) {
+    fun signup(name: String, email: String, password: String, phone: String, profileImageUrl: String = "") {
         if (email.isEmpty() || password.isEmpty() || name.isEmpty() || phone.isEmpty()) {
             _authState.value = AuthState.Error("Todos los campos deben de ser llenados.")
             return
@@ -171,7 +164,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             phoneNumberUser = phone,
                             activeUser = true,
                             categoryUser = 1, // Cliente por defecto
-                            statusUser = 1
+                            statusUser = 1,
+                            photoURL = profileImageUrl // URL de imagen (puede estar vacía)
                         )
 
                         database.child(uid).setValue(user)
@@ -242,11 +236,7 @@ sealed class AuthState {
     object EmailSent : AuthState()
     data class Error(val message: String) : AuthState()
     object Guest : AuthState()
-
-
 }
-
-
 
 class Event<T> {
     private var content: T? = null
@@ -272,4 +262,3 @@ class Event<T> {
         content = null
     }
 }
-
