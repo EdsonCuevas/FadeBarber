@@ -75,6 +75,7 @@ import kotlinx.coroutines.withContext
 import sendEmailWithQR
 import android.util.Patterns
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.text.style.TextOverflow
 import java.time.LocalDate
 import java.time.LocalTime
@@ -109,6 +110,9 @@ fun AgendaCartForm(
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
     var selectedPayment by remember { mutableStateOf("Efectivo") }
     var currentStep by remember { mutableStateOf(BookingStep.BARBER) }
+
+    // Estado local de barberos que se actualiza en tiempo real
+    var liveBarbers by remember(barbers) { mutableStateOf(barbers) }
 
     // Estados de procesamiento
     var paymentState by remember { mutableStateOf(PaymentState.IDLE) }
@@ -261,15 +265,32 @@ fun AgendaCartForm(
         }
     )
 
-    // Días disponibles
-    val availableDays by remember(selectedBarber, barbers) {
+    // Días disponibles (derivados del horario del barbero seleccionado)
+    val availableDays by remember(selectedBarber, liveBarbers) {
         derivedStateOf {
-            val schedule = barbers.firstOrNull { it.id == selectedBarber }?.schedule
+            val schedule = liveBarbers.firstOrNull { it.id == selectedBarber }?.schedule
             (0..6).mapNotNull { offset ->
                 val day = today.plusDays(offset.toLong())
                 val key = day.dayOfWeek.name.lowercase(Locale.ENGLISH)
                 if (schedule?.get(key)?.available == true) day else null
             }
+        }
+    }
+
+    // Listener en tiempo real de barberos (foto, horarios y disponibilidad)
+    DisposableEffect(Unit) {
+        val listener = FirebaseRepository.listenToBarbers { updatedBarbers ->
+            liveBarbers = updatedBarbers
+            // Si el barbero seleccionado desaparece o se desactiva, resetear selección
+            if (selectedBarber != null && updatedBarbers.none { it.id == selectedBarber }) {
+                selectedBarber = null
+                selectedDate = null
+                selectedTime = null
+                currentStep = BookingStep.BARBER
+            }
+        }
+        onDispose {
+            FirebaseRepository.stopListeningToBarbers(listener)
         }
     }
 
@@ -630,7 +651,7 @@ fun AgendaCartForm(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (currentStep != BookingStep.BARBER && selectedBarber != null) {
-                        val barberName = barbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
+                        val barberName = liveBarbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -651,7 +672,7 @@ fun AgendaCartForm(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            barbers.chunked(2).forEach { rowBarbers ->
+                            liveBarbers.chunked(2).forEach { rowBarbers ->
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     modifier = Modifier.fillMaxWidth()
@@ -913,7 +934,7 @@ fun AgendaCartForm(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        val schedule = barbers.firstOrNull { it.id == selectedBarber }?.schedule
+                        val schedule = liveBarbers.firstOrNull { it.id == selectedBarber }?.schedule
                         val key = selectedDate!!.dayOfWeek.name.lowercase(Locale.ENGLISH)
                         val daySchedule = schedule?.get(key)
 
@@ -1400,7 +1421,7 @@ fun AgendaCartForm(
                                 }
 
                                 if (appointmentId != null) {
-                                    val nameBarber = barbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
+                                    val nameBarber = liveBarbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
 
                                     // Generar QR con el ID de la cita
                                     val qrBitmap = withContext(Dispatchers.IO) {
