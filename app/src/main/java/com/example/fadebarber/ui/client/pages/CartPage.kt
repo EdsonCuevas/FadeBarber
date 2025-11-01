@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EventNote
@@ -50,6 +51,7 @@ fun CartPage(
     items: List<Any>,
     onClose: () -> Unit,
     onRemove: (Any) -> Unit,
+    onAdd: (Any) -> Unit,
     onAgendar: () -> Unit
 ) {
     Column(
@@ -195,10 +197,31 @@ fun CartPage(
                 contentPadding = PaddingValues(24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(items) { item ->
+                // Agrupar servicios por id
+                val serviceGroups = items.filterIsInstance<ServiceData>().groupBy { it.id }
+                val promotionGroups = items.filterIsInstance<PromotionData>().groupBy { it.id }
+
+                // Render de servicios agrupados
+                items(serviceGroups.values.toList()) { group ->
+                    val s = group.first()
+                    val qty = group.size
                     CartItemCard(
-                        item = item,
-                        onRemove = { onRemove(item) }
+                        item = s,
+                        quantity = qty,
+                        onIncrement = { onAdd(s) },
+                        onDecrement = { onRemove(s) }
+                    )
+                }
+
+                // Render de promociones agrupadas
+                items(promotionGroups.values.toList()) { group ->
+                    val p = group.first()
+                    val qty = group.size
+                    CartItemCard(
+                        item = p,
+                        quantity = qty,
+                        onIncrement = { onAdd(p) },
+                        onDecrement = { onRemove(p) }
                     )
                 }
 
@@ -327,7 +350,12 @@ fun CartPage(
 }
 
 @Composable
-fun CartItemCard(item: Any, onRemove: () -> Unit) {
+fun CartItemCard(
+    item: Any,
+    quantity: Int,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -408,26 +436,30 @@ fun CartItemCard(item: Any, onRemove: () -> Unit) {
                 )
             }
 
-            // BOTÓN ELIMINAR
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.size(40.dp)
-            ) {
+            // Controles de cantidad
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            Color(0xFFEF4444).copy(alpha = 0.1f),
-                            RoundedCornerShape(10.dp)
-                        ),
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE2E8F0))
+                        .clickable { onDecrement() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Eliminar",
-                        tint = Color(0xFFEF4444),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Text("-", color = Color(0xFF1E293B), fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(quantity.toString(), fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0A1F66))
+                        .clickable { onIncrement() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
