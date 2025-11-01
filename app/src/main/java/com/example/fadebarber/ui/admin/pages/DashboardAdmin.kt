@@ -2,7 +2,6 @@ package com.example.fadebarber.ui.admin.pages
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,24 +17,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.example.fadebarber.R
 import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.ui.admin.viewmodel.AdminDashboardViewModel
-import java.text.NumberFormat
+import java.time.LocalDate
+import java.time.LocalTime
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminEmployees() {
+fun DashboardAdmin() {
     val vm: AdminDashboardViewModel = viewModel()
     val barbers by vm.barbers.collectAsState()
     val appointments by vm.appointments.collectAsState()
@@ -51,6 +49,7 @@ fun AdminEmployees() {
     var selectedBarber by remember { mutableStateOf<Pair<UserData, BarberStats>?>(null) }
     var showCalendar by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf(Calendar.getInstance()) }
+
 
     // Calcular estadísticas según el filtro seleccionado
     val filteredAppointments = remember(appointments, selectedDate, selectedFilter) {
@@ -69,18 +68,18 @@ fun AdminEmployees() {
     val barberStats = remember(barbers, filteredAppointments) {
         barbers.map { barber ->
             val barberAppointments = filteredAppointments.filter { it.idEmployee == barber.id }
-            val completedCount = barberAppointments.count { it.statusAppointment == 4 }
+            val completedCount = barberAppointments.count { it.statusAppointment == 3 }
+            val enServicio = barberAppointments.count { it.statusAppointment == 2 }
             val totalIncome = barberAppointments
-                .filter { it.statusAppointment == 4 }
+                .filter { it.statusAppointment == 3 }
                 .sumOf { it.totalPrice ?: 0 }
 
-            // Calcular rating promedio (simulado por ahora)
-            val rating = 4.5 + (barber.nameUser.length % 5) / 10.0
 
             barber to BarberStats(
                 citasHoy = barberAppointments.size,
+                enServicio = enServicio,
                 ingresos = totalIncome,
-                rating = rating,
+                completed = completedCount,
                 appointments = barberAppointments
             )
         }.sortedByDescending { it.second.citasHoy }
@@ -424,8 +423,9 @@ fun getFirstDayOfWeek(calendar: Calendar): Int {
 
 data class BarberStats(
     val citasHoy: Int,
+    val enServicio: Int,
+    val completed: Int,
     val ingresos: Int,
-    val rating: Double,
     val appointments: List<AppointmentClientData>
 )
 
@@ -459,7 +459,7 @@ fun HeaderCard(
             ) {
                 Column {
                     Text(
-                        text = "BarberPro",
+                        text = "FadeBarber",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -547,57 +547,6 @@ fun HeaderCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DatePickerDialog(
-    selectedDate: Calendar,
-    onDateSelected: (Calendar) -> Unit,
-    onDismiss: () -> Unit,
-    onTodaySelected: () -> Unit
-) {
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = selectedDate.timeInMillis
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val calendar = Calendar.getInstance().apply {
-                            timeInMillis = millis
-                        }
-                        onDateSelected(calendar)
-                    }
-                }
-            ) {
-                Text("Aceptar", color = Color(0xFF2563EB))
-            }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = onTodaySelected) {
-                    Text("Hoy", color = Color(0xFF2563EB))
-                }
-                TextButton(onClick = onDismiss) {
-                    Text("Cancelar", color = Color(0xFF6B7280))
-                }
-            }
-        },
-        text = {
-            DatePicker(
-                state = datePickerState,
-                colors = DatePickerDefaults.colors(
-                    selectedDayContainerColor = Color(0xFF2563EB),
-                    todayContentColor = Color(0xFF2563EB),
-                    todayDateBorderColor = Color(0xFF2563EB)
-                )
-            )
-        }
-    )
-}
-
 @Composable
 fun StatItem(
     value: String,
@@ -626,20 +575,18 @@ fun BarberCard(
     onClick: () -> Unit
 ) {
     val statusColor = when {
-        isOnline -> Color(0xFF10B981)
-        stats.citasHoy > 0 -> Color(0xFFF97316)
-        else -> Color(0xFFEF4444)
+        stats.enServicio > 0 -> Color(0xFFF97316)
+        else -> Color(0xFF10B981)
     }
 
     val statusText = when {
-        isOnline -> "Disponible"
-        stats.citasHoy > 0 -> "En servicio"
-        else -> "Ocupado"
+        stats.enServicio > 0 -> "Ocupado"
+        else -> "Disponible"
     }
 
     // Próxima cita
     val nextAppointment = stats.appointments
-        .filter { it.statusAppointment != 4 && it.statusAppointment != 5 }
+        .filter { it.statusAppointment != 2 && it.statusAppointment != 3 && LocalTime.now() <= LocalTime.parse(it.timeAppointment) && it.dateAppointment == LocalDate.now().toString() }
         .minByOrNull { it.timeAppointment ?: "99:99" }
 
     Surface(
@@ -650,121 +597,132 @@ fun BarberCard(
         color = Color.White,
         shadowElevation = 2.dp
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            // Foto con indicador de estado
-            Box {
-                // Imagen de perfil
-                if (barber.photoURL.isNotEmpty()) {
-                    AsyncImage(
-                        model = barber.photoURL,
-                        contentDescription = "Foto de perfil",
+            // Fila superior: Foto, Nombre, Estado, Próxima, Flecha
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Foto con indicador de estado
+                Box {
+                    if (barber.photoURL.isNotEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = barber.photoURL,
+                            contentDescription = "Foto de perfil",
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            error = painterResource(id = R.drawable.profilelogo)
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.profilelogo),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                        )
+                    }
+                    Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(18.dp)
                             .clip(CircleShape)
-                            .border(3.dp, Color(0xFF2196F3), CircleShape),
-                        contentScale = ContentScale.Crop,
-                        error = painterResource(id = android.R.drawable.ic_menu_gallery)
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.profilelogo),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(statusColor)
-                        .align(Alignment.BottomEnd)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Información principal
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = barber.nameUser,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1F2937)
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = statusText,
-                        fontSize = 13.sp,
-                        color = statusColor,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (nextAppointment != null) {
-                        Text(
-                            text = " • Próxima: ${nextAppointment.timeAppointment}",
-                            fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
+                            .background(Color.White)
+                            .align(Alignment.BottomEnd)
+                            .padding(2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(statusColor)
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Nombre y Estado
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = barber.nameUser,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1F2937)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = statusText,
+                            fontSize = 14.sp,
+                            color = statusColor,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (nextAppointment != null) {
+                            Text(
+                                text = " • Próxima: ${nextAppointment.timeAppointment}",
+                                fontSize = 14.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                    }
+                }
+
+                // Flecha
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = "Ver detalles",
+                    tint = Color(0xFF9CA3AF),
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
-            // Flecha
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Ver detalles",
-                tint = Color(0xFF9CA3AF),
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
+            Spacer(modifier = Modifier.height(16.dp))
 
-    // Estadísticas debajo
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        MiniStatCard(
-            value = stats.citasHoy.toString(),
-            label = "Citas hoy"
-        )
-        MiniStatCard(
-            value = "$${stats.ingresos}",
-            label = "Ingresos"
-        )
-        MiniStatCard(
-            value = String.format("%.1f", stats.rating),
-            label = "Rating"
-        )
+            // Estadísticas en una sola fila
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatColumn(
+                    value = stats.citasHoy.toString(),
+                    label = "Citas hoy"
+                )
+                StatColumn(
+                    value = "$${stats.ingresos}",
+                    label = "Ingresos"
+                )
+                StatColumn(
+                    value = "${stats.completed}",
+                    label = "Completadas"
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun MiniStatCard(
+fun StatColumn(
     value: String,
     label: String
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = 8.dp)
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = value,
-            fontSize = 18.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF1F2937)
         )
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 13.sp,
             color = Color(0xFF6B7280)
         )
     }
@@ -798,26 +756,13 @@ fun BarberDetailsBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (barber.photoURL.isNotEmpty()) {
-                    AsyncImage(
-                        model = barber.photoURL,
-                        contentDescription = "Foto de perfil",
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .border(3.dp, Color(0xFF2196F3), CircleShape),
-                        contentScale = ContentScale.Crop,
-                        error = painterResource(id = android.R.drawable.ic_menu_gallery)
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.profilelogo),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                    )
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.profilelogo),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(
@@ -853,7 +798,7 @@ fun BarberDetailsBottomSheet(
                 StatCard(
                     value = stats.citasHoy.toString(),
                     label = "Citas",
-                    color = Color(0xFF2563EB)
+                    color = Color(0xFFF59E0B)
                 )
                 StatCard(
                     value = "$${stats.ingresos}",
@@ -861,9 +806,9 @@ fun BarberDetailsBottomSheet(
                     color = Color(0xFF10B981)
                 )
                 StatCard(
-                    value = String.format("%.1f", stats.rating),
-                    label = "Rating",
-                    color = Color(0xFFF59E0B)
+                    value = "${stats.completed}",
+                    label = "Completadas",
+                    color = Color(0xFF2563EB)
                 )
             }
 
