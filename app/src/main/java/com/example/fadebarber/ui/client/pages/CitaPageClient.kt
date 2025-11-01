@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +25,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.Icon
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.R
@@ -56,6 +59,9 @@ fun CitaPageClient(
     var selectedAppointment by remember { mutableStateOf<AppointmentClientData?>(null) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var currentMonth by remember { mutableStateOf(YearMonth.from(LocalDate.now())) }
+    var calendarExpanded by remember { mutableStateOf(false) }
+    val allowedMinMonth = remember { YearMonth.from(LocalDate.now()).minusMonths(1) }
+    val allowedMaxMonth = remember { YearMonth.from(LocalDate.now()).plusMonths(1) }
 
     val systemUiController = rememberSystemUiController()
     SideEffect {
@@ -263,16 +269,63 @@ fun CitaPageClient(
             }
         }
 
-        // Calendario mensual siempre visible (fijo)
-        MonthCalendar(
-            currentMonth = currentMonth,
-            selectedDate = selectedDate,
-            appointments = appointments,
-            currentUserId = user.id,
-            enabledDates = enabledDates,
-            onMonthChange = { currentMonth = it },
-            onSelectDate = { selectedDate = it }
-        )
+        // Calendario mensual colapsable
+        if (!calendarExpanded) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 16.dp
+                ),
+                onClick = { calendarExpanded = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale("es")).replaceFirstChar { it.uppercase() }} ${currentMonth.year}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+                    Icon(
+                        imageVector = if (calendarExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = if (calendarExpanded) "colapsar calendario" else "expandir calendario",
+                        tint = Color(0xFF1E293B),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            
+        } else {
+            MonthCalendar(
+                currentMonth = currentMonth,
+                selectedDate = selectedDate,
+                appointments = appointments,
+                currentUserId = user.id,
+                enabledDates = enabledDates,
+                onMonthChange = { newMonth ->
+                    if (newMonth >= allowedMinMonth && newMonth <= allowedMaxMonth) {
+                        currentMonth = newMonth
+                    }
+                },
+                onSelectDate = { date ->
+                    selectedDate = date
+                    calendarExpanded = false
+                },
+                allowedMinMonth = allowedMinMonth,
+                allowedMaxMonth = allowedMaxMonth,
+                onCollapse = { calendarExpanded = false },
+                isExpanded = calendarExpanded,
+            )
+        }
 
         // HEADER LISTA DE CITAS
         Row(
@@ -401,7 +454,11 @@ private fun MonthCalendar(
     currentUserId: String?,
     enabledDates: Set<LocalDate>,
     onMonthChange: (YearMonth) -> Unit,
-    onSelectDate: (LocalDate) -> Unit
+    onSelectDate: (LocalDate) -> Unit,
+    allowedMinMonth: YearMonth,
+    allowedMaxMonth: YearMonth,
+    onCollapse: () -> Unit,
+    isExpanded: Boolean
 ) {
     val locale = Locale("es", "ES")
     val monthTitle = currentMonth.month
@@ -435,27 +492,40 @@ private fun MonthCalendar(
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E293B)
                 )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { onMonthChange(currentMonth.minusMonths(1)) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(36.dp),
+                        enabled = currentMonth > allowedMinMonth
                     ) {
                         Icon(
                             painter = painterResource(id = android.R.drawable.ic_media_previous),
                             contentDescription = "Mes anterior",
-                            tint = Color(0xFF2563EB),
+                            tint = if (currentMonth > allowedMinMonth) Color(0xFF2563EB) else Color(0xFF94A3B8),
                             modifier = Modifier.size(22.dp)
                         )
                     }
 
                     IconButton(
                         onClick = { onMonthChange(currentMonth.plusMonths(1)) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(36.dp),
+                        enabled = currentMonth < allowedMaxMonth
                     ) {
                         Icon(
                             painter = painterResource(id = android.R.drawable.ic_media_next),
                             contentDescription = "Mes siguiente",
+                            tint = if (currentMonth < allowedMaxMonth) Color(0xFF2563EB) else Color(0xFF94A3B8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onCollapse,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowUp,
+                            contentDescription = "Ocultar calendario",
                             tint = Color(0xFF2563EB),
                             modifier = Modifier.size(22.dp)
                         )
