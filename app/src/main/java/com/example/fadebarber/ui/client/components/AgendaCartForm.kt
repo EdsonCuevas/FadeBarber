@@ -231,7 +231,7 @@ fun AgendaCartForm(
                         withContext(Dispatchers.IO) {
                             sendEmailWithQR(
                                 to = clientEmail,
-                                subject = "Confirmación de cita - FadeBarber",
+                                subject = "Cita agendada - FadeBarber",
                                 clientName = clientName,
                                 barberName = nameBarber,
                                 date = formatDate(selectedDate.toString()),
@@ -1433,7 +1433,7 @@ fun AgendaCartForm(
                                     withContext(Dispatchers.IO) {
                                         sendEmailWithQR(
                                             to = clientEmail,
-                                            subject = "Confirmación de cita - FadeBarber",
+                                            subject = "Cita agendada - FadeBarber",
                                             clientName = clientName,
                                             barberName = nameBarber,
                                             date = formatDate(selectedDate.toString()),

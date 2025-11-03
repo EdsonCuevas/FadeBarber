@@ -69,7 +69,7 @@ suspend fun sendEmailWithQR(
                                         ✂️ FadeBarber
                                     </h1>
                                     <p style="color: rgba(255, 255, 255, 0.9); margin: 10px 0 0 0; font-size: 16px; font-weight: 500;">
-                                        Tu cita ha sido confirmada
+                                        Tu cita ha sido agendada
                                     </p>
                                 </div>
                                 
@@ -115,7 +115,7 @@ suspend fun sendEmailWithQR(
                                         <!-- Barbero (opcional) -->
                                         <div style="display: flex; align-items: center;">
                                             <div style="background-color: rgba(59, 130, 246, 0.1); border-radius: 10px; padding: 12px; margin-right: 15px; display: inline-block;">
-                                                <span style="font-size: 24px;">✂️</span>
+                                                <span style="font-size: 24px;">👤</span>
                                             </div>
                                             <div>
                                                 <p style="margin: 0; color: #64748B; font-size: 13px; font-weight: 500;">Barbero</p>
@@ -148,8 +148,8 @@ suspend fun sendEmailWithQR(
                                                     Importante
                                                 </p>
                                                 <p style="margin: 8px 0 0 0; color: #78350F; font-size: 13px; line-height: 1.5;">
-                                                    • Por favor llega 5 minutos antes de tu cita<br>
-                                                    • Trae tu código QR (digital o impreso)<br>
+                                                    • Por favor llega 5 - 10 minutos antes de tu cita<br>
+                                                    • Trae tu código QR<br>
                                                     • Si necesitas cancelar, contáctanos con anticipación
                                                 </p>
                                             </div>
@@ -159,7 +159,7 @@ suspend fun sendEmailWithQR(
                                     <!-- Botón de Acción -->
                                     <div style="text-align: center; margin-bottom: 30px;">
                                         <a href="tel:+523121234567" style="display: inline-block; background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
-                                            📞 Llamar a FadeBarber
+                                            Llamar a FadeBarber
                                         </a>
                                     </div>
                                     
