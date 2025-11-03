@@ -2,6 +2,10 @@ package com.example.fadebarber
 
 import android.os.Bundle
 import android.util.Log
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -27,6 +31,15 @@ class MainActivity : ComponentActivity() {
         AndroidThreeTen.init(this)
         SecretConfig.init(this)
         CloudinaryHelper.initialize(this)
+
+        // Solicitar permiso de notificaciones en Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permission = android.Manifest.permission.POST_NOTIFICATIONS
+            val granted = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                ActivityCompat.requestPermissions(this, arrayOf(permission), 1001)
+            }
+        }
 
         // DEBUG: Verifica inmediatamente después de init
         Log.d("MainActivity", "Probando obtener SECRET_STRIPE...")

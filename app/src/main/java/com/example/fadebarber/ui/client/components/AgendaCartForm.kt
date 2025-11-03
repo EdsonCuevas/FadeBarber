@@ -77,6 +77,7 @@ import android.util.Patterns
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.text.style.TextOverflow
+import com.example.fadebarber.utils.NotificationHelper
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -1444,7 +1445,13 @@ fun AgendaCartForm(
                                     }
 
                                     // Mostrar notificación push de cita agendada
-
+                                    NotificationHelper.sendAppointmentBookedNotification(
+                                        context = context,
+                                        userName = clientName,
+                                        date = formatDate(selectedDate.toString()),
+                                        time = requestedStart.format(dbFormatter),
+                                        barberName = nameBarber
+                                    )
                                     occupiedTimeStrings = occupiedTimeStrings + requestedSlots
                                     paymentState = PaymentState.SUCCESS
                                 } else {
