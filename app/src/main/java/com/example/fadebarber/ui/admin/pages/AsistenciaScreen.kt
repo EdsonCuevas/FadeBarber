@@ -29,6 +29,7 @@ import com.example.fadebarber.ui.admin.viewmodel.AttendanceViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AsistenciaScreen() {
     val vm: AttendanceViewModel = viewModel()
@@ -36,19 +37,21 @@ fun AsistenciaScreen() {
     val readings by vm.readings.collectAsState()
 
     var selectedBarber by remember { mutableStateOf<AttendanceStatus?>(null) }
+    var selectedDate by remember { mutableStateOf(Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.startListeners() }
     DisposableEffect(Unit) {
         onDispose { vm.stopListeners() }
     }
 
-    // Agrupar lecturas por usuario para obtener el último estado
-    val userStatusMap = remember(readings, barbers) {
+    // Agrupar lecturas por usuario para obtener el último estado del día seleccionado
+    val userStatusMap = remember(readings, barbers, selectedDate) {
         val statusMap = mutableMapOf<String, AttendanceStatus>()
 
-        // Obtener la última lectura de cada usuario hoy
+        // Obtener la última lectura de cada usuario en el día seleccionado
         readings
-            .filter { vm.isToday(it.timestamp) }
+            .filter { vm.isSameDay(it.timestamp, selectedDate) }
             .groupBy { it.userId }
             .forEach { (userId, userReadings) ->
                 val lastReading = userReadings.maxByOrNull { it.timestamp }
@@ -67,13 +70,13 @@ fun AsistenciaScreen() {
         statusMap
     }
 
-    // Calcular estadísticas
+    // Calcular estadísticas del día seleccionado
     val activeBarbersCount = userStatusMap.count { it.value.isInside }
 
-    // Calcular horas trabajadas hoy
-    val totalWorkHours = remember(readings) {
+    // Calcular horas trabajadas en el día seleccionado
+    val totalWorkHours = remember(readings, selectedDate) {
         readings
-            .filter { vm.isToday(it.timestamp) }
+            .filter { vm.isSameDay(it.timestamp, selectedDate) }
             .groupBy { it.userId }
             .map { (_, userReadings) ->
                 calculateWorkHours(userReadings.sortedBy { it.timestamp })
@@ -88,6 +91,13 @@ fun AsistenciaScreen() {
             .toList()
     }
 
+    // Verificar si es hoy
+    val isToday = remember(selectedDate) {
+        val today = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))
+        selectedDate.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                selectedDate.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -95,6 +105,28 @@ fun AsistenciaScreen() {
     ) {
         // Header
         AttendanceHeader()
+
+        // Date Selector
+        DateSelector(
+            selectedDate = selectedDate,
+            isToday = isToday,
+            onDateClick = { showDatePicker = true },
+            onPreviousDay = {
+                selectedDate = (selectedDate.clone() as Calendar).apply {
+                    add(Calendar.DAY_OF_MONTH, -1)
+                }
+            },
+            onNextDay = {
+                val nextDay = (selectedDate.clone() as Calendar).apply {
+                    add(Calendar.DAY_OF_MONTH, 1)
+                }
+                val today = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))
+                if (nextDay.timeInMillis <= today.timeInMillis) {
+                    selectedDate = nextDay
+                }
+            },
+            canGoNext = !isToday
+        )
 
         // Stats Cards
         Row(
@@ -152,7 +184,7 @@ fun AsistenciaScreen() {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No hay registros de asistencia hoy",
+                            text = "No hay registros de asistencia este día",
                             fontSize = 14.sp,
                             color = Color(0xFF9CA3AF)
                         )
@@ -173,12 +205,177 @@ fun AsistenciaScreen() {
         }
     }
 
+    // DatePicker Dialog
+    if (showDatePicker) {
+        // Convertir la fecha seleccionada a UTC para el DatePicker
+        val selectedDateInUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            set(Calendar.YEAR, selectedDate.get(Calendar.YEAR))
+            set(Calendar.MONTH, selectedDate.get(Calendar.MONTH))
+            set(Calendar.DAY_OF_MONTH, selectedDate.get(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDateInUtc.timeInMillis,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    // Convertir la fecha de hoy a UTC para comparar
+                    val todayMexico = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))
+                    val todayUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                        set(Calendar.YEAR, todayMexico.get(Calendar.YEAR))
+                        set(Calendar.MONTH, todayMexico.get(Calendar.MONTH))
+                        set(Calendar.DAY_OF_MONTH, todayMexico.get(Calendar.DAY_OF_MONTH))
+                        set(Calendar.HOUR_OF_DAY, 23)
+                        set(Calendar.MINUTE, 59)
+                        set(Calendar.SECOND, 59)
+                        set(Calendar.MILLISECOND, 999)
+                    }
+                    return utcTimeMillis <= todayUtc.timeInMillis
+                }
+            }
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            // Convertir de UTC a nuestra zona horaria
+                            val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                                timeInMillis = millis
+                            }
+
+                            selectedDate = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City")).apply {
+                                set(Calendar.YEAR, utcCalendar.get(Calendar.YEAR))
+                                set(Calendar.MONTH, utcCalendar.get(Calendar.MONTH))
+                                set(Calendar.DAY_OF_MONTH, utcCalendar.get(Calendar.DAY_OF_MONTH))
+                                set(Calendar.HOUR_OF_DAY, 0)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                            }
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(
+                state = datePickerState,
+                title = {
+                    Text(
+                        text = "Seleccionar fecha",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                },
+                headline = null,
+                showModeToggle = false
+            )
+        }
+    }
+
     // Bottom Sheet con historial de asistencia
     if (selectedBarber != null) {
         AttendanceHistoryBottomSheet(
             status = selectedBarber!!,
             onDismiss = { selectedBarber = null }
         )
+    }
+}
+
+@Composable
+fun DateSelector(
+    selectedDate: Calendar,
+    isToday: Boolean,
+    onDateClick: () -> Unit,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    canGoNext: Boolean
+) {
+    val dateFormat = SimpleDateFormat("EEEE, d 'de' MMMM 'de' yyyy", Locale("es", "ES"))
+    val formattedDate = dateFormat.format(selectedDate.time)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Botón día anterior
+            IconButton(onClick = onPreviousDay) {
+                Icon(
+                    imageVector = Icons.Default.ChevronLeft,
+                    contentDescription = "Día anterior",
+                    tint = Color(0xFF2563EB)
+                )
+            }
+
+            // Fecha seleccionada
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onDateClick)
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = Color(0xFF2563EB),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = formattedDate.replaceFirstChar { it.uppercase() },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1F2937)
+                    )
+                    if (isToday) {
+                        Text(
+                            text = "Hoy",
+                            fontSize = 11.sp,
+                            color = Color(0xFF10B981),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            // Botón día siguiente
+            IconButton(
+                onClick = onNextDay,
+                enabled = canGoNext
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = "Día siguiente",
+                    tint = if (canGoNext) Color(0xFF2563EB) else Color(0xFFD1D5DB)
+                )
+            }
+        }
     }
 }
 
@@ -203,7 +400,6 @@ fun calculateWorkHours(readings: List<ReadingData>): Double {
     val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     dateFormat.timeZone = TimeZone.getTimeZone("America/Mexico_City")
 
-
     readings.forEach { reading ->
         try {
             val currentTime = dateFormat.parse(reading.timestamp)
@@ -215,7 +411,7 @@ fun calculateWorkHours(readings: List<ReadingData>): Double {
                 "salida" -> {
                     if (lastEntryTime != null && currentTime != null) {
                         val diffInMillis = currentTime.time - lastEntryTime!!.time
-                        totalHours += diffInMillis / (1000.0 * 60 * 60) // Convertir a horas
+                        totalHours += diffInMillis / (1000.0 * 60 * 60)
                         lastEntryTime = null
                     }
                 }
@@ -360,7 +556,7 @@ fun AttendanceHistoryBottomSheet(
                             color = if (status.isInside) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f)
                         ) {
                             Text(
-                                text = if (status.isInside) "Actualmente Dentro" else "Actualmente Fuera",
+                                text = if (status.isInside) "Última acción: Entrada" else "Última acción: Salida",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -402,7 +598,7 @@ fun AttendanceHistoryBottomSheet(
             // Título del historial
             item {
                 Text(
-                    text = "Historial de Hoy",
+                    text = "Historial del Día",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF1F2937)
@@ -621,37 +817,18 @@ fun StatsCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Column {
-                    Text(
-                        text = value,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1F2937)
-                    )
-                    Text(
-                        text = label,
-                        fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = backgroundColor
-                ) {
-                    Text(
-                        text = "Hoy",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = iconColor
-                    )
-                }
+            Column {
+                Text(
+                    text = value,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                Text(
+                    text = label,
+                    fontSize = 13.sp,
+                    color = Color(0xFF6B7280)
+                )
             }
         }
     }
@@ -665,7 +842,6 @@ fun AttendanceCard(
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val isoFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     isoFormat.timeZone = TimeZone.getTimeZone("America/Mexico_City")
-
 
     val formattedTime = try {
         val date = isoFormat.parse(status.lastTime)

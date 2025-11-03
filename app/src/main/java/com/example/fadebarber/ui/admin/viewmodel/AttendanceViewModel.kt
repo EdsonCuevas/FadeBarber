@@ -98,6 +98,9 @@ class AttendanceViewModel : ViewModel() {
         readingsRef.addValueEventListener(readingsListener!!)
     }
 
+    /**
+     * Verifica si un timestamp es de hoy
+     */
     fun isToday(timestamp: String): Boolean {
         return try {
             val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -117,6 +120,25 @@ class AttendanceViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Verifica si un timestamp pertenece al mismo día que el Calendar proporcionado
+     */
+    fun isSameDay(timestamp: String, calendar: Calendar): Boolean {
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            format.timeZone = TimeZone.getTimeZone("America/Mexico_City")
+
+            val date = format.parse(timestamp) ?: return false
+
+            val calDate = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))
+            calDate.time = date
+
+            calDate.get(Calendar.YEAR) == calendar.get(Calendar.YEAR) &&
+                    calDate.get(Calendar.DAY_OF_YEAR) == calendar.get(Calendar.DAY_OF_YEAR)
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     /**
      * Obtiene las lecturas de hoy
@@ -126,10 +148,24 @@ class AttendanceViewModel : ViewModel() {
     }
 
     /**
+     * Obtiene las lecturas de un día específico
+     */
+    fun getReadingsForDay(calendar: Calendar): List<ReadingData> {
+        return _readings.value.filter { isSameDay(it.timestamp, calendar) }
+    }
+
+    /**
      * Obtiene las lecturas de un barbero específico hoy
      */
     fun getBarberReadingsToday(barberId: String): List<ReadingData> {
         return getTodayReadings().filter { it.userId == barberId }
+    }
+
+    /**
+     * Obtiene las lecturas de un barbero en un día específico
+     */
+    fun getBarberReadingsForDay(barberId: String, calendar: Calendar): List<ReadingData> {
+        return getReadingsForDay(calendar).filter { it.userId == barberId }
     }
 
     /**
@@ -142,6 +178,15 @@ class AttendanceViewModel : ViewModel() {
     }
 
     /**
+     * Verifica si un barbero estaba dentro en un día específico
+     */
+    fun isBarberInsideOnDay(barberId: String, calendar: Calendar): Boolean {
+        val dayReadings = getBarberReadingsForDay(barberId, calendar)
+        val lastReading = dayReadings.maxByOrNull { it.timestamp }
+        return lastReading?.tipo == "entrada"
+    }
+
+    /**
      * Cuenta cuántos barberos están dentro
      */
     fun getActiveBarbersCount(): Int {
@@ -149,14 +194,36 @@ class AttendanceViewModel : ViewModel() {
     }
 
     /**
+     * Cuenta cuántos barberos estaban dentro en un día específico
+     */
+    fun getActiveBarbersCountForDay(calendar: Calendar): Int {
+        return _barbers.value.count { isBarberInsideOnDay(it.id, calendar) }
+    }
+
+    /**
      * Calcula las horas trabajadas de un barbero específico hoy
      */
     fun calculateBarberWorkHours(barberId: String): Double {
         val readings = getBarberReadingsToday(barberId).sortedBy { it.timestamp }
+        return calculateWorkHoursFromReadings(readings)
+    }
+
+    /**
+     * Calcula las horas trabajadas de un barbero en un día específico
+     */
+    fun calculateBarberWorkHoursForDay(barberId: String, calendar: Calendar): Double {
+        val readings = getBarberReadingsForDay(barberId, calendar).sortedBy { it.timestamp }
+        return calculateWorkHoursFromReadings(readings)
+    }
+
+    /**
+     * Función auxiliar para calcular horas trabajadas desde una lista de lecturas
+     */
+    private fun calculateWorkHoursFromReadings(readings: List<ReadingData>): Double {
         var totalHours = 0.0
         var lastEntryTime: Date? = null
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        dateFormat.timeZone = TimeZone.getTimeZone("America/Mexico_City")
 
         readings.forEach { reading ->
             try {
@@ -190,10 +257,24 @@ class AttendanceViewModel : ViewModel() {
     }
 
     /**
+     * Calcula las horas trabajadas totales de todos los barberos en un día específico
+     */
+    fun getTotalWorkHoursForDay(calendar: Calendar): Double {
+        return _barbers.value.sumOf { calculateBarberWorkHoursForDay(it.id, calendar) }
+    }
+
+    /**
      * Obtiene la última lectura de un barbero
      */
     fun getLastReading(barberId: String): ReadingData? {
         return getBarberReadingsToday(barberId).maxByOrNull { it.timestamp }
+    }
+
+    /**
+     * Obtiene la última lectura de un barbero en un día específico
+     */
+    fun getLastReadingForDay(barberId: String, calendar: Calendar): ReadingData? {
+        return getBarberReadingsForDay(barberId, calendar).maxByOrNull { it.timestamp }
     }
 
     override fun onCleared() {

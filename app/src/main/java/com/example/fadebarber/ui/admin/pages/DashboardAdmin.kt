@@ -39,33 +39,50 @@ fun DashboardAdmin() {
     val appointments by vm.appointments.collectAsState()
     val services by vm.services.collectAsState()
     val users by vm.users.collectAsState()
+    val readings by vm.readings.collectAsState()
 
     LaunchedEffect(Unit) { vm.startListeners() }
     DisposableEffect(Unit) {
         onDispose { vm.stopListeners() }
     }
 
-    var selectedFilter by remember { mutableStateOf("Hoy") }
     var selectedBarber by remember { mutableStateOf<Pair<UserData, BarberStats>?>(null) }
-    var showCalendar by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableStateOf(Calendar.getInstance()) }
-
+    var showDatePicker by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf(Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))) }
 
     // Calcular estadísticas según el filtro seleccionado
-    val filteredAppointments = remember(appointments, selectedDate, selectedFilter) {
-        when (selectedFilter) {
-            "Hoy" -> appointments.filter { vm.isToday(it.dateAppointment) }
-            "Fecha Personalizada" -> {
-                val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val selectedDateStr = dateFormat.format(selectedDate.time)
-                appointments.filter { it.dateAppointment == selectedDateStr }
-            }
-            else -> appointments.filter { vm.isToday(it.dateAppointment) }
-        }
+    val filteredAppointments = remember(appointments, selectedDate) {
+        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val selectedDateStr = dateFormat.format(selectedDate.time)
+        appointments.filter { it.dateAppointment == selectedDateStr }
     }
 
-    // Estadísticas por barbero
-    val barberStats = remember(barbers, filteredAppointments) {
+    // Verificar si es hoy
+    val isToday = remember(selectedDate) {
+        val today = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))
+        selectedDate.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                selectedDate.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+    }
+
+    // Filtrar barberos activos (última lectura del día es "entrada")
+    val activeBarbersIds = remember(readings, selectedDate) {
+        val activeIds = mutableSetOf<String>()
+        barbers.forEach { barber ->
+            val barberReadings = readings
+                .filter { it.userId == barber.id }
+                .filter { vm.isSameDay(it.timestamp, selectedDate) }
+                .sortedByDescending { it.timestamp }
+
+            // El barbero está activo si su última lectura del día es "entrada"
+            if (barberReadings.firstOrNull()?.tipo == "entrada") {
+                activeIds.add(barber.id)
+            }
+        }
+        activeIds
+    }
+
+    // Estadísticas por barbero (TODOS los barberos)
+    val barberStats = remember(barbers, filteredAppointments, activeBarbersIds) {
         barbers.map { barber ->
             val barberAppointments = filteredAppointments.filter { it.idEmployee == barber.id }
             val completedCount = barberAppointments.count { it.statusAppointment == 3 }
@@ -74,13 +91,13 @@ fun DashboardAdmin() {
                 .filter { it.statusAppointment == 3 }
                 .sumOf { it.totalPrice ?: 0 }
 
-
             barber to BarberStats(
                 citasHoy = barberAppointments.size,
                 enServicio = enServicio,
                 ingresos = totalIncome,
                 completed = completedCount,
-                appointments = barberAppointments
+                appointments = barberAppointments,
+                isActive = activeBarbersIds.contains(barber.id)
             )
         }.sortedByDescending { it.second.citasHoy }
     }
@@ -89,7 +106,7 @@ fun DashboardAdmin() {
     val totalIngresos = filteredAppointments
         .filter { it.statusAppointment == 4 }
         .sumOf { it.totalPrice ?: 0 }
-    val totalBarberos = barbers.size
+    val totalBarberos = activeBarbersIds.size
 
     Column(
         modifier = Modifier
@@ -111,17 +128,24 @@ fun DashboardAdmin() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Barberos Activos",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2937)
-            )
+            Column {
+                Text(
+                    text = "Todos los Barberos",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                Text(
+                    text = "${barberStats.size} barberos totales • $totalBarberos activos",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280)
+                )
+            }
 
             // Filtro con calendario
             FilterChip(
                 selected = true,
-                onClick = { showCalendar = !showCalendar },
+                onClick = { showDatePicker = true },
                 label = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -131,7 +155,7 @@ fun DashboardAdmin() {
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (selectedFilter == "Hoy") "Hoy" else {
+                            text = if (isToday) "Hoy" else {
                                 val day = selectedDate.get(Calendar.DAY_OF_MONTH)
                                 val month = when (selectedDate.get(Calendar.MONTH)) {
                                     Calendar.JANUARY -> "Ene"
@@ -151,12 +175,6 @@ fun DashboardAdmin() {
                                 "$day $month"
                             }
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = if (showCalendar) Icons.Default.ExpandLess else Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
                     }
                 },
                 colors = FilterChipDefaults.filterChipColors(
@@ -166,33 +184,84 @@ fun DashboardAdmin() {
             )
         }
 
-        // Calendario desplegable
-        androidx.compose.animation.AnimatedVisibility(
-            visible = showCalendar,
-            enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-            exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
-        ) {
-            InlineCalendar(
-                selectedDate = selectedDate,
-                onDateSelected = { calendar ->
-                    selectedDate = calendar
-                    val today = Calendar.getInstance()
-                    selectedFilter = if (
-                        calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
-                        calendar.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
-                    ) {
-                        "Hoy"
-                    } else {
-                        "Fecha Personalizada"
+        // DatePicker Dialog
+        if (showDatePicker) {
+            // Convertir la fecha seleccionada a UTC para el DatePicker
+            val selectedDateInUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                set(Calendar.YEAR, selectedDate.get(Calendar.YEAR))
+                set(Calendar.MONTH, selectedDate.get(Calendar.MONTH))
+                set(Calendar.DAY_OF_MONTH, selectedDate.get(Calendar.DAY_OF_MONTH))
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = selectedDateInUtc.timeInMillis,
+                selectableDates = object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                        // Convertir la fecha de hoy a UTC para comparar
+                        val todayMexico = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))
+                        val todayUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                            set(Calendar.YEAR, todayMexico.get(Calendar.YEAR))
+                            set(Calendar.MONTH, todayMexico.get(Calendar.MONTH))
+                            set(Calendar.DAY_OF_MONTH, todayMexico.get(Calendar.DAY_OF_MONTH))
+                            set(Calendar.HOUR_OF_DAY, 23)
+                            set(Calendar.MINUTE, 59)
+                            set(Calendar.SECOND, 59)
+                            set(Calendar.MILLISECOND, 999)
+                        }
+                        return utcTimeMillis <= todayUtc.timeInMillis
                     }
-                    showCalendar = false
-                },
-                onTodaySelected = {
-                    selectedDate = Calendar.getInstance()
-                    selectedFilter = "Hoy"
-                    showCalendar = false
                 }
             )
+
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                // Convertir de UTC a nuestra zona horaria
+                                val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                                    timeInMillis = millis
+                                }
+
+                                selectedDate = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City")).apply {
+                                    set(Calendar.YEAR, utcCalendar.get(Calendar.YEAR))
+                                    set(Calendar.MONTH, utcCalendar.get(Calendar.MONTH))
+                                    set(Calendar.DAY_OF_MONTH, utcCalendar.get(Calendar.DAY_OF_MONTH))
+                                    set(Calendar.HOUR_OF_DAY, 0)
+                                    set(Calendar.MINUTE, 0)
+                                    set(Calendar.SECOND, 0)
+                                    set(Calendar.MILLISECOND, 0)
+                                }
+                            }
+                            showDatePicker = false
+                        }
+                    ) {
+                        Text("Aceptar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            ) {
+                DatePicker(
+                    state = datePickerState,
+                    title = {
+                        Text(
+                            text = "Seleccionar fecha",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    },
+                    headline = null,
+                    showModeToggle = false
+                )
+            }
         }
 
         // Lista de barberos
@@ -201,13 +270,40 @@ fun DashboardAdmin() {
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(barberStats) { (barber, stats) ->
-                BarberCard(
-                    barber = barber,
-                    stats = stats,
-                    isOnline = vm.isUserOnline(barber.id),
-                    onClick = { selectedBarber = barber to stats }
-                )
+            if (barberStats.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.PersonOff,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = Color(0xFF9CA3AF)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No hay barberos registrados",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(barberStats) { (barber, stats) ->
+                    BarberCard(
+                        barber = barber,
+                        stats = stats,
+                        isOnline = vm.isUserOnline(barber.id),
+                        onClick = { selectedBarber = barber to stats }
+                    )
+                }
             }
 
             item {
@@ -228,205 +324,13 @@ fun DashboardAdmin() {
     }
 }
 
-@Composable
-fun InlineCalendar(
-    selectedDate: Calendar,
-    onDateSelected: (Calendar) -> Unit,
-    onTodaySelected: () -> Unit
-) {
-    var currentMonth by remember { mutableStateOf(Calendar.getInstance()) }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        shadowElevation = 4.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Header del mes con navegación
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = {
-                    currentMonth = (currentMonth.clone() as Calendar).apply {
-                        add(Calendar.MONTH, -1)
-                    }
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = "Mes anterior",
-                        tint = Color(0xFF2563EB)
-                    )
-                }
-
-                Text(
-                    text = "${getMonthName(currentMonth.get(Calendar.MONTH))} ${currentMonth.get(Calendar.YEAR)}",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1F2937)
-                )
-
-                IconButton(onClick = {
-                    currentMonth = (currentMonth.clone() as Calendar).apply {
-                        add(Calendar.MONTH, 1)
-                    }
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Mes siguiente",
-                        tint = Color(0xFF2563EB)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Días de la semana
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                listOf("D", "L", "M", "M", "J", "V", "S").forEach { day ->
-                    Text(
-                        text = day,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF6B7280),
-                        modifier = Modifier.weight(1f),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Grid del calendario
-            val daysInMonth = getDaysInMonth(currentMonth)
-            val firstDayOfWeek = getFirstDayOfWeek(currentMonth)
-            val today = Calendar.getInstance()
-
-            Column {
-                var dayCounter = 1
-                for (week in 0..5) {
-                    if (dayCounter > daysInMonth) break
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        for (dayOfWeek in 0..6) {
-                            if ((week == 0 && dayOfWeek < firstDayOfWeek) || dayCounter > daysInMonth) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            } else {
-                                val currentDay = dayCounter
-                                val isSelected = selectedDate.get(Calendar.YEAR) == currentMonth.get(Calendar.YEAR) &&
-                                        selectedDate.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH) &&
-                                        selectedDate.get(Calendar.DAY_OF_MONTH) == currentDay
-
-                                val isToday = today.get(Calendar.YEAR) == currentMonth.get(Calendar.YEAR) &&
-                                        today.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH) &&
-                                        today.get(Calendar.DAY_OF_MONTH) == currentDay
-
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f)
-                                        .padding(4.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            when {
-                                                isSelected -> Color(0xFF2563EB)
-                                                isToday -> Color(0xFF2563EB).copy(alpha = 0.1f)
-                                                else -> Color.Transparent
-                                            }
-                                        )
-                                        .clickable {
-                                            val newDate = (currentMonth.clone() as Calendar).apply {
-                                                set(Calendar.DAY_OF_MONTH, currentDay)
-                                            }
-                                            onDateSelected(newDate)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = currentDay.toString(),
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                                        color = when {
-                                            isSelected -> Color.White
-                                            isToday -> Color(0xFF2563EB)
-                                            else -> Color(0xFF1F2937)
-                                        }
-                                    )
-                                }
-                                dayCounter++
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Botón "Hoy"
-            Button(
-                onClick = onTodaySelected,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2563EB).copy(alpha = 0.1f),
-                    contentColor = Color(0xFF2563EB)
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Ir a Hoy", fontWeight = FontWeight.Medium)
-            }
-        }
-    }
-}
-
-fun getMonthName(month: Int): String {
-    return when (month) {
-        Calendar.JANUARY -> "Enero"
-        Calendar.FEBRUARY -> "Febrero"
-        Calendar.MARCH -> "Marzo"
-        Calendar.APRIL -> "Abril"
-        Calendar.MAY -> "Mayo"
-        Calendar.JUNE -> "Junio"
-        Calendar.JULY -> "Julio"
-        Calendar.AUGUST -> "Agosto"
-        Calendar.SEPTEMBER -> "Septiembre"
-        Calendar.OCTOBER -> "Octubre"
-        Calendar.NOVEMBER -> "Noviembre"
-        Calendar.DECEMBER -> "Diciembre"
-        else -> ""
-    }
-}
-
-fun getDaysInMonth(calendar: Calendar): Int {
-    return calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-}
-
-fun getFirstDayOfWeek(calendar: Calendar): Int {
-    val firstDay = (calendar.clone() as Calendar).apply {
-        set(Calendar.DAY_OF_MONTH, 1)
-    }
-    return firstDay.get(Calendar.DAY_OF_WEEK) - 1
-}
-
 data class BarberStats(
     val citasHoy: Int,
     val enServicio: Int,
     val completed: Int,
     val ingresos: Int,
-    val appointments: List<AppointmentClientData>
+    val appointments: List<AppointmentClientData>,
+    val isActive: Boolean = false
 )
 
 @Composable
@@ -540,7 +444,7 @@ fun HeaderCard(
                 )
                 StatItem(
                     value = totalBarberos.toString(),
-                    label = "Barberos"
+                    label = "Activos"
                 )
             }
         }
@@ -574,19 +478,22 @@ fun BarberCard(
     isOnline: Boolean,
     onClick: () -> Unit
 ) {
+    // Determinar el color de estado basado en si está activo (registró entrada)
     val statusColor = when {
-        stats.enServicio > 0 -> Color(0xFFF97316)
-        else -> Color(0xFF10B981)
+        !stats.isActive -> Color(0xFF9CA3AF) // Gris si no ha registrado entrada
+        stats.enServicio > 0 -> Color(0xFFF97316) // Naranja si está ocupado
+        else -> Color(0xFF10B981) // Verde si está disponible
     }
 
     val statusText = when {
+        !stats.isActive -> "Sin registro"
         stats.enServicio > 0 -> "Ocupado"
         else -> "Disponible"
     }
 
     // Próxima cita
     val nextAppointment = stats.appointments
-        .filter { it.statusAppointment != 2 && it.statusAppointment != 3 && LocalTime.now() <= LocalTime.parse(it.timeAppointment) && it.dateAppointment == LocalDate.now().toString() }
+        .filter { it.statusAppointment == 1 && LocalTime.now() <= LocalTime.parse(it.timeAppointment) && it.dateAppointment == LocalDate.now().toString() }
         .minByOrNull { it.timeAppointment ?: "99:99" }
 
     Surface(
@@ -885,9 +792,10 @@ fun AppointmentRowItem(
     val service = services.firstOrNull { it.id == appointment.serviceId?.firstOrNull() }
 
     val statusColor = when (appointment.statusAppointment) {
-        1 -> Color(0xFFF97316)
-        3 -> Color(0xFF3B82F6)
-        4 -> Color(0xFF10B981)
+        1 -> Color(0xFF3B82F6)
+        2 -> Color(0xFFF97316)
+        3 -> Color(0xFF10B981)
+        4 -> Color(0xFFC71111)
         else -> Color(0xFF9CA3AF)
     }
 

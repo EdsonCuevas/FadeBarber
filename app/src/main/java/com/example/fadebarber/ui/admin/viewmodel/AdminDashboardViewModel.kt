@@ -6,6 +6,7 @@ import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.ui.admin.pages.ReadingData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +40,9 @@ class AdminDashboardViewModel : ViewModel() {
     private val _onlineStatus = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val onlineStatus: StateFlow<Map<String, Boolean>> = _onlineStatus.asStateFlow()
 
+    private val _readings = MutableStateFlow<List<ReadingData>>(emptyList())
+    val readings: StateFlow<List<ReadingData>> = _readings.asStateFlow()
+
     // Listeners
     private var barbersListener: ValueEventListener? = null
     private var appointmentsListener: ValueEventListener? = null
@@ -46,13 +50,15 @@ class AdminDashboardViewModel : ViewModel() {
     private var promotionsListener: ValueEventListener? = null
     private var usersListener: ValueEventListener? = null
     private var onlineStatusListener: ValueEventListener? = null
+    private var readingsListener: ValueEventListener? = null
 
-    // Referencias - Ajustadas a tu estructura de Firebase
+    // Referencias
     private val usersRef = database.getReference("User")
     private val appointmentsRef = database.getReference("Appointment")
     private val servicesRef = database.getReference("Service")
     private val promotionsRef = database.getReference("Promotion")
     private val onlineStatusRef = database.getReference("onlineStatus")
+    private val readingsRef = database.getReference("Readings")
 
     /**
      * Mapeo de estados de citas (según tu DB)
@@ -84,6 +90,7 @@ class AdminDashboardViewModel : ViewModel() {
         listenToPromotions()
         listenToUsers()
         listenToOnlineStatus()
+        listenToReadings()
     }
 
     /**
@@ -96,6 +103,7 @@ class AdminDashboardViewModel : ViewModel() {
         promotionsListener?.let { promotionsRef.removeEventListener(it) }
         usersListener?.let { usersRef.removeEventListener(it) }
         onlineStatusListener?.let { onlineStatusRef.removeEventListener(it) }
+        readingsListener?.let { readingsRef.removeEventListener(it) }
     }
 
     /**
@@ -246,6 +254,30 @@ class AdminDashboardViewModel : ViewModel() {
     }
 
     /**
+     * Escucha todas las lecturas de asistencia
+     */
+    private fun listenToReadings() {
+        readingsListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                viewModelScope.launch {
+                    val list = mutableListOf<ReadingData>()
+                    snapshot.children.forEach { child ->
+                        child.getValue(ReadingData::class.java)?.let { reading ->
+                            list.add(reading)
+                        }
+                    }
+                    _readings.value = list
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                // Manejo de error
+            }
+        }
+        readingsRef.addValueEventListener(readingsListener!!)
+    }
+
+    /**
      * Verifica si un usuario está online
      */
     fun isUserOnline(userId: String): Boolean {
@@ -268,6 +300,26 @@ class AdminDashboardViewModel : ViewModel() {
 
             today.get(Calendar.YEAR) == appointmentCal.get(Calendar.YEAR) &&
                     today.get(Calendar.DAY_OF_YEAR) == appointmentCal.get(Calendar.DAY_OF_YEAR)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Verifica si un timestamp pertenece al mismo día que el Calendar proporcionado
+     */
+    fun isSameDay(timestamp: String, calendar: Calendar): Boolean {
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            format.timeZone = TimeZone.getTimeZone("America/Mexico_City")
+
+            val date = format.parse(timestamp) ?: return false
+
+            val calDate = Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))
+            calDate.time = date
+
+            calDate.get(Calendar.YEAR) == calendar.get(Calendar.YEAR) &&
+                    calDate.get(Calendar.DAY_OF_YEAR) == calendar.get(Calendar.DAY_OF_YEAR)
         } catch (e: Exception) {
             false
         }
@@ -362,6 +414,18 @@ class AdminDashboardViewModel : ViewModel() {
      */
     fun getAppointmentStatusText(statusCode: Int?): String {
         return getAppointmentStatus(statusCode)
+    }
+
+    /**
+     * Verifica si un barbero está activo (última lectura del día es "entrada")
+     */
+    fun isBarberActive(barberId: String, calendar: Calendar): Boolean {
+        val barberReadings = _readings.value
+            .filter { it.userId == barberId }
+            .filter { isSameDay(it.timestamp, calendar) }
+            .sortedByDescending { it.timestamp }
+
+        return barberReadings.firstOrNull()?.tipo == "entrada"
     }
 
     override fun onCleared() {
