@@ -51,6 +51,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val type = data["type"] ?: "general"
 
         when (type) {
+            "appointment_booked" -> {
+                val userName = data["userName"] ?: "Usuario"
+                val date = data["date"] ?: "fecha"
+                val time = data["time"] ?: "hora"
+                val barberName = data["barberName"]
+                val tail = if (!barberName.isNullOrBlank()) " con $barberName" else ""
+                sendNotification(
+                    title = "Cita Agendada",
+                    messageBody = "$userName, tu cita ha sido agendada para $date a las $time$tail"
+                )
+            }
             "profile_update" -> {
                 val userName = data["userName"] ?: "Usuario"
                 sendNotification(

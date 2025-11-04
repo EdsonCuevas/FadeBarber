@@ -72,6 +72,7 @@ import kotlinx.coroutines.launch
 import org.threeten.bp.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -251,15 +252,28 @@ fun DashboardPage(
                     }
 
                     Box {
-                        Image(
-                            painter = painterResource(id = R.drawable.perfil),
-                            contentDescription = "Imagen de perfil",
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
+                        if (!user.photoURL.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = user.photoURL,
+                                contentDescription = "Foto de perfil",
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                                contentScale = ContentScale.Crop,
+                                error = painterResource(id = R.drawable.perfil)
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.perfil),
+                                contentDescription = "Imagen de perfil",
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
                 }
 

@@ -40,10 +40,10 @@ fun PromotionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
             .clickable { onIncrement(promotion) },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(10.dp)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
