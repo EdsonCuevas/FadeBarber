@@ -29,7 +29,7 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardAdminScreen() {
+fun DashboardOld() {
     val vm: AdminDashboardViewModel = viewModel()
     val barbers by vm.barbers.collectAsState()
     val appointments by vm.appointments.collectAsState()
