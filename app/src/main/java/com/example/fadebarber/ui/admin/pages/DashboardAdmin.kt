@@ -33,13 +33,14 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardAdmin() {
+fun DashboardAdmin(onNavigateToAccount: () -> Unit = {}) {
     val vm: AdminDashboardViewModel = viewModel()
     val barbers by vm.barbers.collectAsState()
     val appointments by vm.appointments.collectAsState()
     val services by vm.services.collectAsState()
     val users by vm.users.collectAsState()
     val readings by vm.readings.collectAsState()
+    val currentUser by vm.currentUser.collectAsState()
 
     LaunchedEffect(Unit) { vm.startListeners() }
     DisposableEffect(Unit) {
@@ -117,7 +118,9 @@ fun DashboardAdmin() {
         HeaderCard(
             totalCitas = totalCitas,
             totalIngresos = totalIngresos,
-            totalBarberos = totalBarberos
+            totalBarberos = totalBarberos,
+            currentUser = currentUser,
+            onProfileClick = onNavigateToAccount
         )
 
         // Título y Filtro
@@ -337,7 +340,9 @@ data class BarberStats(
 fun HeaderCard(
     totalCitas: Int,
     totalIngresos: Int,
-    totalBarberos: Int
+    totalBarberos: Int,
+    currentUser: UserData,
+    onProfileClick: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -376,20 +381,29 @@ fun HeaderCard(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { /* Notificaciones */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificaciones",
-                            tint = Color.White
-                        )
+                    Box{
+                        if (currentUser.photoURL.isNotEmpty()) {
+                            coil.compose.AsyncImage(
+                                model = currentUser.photoURL,
+                                contentDescription = "Foto de perfil",
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape)
+                                    .clickable(onClick = onProfileClick),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                error = painterResource(id = R.drawable.profilelogo)
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.profilelogo),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape)
+                                    .clickable(onClick = onProfileClick),
+                            )
+                        }
                     }
-                    Image(
-                        painter = painterResource(id = R.drawable.profilelogo),
-                        contentDescription = "Perfil",
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                    )
                 }
             }
 

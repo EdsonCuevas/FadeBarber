@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.ui.admin.pages.ReadingData
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +16,7 @@ import java.util.*
 class AttendanceViewModel : ViewModel() {
 
     private val database = FirebaseDatabase.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     // StateFlows
     private val _barbers = MutableStateFlow<List<UserData>>(emptyList())
@@ -23,9 +25,13 @@ class AttendanceViewModel : ViewModel() {
     private val _readings = MutableStateFlow<List<ReadingData>>(emptyList())
     val readings: StateFlow<List<ReadingData>> = _readings.asStateFlow()
 
+    private val _currentUser = MutableStateFlow<UserData>(UserData())
+    val currentUser: StateFlow<UserData> = _currentUser.asStateFlow()
+
     // Listeners
     private var barbersListener: ValueEventListener? = null
     private var readingsListener: ValueEventListener? = null
+    private var currentUserListener: ValueEventListener? = null
 
     // Referencias
     private val usersRef = database.getReference("User")
@@ -37,6 +43,7 @@ class AttendanceViewModel : ViewModel() {
     fun startListeners() {
         listenToBarbers()
         listenToReadings()
+        listenToCurrentUser()
     }
 
     /**
@@ -45,6 +52,29 @@ class AttendanceViewModel : ViewModel() {
     fun stopListeners() {
         barbersListener?.let { usersRef.removeEventListener(it) }
         readingsListener?.let { readingsRef.removeEventListener(it) }
+    }
+
+    /**
+     * Escucha los datos del usuario actual
+     */
+    private fun listenToCurrentUser() {
+        val currentUserId = auth.currentUser?.uid ?: return
+
+        currentUserListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                viewModelScope.launch {
+                    val user = snapshot.getValue(UserData::class.java)
+                    if (user != null) {
+                        _currentUser.value = user
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                // Manejo de error
+            }
+        }
+        usersRef.child(currentUserId).addValueEventListener(currentUserListener!!)
     }
 
     /**

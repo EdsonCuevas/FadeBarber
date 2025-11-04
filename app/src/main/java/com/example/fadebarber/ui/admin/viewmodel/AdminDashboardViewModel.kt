@@ -38,10 +38,11 @@ class AdminDashboardViewModel : ViewModel() {
     val users: StateFlow<List<UserData>> = _users.asStateFlow()
 
     private val _onlineStatus = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-    val onlineStatus: StateFlow<Map<String, Boolean>> = _onlineStatus.asStateFlow()
 
     private val _readings = MutableStateFlow<List<ReadingData>>(emptyList())
     val readings: StateFlow<List<ReadingData>> = _readings.asStateFlow()
+    private val _currentUser = MutableStateFlow<UserData>(UserData())
+    val currentUser: StateFlow<UserData> = _currentUser.asStateFlow()
 
     // Listeners
     private var barbersListener: ValueEventListener? = null
@@ -51,6 +52,7 @@ class AdminDashboardViewModel : ViewModel() {
     private var usersListener: ValueEventListener? = null
     private var onlineStatusListener: ValueEventListener? = null
     private var readingsListener: ValueEventListener? = null
+    private var currentUserListener: ValueEventListener? = null
 
     // Referencias
     private val usersRef = database.getReference("User")
@@ -91,6 +93,30 @@ class AdminDashboardViewModel : ViewModel() {
         listenToUsers()
         listenToOnlineStatus()
         listenToReadings()
+        listenToCurrentUser()
+    }
+
+    /**
+     * Escucha los datos del usuario actual
+     */
+    private fun listenToCurrentUser() {
+        val currentUserId = auth.currentUser?.uid ?: return
+
+        currentUserListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                viewModelScope.launch {
+                    val user = snapshot.getValue(UserData::class.java)
+                    if (user != null) {
+                        _currentUser.value = user
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                // Manejo de error
+            }
+        }
+        usersRef.child(currentUserId).addValueEventListener(currentUserListener!!)
     }
 
     /**

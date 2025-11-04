@@ -31,10 +31,11 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AsistenciaScreen() {
+fun AsistenciaScreen(onNavigateToAccount: () -> Unit = {}) {
     val vm: AttendanceViewModel = viewModel()
     val barbers by vm.barbers.collectAsState()
     val readings by vm.readings.collectAsState()
+    val currentUser by vm.currentUser.collectAsState()
 
     var selectedBarber by remember { mutableStateOf<AttendanceStatus?>(null) }
     var selectedDate by remember { mutableStateOf(Calendar.getInstance(TimeZone.getTimeZone("America/Mexico_City"))) }
@@ -104,7 +105,10 @@ fun AsistenciaScreen() {
             .background(Color(0xFFF5F5F5))
     ) {
         // Header
-        AttendanceHeader()
+        AttendanceHeader(
+            currentUser = currentUser,
+            onProfileClick = onNavigateToAccount
+        )
 
         // Date Selector
         DateSelector(
@@ -425,7 +429,10 @@ fun calculateWorkHours(readings: List<ReadingData>): Double {
 }
 
 @Composable
-fun AttendanceHeader() {
+fun AttendanceHeader(
+    currentUser: UserData,
+    onProfileClick: () -> Unit = {}
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color(0xFF2563EB),
@@ -470,20 +477,29 @@ fun AttendanceHeader() {
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { /* Notificaciones */ }) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notificaciones",
-                        tint = Color.White
-                    )
+                Box{
+                    if (currentUser.photoURL.isNotEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = currentUser.photoURL,
+                            contentDescription = "Foto de perfil",
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .clickable(onClick = onProfileClick),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            error = painterResource(id = R.drawable.profilelogo)
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.profilelogo),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .clickable(onClick = onProfileClick),
+                        )
+                    }
                 }
-                Image(
-                    painter = painterResource(id = R.drawable.profilelogo),
-                    contentDescription = "Perfil",
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                )
             }
         }
     }
