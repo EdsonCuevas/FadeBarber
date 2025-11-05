@@ -64,13 +64,8 @@ suspend fun sendEmailWithQR(
                             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
                                 
                                 <!-- Header con Gradiente Azul -->
-                                <div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%); padding: 40px 30px; text-align: center; border-radius: 0;">
-                                    <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 1px;">
-                                        ✂️ FadeBarber
-                                    </h1>
-                                    <p style="color: rgba(255, 255, 255, 0.9); margin: 10px 0 0 0; font-size: 16px; font-weight: 500;">
-                                        Tu cita ha sido agendada
-                                    </p>
+                                <div style="padding: 40px 30px; text-align: center; border-radius: 0;">
+                                    <img src="https://res.cloudinary.com/dfdp776v2/image/upload/v1759997513/banner_swcvry_pmessl.png" style="max-width: 500px; max-height: 250px; padding: 30px 30px;"></img>
                                 </div>
                                 
                                 <!-- Contenido Principal -->
