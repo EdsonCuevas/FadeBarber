@@ -1263,6 +1263,7 @@ fun AgendaCartForm(
                             expanded = expanded,
                             onDismissRequest = { expanded = false },
                             modifier = Modifier.fillMaxWidth(0.85f)
+                                .background(Color.White)
                         ) {
                             listOf("Efectivo", "Tarjeta").forEach { option ->
                                 DropdownMenuItem(
@@ -1276,7 +1277,7 @@ fun AgendaCartForm(
                                                     Icons.Default.CreditCard else Icons.Default.AttachMoney,
                                                 contentDescription = null,
                                                 tint = if (selectedPayment == option)
-                                                    Color(0xFF2563EB) else Color(0xFF94A3B8)
+                                                    Color(0xFF2563EB) else Color(0xFF1E293B)
                                             )
                                             Spacer(Modifier.width(12.dp))
                                             Text(
@@ -1284,7 +1285,7 @@ fun AgendaCartForm(
                                                 fontWeight = if (selectedPayment == option)
                                                     FontWeight.Bold else FontWeight.Normal,
                                                 color = if (selectedPayment == option)
-                                                    Color(0xFF1E293B) else Color(0xFF64748B)
+                                                    Color(0xFF2563EB) else Color(0xFF1E293B)
                                             )
                                         }
                                     },
