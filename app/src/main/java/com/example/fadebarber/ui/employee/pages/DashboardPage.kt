@@ -549,7 +549,7 @@ fun DashboardPage(
                                                 val client =
                                                     users.find { it.id == appointment.idClient }
                                                 Text(
-                                                    text = "con ${client?.nameUser ?: "Cliente"}",
+                                                    text = "con ${client?.nameUser ?: appointment.nameClient}",
                                                     fontSize = 14.sp,
                                                     color = Color(0xFF64748B)
                                                 )
@@ -1016,10 +1016,11 @@ fun DashboardPage(
                 ) {
                     QRScannerView(
                         modifier = Modifier.fillMaxSize(),
-                        onResult = { code ->
+                        currentEmployeeId = user.id,
+                        onResult = { message ->
                             showScanner = false
-                            alertMessage = "QR detectado: $code"
-                            alertColor = Color(0xFF10B981)
+                            alertMessage = message
+                            alertColor = if (message.startsWith("Cita validada")) Color(0xFF10B981) else Color(0xFFEF4444)
                             showAlert = true
                         },
                         onClose = { showScanner = false }
