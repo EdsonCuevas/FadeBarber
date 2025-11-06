@@ -170,54 +170,79 @@ private fun ScannerOverlay(
 private fun handleQrScan(
     context: android.content.Context,
     code: String,
+    currentEmployeeId: String?,
     onResult: (String) -> Unit
 ) {
-    val mainExecutor = androidx.core.content.ContextCompat.getMainExecutor(context)
+    val mainExecutor = ContextCompat.getMainExecutor(context)
     val appointmentId = code.trim()
     if (appointmentId.isEmpty()) {
         onResult("Error: QR inválido")
         return
     }
 
-    val ref = FirebaseDatabase.getInstance().getReference("Appointment")
-    ref.child(appointmentId)
+    val appointmentsRef = FirebaseDatabase.getInstance().getReference("Appointment")
+    appointmentsRef.child(appointmentId)
         .get()
         .addOnSuccessListener(mainExecutor) { snapshot ->
-            if (!snapshot.exists()) {
-                onResult("Error: cita no encontrada")
-                return@addOnSuccessListener
-            }
             val appt = snapshot.getValue(com.example.fadebarber.data.model.AppointmentClientData::class.java)
             if (appt == null) {
-                onResult("Error: datos de cita inválidos")
-                return@addOnSuccessListener
-            }
+                onResult("Error: cita no encontrada o datos inválidos")
+            } else {
+                val todayStr = LocalDate.now().toString()
+                val apptDateStr = appt.dateAppointment?.substring(0, 10)
+                val qrStat = appt.qrStatus ?: 1
 
-            val todayStr = LocalDate.now().toString()
-            val apptDateStr = appt.dateAppointment?.substring(0, 10)
-            if (apptDateStr != todayStr) {
-                onResult("Error: QR caducado. Fecha de cita: ${apptDateStr ?: "desconocida"}")
-                return@addOnSuccessListener
-            }
+                if (apptDateStr != todayStr) {
+                    onResult("Error: QR caducado. Fecha de cita: ${apptDateStr ?: "desconocida"}")
+                } else if (qrStat == 2) {
+                    onResult("Error: QR ya utilizado")
+                } else {
+                    // Verificar si hay alguna cita en curso para el empleado actual (hoy)
+                    val query = if (!currentEmployeeId.isNullOrBlank()) {
+                        appointmentsRef.orderByChild("idEmployee").equalTo(currentEmployeeId)
+                    } else {
+                        appointmentsRef
+                    }
+                    query.get()
+                        .addOnSuccessListener(mainExecutor) { listSnap ->
+                            var runningFound = false
+                            val today = LocalDate.now().toString()
+                            for (child in listSnap.children) {
+                                val other = child.getValue(com.example.fadebarber.data.model.AppointmentClientData::class.java)
+                                if (other != null) {
+                                    val otherDate = other.dateAppointment?.substring(0, 10)
+                                    val isToday = otherDate == today
+                                    val isRunning = (other.statusAppointment == 2)
+                                    val isDifferent = (other.id != appointmentId)
+                                    if (isToday && isRunning && isDifferent) {
+                                        runningFound = true
+                                        break
+                                    }
+                                }
+                            }
 
-            val qrStat = appt.qrStatus ?: 1
-            if (qrStat == 2) {
-                onResult("Error: QR ya utilizado")
-                return@addOnSuccessListener
-            }
-
-            val updates = mapOf(
-                "statusAppointment" to 2,
-                "qrStatus" to 2
-            )
-            ref.child(appointmentId)
-                .updateChildren(updates)
-                .addOnSuccessListener(mainExecutor) {
-                    onResult("Cita validada. Estado actualizado a 'En curso'.")
+                            if (runningFound) {
+                                onResult("Ya hay una cita en curso. No puedes validar otra.")
+                            } else {
+                                val updates = mapOf(
+                                    "statusAppointment" to 2,
+                                    "qrStatus" to 2
+                                )
+                                appointmentsRef.child(appointmentId)
+                                    .updateChildren(updates)
+                                    .addOnSuccessListener(mainExecutor) {
+                                        onResult("Cita validada. Estado actualizado a 'En curso'.")
+                                    }
+                                    .addOnFailureListener(mainExecutor) { e ->
+                                        onResult("Error al actualizar la cita: ${e.message}")
+                                    }
+                            }
+                        }
+                        .addOnFailureListener(mainExecutor) { e ->
+                            onResult("Error validando estado actual: ${e.message}")
+                        }
                 }
-                .addOnFailureListener(mainExecutor) { e ->
-                    onResult("Error al actualizar la cita: ${e.message}")
-                }
+            }
         }
         .addOnFailureListener(mainExecutor) { e ->
             onResult("Error al consultar cita: ${e.message}")
@@ -228,6 +253,7 @@ private fun handleQrScan(
 @Composable
 fun QRScannerView(
     modifier: Modifier = Modifier,
+    currentEmployeeId: String? = null,
     onResult: (String) -> Unit,
     onClose: (() -> Unit)? = null
 ) {
@@ -243,7 +269,6 @@ fun QRScannerView(
         )
     }
 
-    // Evitar procesar múltiples veces el mismo escaneo
     var processedOnce by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -257,7 +282,6 @@ fun QRScannerView(
     }
 
     Box(modifier = modifier.fillMaxSize().background(Color.White)) {
-        // Top bar con botón atrás
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -281,7 +305,6 @@ fun QRScannerView(
                 onDispose { cameraExecutor.shutdown() }
             }
 
-            // Card contenedora del preview
             Card(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -321,7 +344,7 @@ fun QRScannerView(
                                     processImageProxy(imageProxy, scanner) { value ->
                                         if (!processedOnce) {
                                             processedOnce = true
-                                            handleQrScan(context, value, onResult)
+                                            handleQrScan(context, value, currentEmployeeId, onResult)
                                         }
                                     }
                                 }
@@ -344,7 +367,6 @@ fun QRScannerView(
                         }
                     )
 
-                    // Marco de escaneo
                     ScannerOverlay(
                         modifier = Modifier
                             .fillMaxSize()
@@ -353,7 +375,6 @@ fun QRScannerView(
                 }
             }
         } else {
-            // Estado sin permiso: solo mensaje + volver
             Column(
                 modifier = Modifier
                     .align(Alignment.Center)

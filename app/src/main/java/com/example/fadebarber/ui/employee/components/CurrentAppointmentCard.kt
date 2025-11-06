@@ -32,6 +32,10 @@ import com.example.fadebarber.R
 import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.UserData
 import kotlinx.coroutines.CoroutineScope
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import kotlin.math.ceil
+import java.util.Locale
 
 @Composable
 fun CurrentAppointmentCard(
@@ -128,9 +132,15 @@ fun CurrentAppointmentCard(
 
                         // Nombre y horario
                         Column {
-                            val clientName = users
-                                ?.firstOrNull { it.id == ongoingAppointment.idClient }
-                                ?.nameUser ?: "Sin cliente"
+                            val clientName = if (ongoingAppointment.idClient.isNullOrBlank()) {
+                                ongoingAppointment.nameClient ?: "Cliente"
+                            } else {
+                                users
+                                    ?.firstOrNull { it.id == ongoingAppointment.idClient }
+                                    ?.nameUser
+                                    ?: ongoingAppointment.nameClient
+                                    ?: "Cliente"
+                            }
 
                             Text(
                                 text = clientName,
@@ -139,8 +149,23 @@ fun CurrentAppointmentCard(
                                 color = Color(0xFF1F2937)
                             )
 
+                            // Rango de horario basado en slots de 30 min y duración total
+                            val startTimeStr = ongoingAppointment.timeAppointment ?: ""
+                            val durationMinutes = ongoingAppointment.durationTotal ?: 0
+                            val parseFormatter = DateTimeFormatter.ofPattern("HH:mm")
+                            val displayFormatter = DateTimeFormatter.ofPattern("hh:mm a").withLocale(Locale.getDefault())
+                            val startTime = try {
+                                LocalTime.parse(startTimeStr, parseFormatter)
+                            } catch (e: Exception) {
+                                null
+                            }
+                            val slots = if (durationMinutes > 0) ceil(durationMinutes / 30.0).toInt() else 1
+                            val endTime = startTime?.plusMinutes((slots * 30).toLong())
+                            val startDisplay = startTime?.format(displayFormatter) ?: ""
+                            val endDisplay = endTime?.format(displayFormatter) ?: ""
+
                             Text(
-                                text = "${ongoingAppointment.timeAppointment} - ${ongoingAppointment.timeAppointment}",
+                                text = if (startDisplay.isNotBlank()) "$startDisplay - $endDisplay" else "",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF6B7280)

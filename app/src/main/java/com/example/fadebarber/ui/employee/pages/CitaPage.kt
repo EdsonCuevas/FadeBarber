@@ -469,7 +469,7 @@ fun CitaPage(
                                     // Descripción con el profesional
                                     val user = users.find { it.id == appointment.idClient }
                                     Text(
-                                        text = "con ${user?.nameUser ?: "Profesional"}",
+                                        text = "con ${user?.nameUser ?: appointment.nameClient ?: "Sin cliente"}",
                                         fontSize = 14.sp,
                                         color = Color(0xFF64748B)
                                     )
@@ -803,7 +803,7 @@ fun AppointmentCard(
 
                 // Nombre del cliente
                 Text(
-                    text = client?.nameUser ?: "Cliente",
+                    text = client?.nameUser ?: appointment.nameClient ?: "Sin cliente",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1F2937)
