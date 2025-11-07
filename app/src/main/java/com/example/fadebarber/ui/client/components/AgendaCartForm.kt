@@ -229,29 +229,36 @@ fun AgendaCartForm(
                             generateQRCode(appointmentId)
                         }
 
-                        // Enviar correo con QR
-                        withContext(Dispatchers.IO) {
-                            sendEmailWithQR(
-                                to = clientEmail,
-                                subject = "Cita agendada - FadeBarber",
-                                clientName = clientName,
-                                barberName = nameBarber,
-                                date = formatDate(selectedDate.toString()),
-                                time = requestedStart.format(dbFormatter),
-                                qrBitmap = qrBitmap,
-                                fromEmail = "elizaldiromero14@gmail.com",
-                                fromPassword = "rvemlhzgtkzcqjnv"
-                            )
-                        }
-
-                        // Mostrar notificación push de cita agendada
-
-                        occupiedTimeStrings = occupiedTimeStrings + requestedSlots
-                        paymentState = PaymentState.SUCCESS
-                    } else {
-                        errorMessage = "Error al guardar la cita. Intenta de nuevo."
-                        paymentState = PaymentState.ERROR
+                    // Enviar correo con QR
+                    withContext(Dispatchers.IO) {
+                        sendEmailWithQR(
+                            to = clientEmail,
+                            subject = "Cita agendada - FadeBarber",
+                            clientName = clientName,
+                            barberName = nameBarber,
+                            date = formatDate(selectedDate.toString()),
+                            time = requestedStart.format(dbFormatter),
+                            qrBitmap = qrBitmap,
+                            fromEmail = "elizaldiromero14@gmail.com",
+                            fromPassword = "rvemlhzgtkzcqjnv"
+                        )
                     }
+
+                    // Mostrar notificación push de cita agendada
+                    NotificationHelper.sendAppointmentBookedNotification(
+                        context = context,
+                        userName = clientName,
+                        date = formatDate(selectedDate.toString()),
+                        time = requestedStart.format(dbFormatter),
+                        barberName = nameBarber
+                    )
+
+                    occupiedTimeStrings = occupiedTimeStrings + requestedSlots
+                    paymentState = PaymentState.SUCCESS
+                } else {
+                    errorMessage = "Error al guardar la cita. Intenta de nuevo."
+                    paymentState = PaymentState.ERROR
+                }
                 } catch (e: Exception) {
                     errorMessage = "Error: ${e.message}"
                     paymentState = PaymentState.ERROR
