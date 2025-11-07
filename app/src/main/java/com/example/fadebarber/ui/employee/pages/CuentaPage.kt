@@ -25,6 +25,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -210,7 +214,6 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
             ) {
                 Column(
                     modifier = Modifier
-                        .clickable { showCuenta = !showCuenta }
                         .padding(16.dp)
                 ) {
                     Row(
@@ -239,72 +242,85 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
                                 )
                             }
                         }
-                        Icon(
-                            painter = painterResource(
-                                id = if (showCuenta) android.R.drawable.arrow_up_float
-                                else android.R.drawable.arrow_down_float
-                            ),
-                            contentDescription = if (showCuenta) "Contraer" else "Expandir",
-                            tint = Color(0xFF0A66C2),
-                            modifier = Modifier.size(20.dp)
-                        )
                     }
-                    AnimatedVisibility(
-                        visible = showCuenta,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        Column(modifier = Modifier.padding(top = 12.dp)) {
-                            OutlinedTextField(
-                                value = editableName,
-                                onValueChange = { editableName = it },
-                                label = { Text("Nombre") },
-                                singleLine = true,
-                                enabled = !isLoading,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                    Column(modifier = Modifier.padding(top = 12.dp)) {
+                        Text(
+                            text = "Datos personales",
+                            fontSize = 14.sp,
+                            color = Color(0xFF374151)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = editableName,
+                            onValueChange = { editableName = it },
+                            label = { Text("Nombre") },
+                            singleLine = true,
+                            enabled = !isLoading,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Person,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0A66C2)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
-                                value = editableEmail,
-                                onValueChange = { editableEmail = it },
-                                label = { Text("Correo") },
-                                singleLine = true,
-                                enabled = !isLoading,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                        OutlinedTextField(
+                            value = editableEmail,
+                            onValueChange = { editableEmail = it },
+                            label = { Text("Correo") },
+                            singleLine = true,
+                            enabled = !isLoading,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Email,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0A66C2)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
-                                value = editablePhone,
-                                onValueChange = { editablePhone = it },
-                                label = { Text("Teléfono") },
-                                singleLine = true,
-                                enabled = !isLoading,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                        OutlinedTextField(
+                            value = editablePhone,
+                            onValueChange = { editablePhone = it },
+                            label = { Text("Teléfono") },
+                            singleLine = true,
+                            enabled = !isLoading,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Phone,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0A66C2)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
-                                value = editablePassword,
-                                onValueChange = { editablePassword = it },
-                                label = { Text("Nueva Contraseña (opcional)") },
-                                singleLine = true,
-                                enabled = !isLoading,
-                                modifier = Modifier.fillMaxWidth(),
-                                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    IconButton(onClick = { showPassword = !showPassword }) {
-                                        Icon(
-                                            imageVector = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                            contentDescription = "Toggle contraseña"
-                                        )
-                                    }
+                        OutlinedTextField(
+                            value = editablePassword,
+                            onValueChange = { editablePassword = it },
+                            label = { Text("Nueva Contraseña (opcional)") },
+                            singleLine = true,
+                            enabled = !isLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showPassword = !showPassword }) {
+                                    Icon(
+                                        imageVector = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        contentDescription = "Toggle contraseña"
+                                    )
                                 }
-                            )
+                            }
+                        )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
@@ -344,7 +360,6 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
                                 }
                                 Text("Guardar cambios")
                             }
-                        }
                     }
                 }
             }
@@ -360,7 +375,6 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
             ) {
                 Column(
                     modifier = Modifier
-                        .clickable { showHorario = !showHorario }
                         .padding(16.dp)
                 ) {
                     Row(
@@ -382,23 +396,8 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
                                 color = Color(0xFF0A66C2)
                             )
                         }
-                        Icon(
-                            painter = painterResource(
-                                id = if (showHorario) android.R.drawable.arrow_up_float
-                                else android.R.drawable.arrow_down_float
-                            ),
-                            contentDescription = if (showHorario) "Contraer" else "Expandir",
-                            tint = Color(0xFF0A66C2),
-                            modifier = Modifier.size(20.dp)
-                        )
                     }
-
-                    AnimatedVisibility(
-                        visible = showHorario,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        Column(modifier = Modifier.padding(top = 16.dp)) {
+                    Column(modifier = Modifier.padding(top = 16.dp)) {
                             Text(
                                 text = "Horarios de Atención",
                                 fontSize = 16.sp,
@@ -414,7 +413,6 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
                             HorarioItem("Viernes", "7:00 AM", "9:00 PM", true)
                             HorarioItem("Sábado", "8:00 AM", "8:00 PM", true)
                             HorarioItem("Domingo", "Cerrado", "", false)
-                        }
                     }
                 }
             }
@@ -430,7 +428,6 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
             ) {
                 Column(
                     modifier = Modifier
-                        .clickable { showAyuda = !showAyuda }
                         .padding(16.dp)
                 ) {
                     Row(
@@ -452,23 +449,8 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
                                 color = Color(0xFF0A66C2)
                             )
                         }
-                        Icon(
-                            painter = painterResource(
-                                id = if (showAyuda) android.R.drawable.arrow_up_float
-                                else android.R.drawable.arrow_down_float
-                            ),
-                            contentDescription = if (showAyuda) "Contraer" else "Expandir",
-                            tint = Color(0xFF0A66C2),
-                            modifier = Modifier.size(20.dp)
-                        )
                     }
-
-                    AnimatedVisibility(
-                        visible = showAyuda,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        Column(modifier = Modifier.padding(top = 16.dp)) {
+                    Column(modifier = Modifier.padding(top = 16.dp)) {
                             Text(
                                 text = "Motivo De Ayuda",
                                 fontSize = 16.sp,
@@ -510,37 +492,25 @@ fun CuentaPage(modifier: Modifier = Modifier, navController: NavController = Nav
                             ) {
                                 Text("Enviar", color = Color.White)
                             }
-                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-
-            // Cerrar sesión (versión alternativa con navegación forzada)
-            Button(
-                onClick = {
-                    Log.d("EmployeeScreens", "Cerrando sesión...")
-                    authViewModel.logout()
-
-                    // Forzar navegación directa
-                    navController.navigate("login") {
-                        popUpTo(0) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
-            ) {
-                Icon(
-                    painter = painterResource(id = android.R.drawable.ic_lock_power_off),
-                    contentDescription = "Cerrar sesión",
-                    tint = Color.White
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Cerrar Sesión", color = Color.White, fontSize = 16.sp)
-            }
+        }
+        // Botón de cerrar sesión en esquina superior derecha
+        IconButton(
+            onClick = {
+                Log.d("CuentaPage", "Botón de logout presionado")
+                authViewModel.logout()
+            },
+            modifier = Modifier.align(Alignment.TopEnd)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                contentDescription = "Cerrar sesión",
+                tint = Color(0xFFEF4444)
+            )
         }
         // Alerta personalizada
         if (showAlert) {

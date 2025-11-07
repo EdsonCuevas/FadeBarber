@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -75,6 +76,7 @@ import kotlinx.coroutines.withContext
 import sendEmailWithQR
 import android.util.Patterns
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.fadebarber.utils.NotificationHelper
@@ -655,7 +657,7 @@ fun AgendaCartForm(
                         val barberName = liveBarbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -664,8 +666,12 @@ fun AgendaCartForm(
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF1E293B)
                             )
-                            OutlinedButton(onClick = { currentStep = BookingStep.BARBER }) {
-                                Text("Cambiar")
+                            IconButton(onClick = { currentStep = BookingStep.BARBER }) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Editar barbero",
+                                    tint = Color(0xFF2563EB)
+                                )
                             }
                         }
                     } else {
@@ -808,7 +814,7 @@ fun AgendaCartForm(
                         if (!isExpandedDate && selectedDate != null) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -817,8 +823,12 @@ fun AgendaCartForm(
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF1E293B)
                                 )
-                                OutlinedButton(onClick = { currentStep = BookingStep.DATE }) {
-                                    Text("Cambiar")
+                                IconButton(onClick = { currentStep = BookingStep.DATE }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Editar fecha",
+                                        tint = Color(0xFF2563EB)
+                                    )
                                 }
                             }
                         } else {
@@ -943,7 +953,7 @@ fun AgendaCartForm(
                         if (!isExpandedTime && selectedTime != null) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -952,8 +962,12 @@ fun AgendaCartForm(
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF1E293B)
                                 )
-                                OutlinedButton(onClick = { currentStep = BookingStep.TIME }) {
-                                    Text("Cambiar")
+                                IconButton(onClick = { currentStep = BookingStep.TIME }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Editar hora",
+                                        tint = Color(0xFF2563EB)
+                                    )
                                 }
                             }
                         } else if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
@@ -1101,8 +1115,18 @@ fun AgendaCartForm(
                                     color = Color(0xFF1E293B)
                                 )
                                 Spacer(Modifier.height(12.dp))
-                                OutlinedButton(onClick = { currentStep = BookingStep.CLIENT }) {
-                                    Text("Cambiar")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(onClick = { currentStep = BookingStep.CLIENT }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Editar datos del cliente",
+                                            tint = Color(0xFF2563EB)
+                                        )
+                                    }
                                 }
                             }
                         } else {
