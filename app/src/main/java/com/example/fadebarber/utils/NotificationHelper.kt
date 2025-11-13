@@ -166,6 +166,25 @@ object NotificationHelper {
         }
     }
 
+    // === Notificación de cita agendada ===
+    fun sendAppointmentBookedNotification(
+        context: Context,
+        userName: String,
+        date: String,
+        time: String,
+        barberName: String? = null
+    ) {
+        val title = "📅 Cita Agendada"
+        val body = buildString {
+            append("$userName, tu cita ha sido agendada para $date a las $time")
+            if (!barberName.isNullOrBlank()) {
+                append(" con $barberName")
+            }
+        }
+        createNotificationChannel(context)
+        showNotification(context, title, body)
+    }
+
     private fun getNotificationTitle(updateType: String): String {
         return when (updateType) {
             "name_change" -> "🎉 ¡Perfil Actualizado!"

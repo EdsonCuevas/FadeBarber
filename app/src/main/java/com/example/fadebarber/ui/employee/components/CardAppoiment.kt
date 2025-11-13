@@ -1,4 +1,4 @@
-package com.example.fadebarber.ui.employee.components
+    package com.example.fadebarber.ui.employee.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

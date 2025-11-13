@@ -376,6 +376,7 @@ fun AgendarEmpleadoPage(
                     items = cartItems,
                     onClose = { showCart = false },
                     onRemove = { item -> viewModel.removeFromCart(item) },
+                    onAdd = { item -> viewModel.addToCart(item) },
                     onAgendar = {
                         // Abrir agenda sobre el carrito
                         showAgendaSheet = true

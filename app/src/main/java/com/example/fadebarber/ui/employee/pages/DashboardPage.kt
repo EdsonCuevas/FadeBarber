@@ -72,6 +72,7 @@ import kotlinx.coroutines.launch
 import org.threeten.bp.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -251,15 +252,28 @@ fun DashboardPage(
                     }
 
                     Box {
-                        Image(
-                            painter = painterResource(id = R.drawable.perfil),
-                            contentDescription = "Imagen de perfil",
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
+                        if (!user.photoURL.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = user.photoURL,
+                                contentDescription = "Foto de perfil",
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                                contentScale = ContentScale.Crop,
+                                error = painterResource(id = R.drawable.perfil)
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.perfil),
+                                contentDescription = "Imagen de perfil",
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
                 }
 
@@ -535,7 +549,7 @@ fun DashboardPage(
                                                 val client =
                                                     users.find { it.id == appointment.idClient }
                                                 Text(
-                                                    text = "con ${client?.nameUser ?: "Cliente"}",
+                                                    text = "con ${client?.nameUser ?: appointment.nameClient}",
                                                     fontSize = 14.sp,
                                                     color = Color(0xFF64748B)
                                                 )
@@ -1002,10 +1016,11 @@ fun DashboardPage(
                 ) {
                     QRScannerView(
                         modifier = Modifier.fillMaxSize(),
-                        onResult = { code ->
+                        currentEmployeeId = user.id,
+                        onResult = { message ->
                             showScanner = false
-                            alertMessage = "QR detectado: $code"
-                            alertColor = Color(0xFF10B981)
+                            alertMessage = message
+                            alertColor = if (message.startsWith("Cita validada")) Color(0xFF10B981) else Color(0xFFEF4444)
                             showAlert = true
                         },
                         onClose = { showScanner = false }

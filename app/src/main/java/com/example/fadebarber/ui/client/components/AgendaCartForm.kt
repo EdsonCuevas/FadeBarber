@@ -1,4 +1,6 @@
 package com.example.fadebarber.ui.client.components
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -72,6 +74,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sendEmailWithQR
 import android.util.Patterns
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.fadebarber.utils.NotificationHelper
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -105,6 +111,9 @@ fun AgendaCartForm(
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
     var selectedPayment by remember { mutableStateOf("Efectivo") }
     var currentStep by remember { mutableStateOf(BookingStep.BARBER) }
+
+    // Estado local de barberos que se actualiza en tiempo real
+    var liveBarbers by remember(barbers) { mutableStateOf(barbers) }
 
     // Estados de procesamiento
     var paymentState by remember { mutableStateOf(PaymentState.IDLE) }
@@ -222,7 +231,7 @@ fun AgendaCartForm(
                         withContext(Dispatchers.IO) {
                             sendEmailWithQR(
                                 to = clientEmail,
-                                subject = "Confirmación de cita - FadeBarber",
+                                subject = "Cita agendada - FadeBarber",
                                 clientName = clientName,
                                 barberName = nameBarber,
                                 date = formatDate(selectedDate.toString()),
@@ -257,15 +266,32 @@ fun AgendaCartForm(
         }
     )
 
-    // Días disponibles
-    val availableDays by remember(selectedBarber, barbers) {
+    // Días disponibles (derivados del horario del barbero seleccionado)
+    val availableDays by remember(selectedBarber, liveBarbers) {
         derivedStateOf {
-            val schedule = barbers.firstOrNull { it.id == selectedBarber }?.schedule
+            val schedule = liveBarbers.firstOrNull { it.id == selectedBarber }?.schedule
             (0..6).mapNotNull { offset ->
                 val day = today.plusDays(offset.toLong())
                 val key = day.dayOfWeek.name.lowercase(Locale.ENGLISH)
                 if (schedule?.get(key)?.available == true) day else null
             }
+        }
+    }
+
+    // Listener en tiempo real de barberos (foto, horarios y disponibilidad)
+    DisposableEffect(Unit) {
+        val listener = FirebaseRepository.listenToBarbers { updatedBarbers ->
+            liveBarbers = updatedBarbers
+            // Si el barbero seleccionado desaparece o se desactiva, resetear selección
+            if (selectedBarber != null && updatedBarbers.none { it.id == selectedBarber }) {
+                selectedBarber = null
+                selectedDate = null
+                selectedTime = null
+                currentStep = BookingStep.BARBER
+            }
+        }
+        onDispose {
+            FirebaseRepository.stopListeningToBarbers(listener)
         }
     }
 
@@ -626,7 +652,7 @@ fun AgendaCartForm(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (currentStep != BookingStep.BARBER && selectedBarber != null) {
-                        val barberName = barbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
+                        val barberName = liveBarbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -643,69 +669,90 @@ fun AgendaCartForm(
                             }
                         }
                     } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            barbers.forEach { barber ->
-                                val isSelected = selectedBarber == barber.id
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable {
-                                            selectedBarber = barber.id
-                                            selectedDate = null
-                                            selectedTime = null
-                                            currentStep = BookingStep.DATE
-                                        },
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFF8FAFC)
-                                    ),
-                                    shape = RoundedCornerShape(16.dp),
-                                    elevation = CardDefaults.cardElevation(
-                                        defaultElevation = if (isSelected) 6.dp else 0.dp
-                                    )
+                            liveBarbers.chunked(2).forEach { rowBarbers ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Box(
+                                    rowBarbers.forEach { barber ->
+                                        val isSelected = selectedBarber == barber.id
+                                        Card(
                                             modifier = Modifier
-                                                .size(48.dp)
-                                                .background(
-                                                    if (isSelected) Color.White.copy(alpha = 0.2f)
-                                                    else Color(0xFF2563EB).copy(alpha = 0.1f),
-                                                    CircleShape
-                                                ),
-                                            contentAlignment = Alignment.Center
+                                                .weight(1f)
+                                                .clickable {
+                                                    selectedBarber = barber.id
+                                                    selectedDate = null
+                                                    selectedTime = null
+                                                    currentStep = BookingStep.DATE
+                                                },
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFF8FAFC)
+                                            ),
+                                            shape = RoundedCornerShape(16.dp),
+                                            elevation = CardDefaults.cardElevation(
+                                                defaultElevation = if (isSelected) 6.dp else 0.dp
+                                            )
                                         ) {
-                                            Text(
-                                                text = barber.nameUser.firstOrNull()?.uppercase() ?: "B",
-                                                fontSize = 20.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isSelected) Color.White else Color(0xFF2563EB)
-                                            )
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                val imageUrl = barber.photoURL
+                                                if (!imageUrl.isNullOrBlank()) {
+                                                    AsyncImage(
+                                                        model = imageUrl,
+                                                        contentDescription = "Foto del barbero",
+                                                        modifier = Modifier
+                                                            .size(48.dp)
+                                                            .clip(CircleShape),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                } else {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(48.dp)
+                                                            .clip(CircleShape)
+                                                            .background(Color(0xFF2196F3)),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Person,
+                                                            contentDescription = "Avatar por defecto",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    barber.nameUser,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (isSelected) Color.White else Color(0xFF1E293B),
+                                                    textAlign = TextAlign.Center,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                if (isSelected) {
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Icon(
+                                                        imageVector = Icons.Default.CheckCircle,
+                                                        contentDescription = "Seleccionado",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
                                         }
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            barber.nameUser,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (isSelected) Color.White else Color(0xFF1E293B),
-                                            textAlign = TextAlign.Center
-                                        )
-                                        if (isSelected) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Icon(
-                                                imageVector = Icons.Default.CheckCircle,
-                                                contentDescription = "Seleccionado",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
+                                    }
+                                    if (rowBarbers.size == 1) {
+                                        Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
                             }
@@ -888,7 +935,7 @@ fun AgendaCartForm(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        val schedule = barbers.firstOrNull { it.id == selectedBarber }?.schedule
+                        val schedule = liveBarbers.firstOrNull { it.id == selectedBarber }?.schedule
                         val key = selectedDate!!.dayOfWeek.name.lowercase(Locale.ENGLISH)
                         val daySchedule = schedule?.get(key)
 
@@ -1216,6 +1263,7 @@ fun AgendaCartForm(
                             expanded = expanded,
                             onDismissRequest = { expanded = false },
                             modifier = Modifier.fillMaxWidth(0.85f)
+                                .background(Color.White)
                         ) {
                             listOf("Efectivo", "Tarjeta").forEach { option ->
                                 DropdownMenuItem(
@@ -1229,7 +1277,7 @@ fun AgendaCartForm(
                                                     Icons.Default.CreditCard else Icons.Default.AttachMoney,
                                                 contentDescription = null,
                                                 tint = if (selectedPayment == option)
-                                                    Color(0xFF2563EB) else Color(0xFF94A3B8)
+                                                    Color(0xFF2563EB) else Color(0xFF1E293B)
                                             )
                                             Spacer(Modifier.width(12.dp))
                                             Text(
@@ -1237,7 +1285,7 @@ fun AgendaCartForm(
                                                 fontWeight = if (selectedPayment == option)
                                                     FontWeight.Bold else FontWeight.Normal,
                                                 color = if (selectedPayment == option)
-                                                    Color(0xFF1E293B) else Color(0xFF64748B)
+                                                    Color(0xFF2563EB) else Color(0xFF1E293B)
                                             )
                                         }
                                     },
@@ -1375,7 +1423,7 @@ fun AgendaCartForm(
                                 }
 
                                 if (appointmentId != null) {
-                                    val nameBarber = barbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
+                                    val nameBarber = liveBarbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
 
                                     // Generar QR con el ID de la cita
                                     val qrBitmap = withContext(Dispatchers.IO) {
@@ -1386,7 +1434,7 @@ fun AgendaCartForm(
                                     withContext(Dispatchers.IO) {
                                         sendEmailWithQR(
                                             to = clientEmail,
-                                            subject = "Confirmación de cita - FadeBarber",
+                                            subject = "Cita agendada - FadeBarber",
                                             clientName = clientName,
                                             barberName = nameBarber,
                                             date = formatDate(selectedDate.toString()),
@@ -1398,7 +1446,13 @@ fun AgendaCartForm(
                                     }
 
                                     // Mostrar notificación push de cita agendada
-
+                                    NotificationHelper.sendAppointmentBookedNotification(
+                                        context = context,
+                                        userName = clientName,
+                                        date = formatDate(selectedDate.toString()),
+                                        time = requestedStart.format(dbFormatter),
+                                        barberName = nameBarber
+                                    )
                                     occupiedTimeStrings = occupiedTimeStrings + requestedSlots
                                     paymentState = PaymentState.SUCCESS
                                 } else {

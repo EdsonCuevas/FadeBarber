@@ -62,7 +62,8 @@ fun ClientScreens(
             } else if (isGuest) {
                 GuestGateScreen(
                     section = "account",
-                    onLoginClick = { navController.navigate("login") }
+                    onLoginClick = { navController.navigate("login") },
+                    authViewModel = authViewModel
                 )
             } else {
                 LoadingIndicator()
@@ -74,7 +75,8 @@ fun ClientScreens(
             } else if (isGuest) {
                 GuestGateScreen(
                     section = "date",
-                    onLoginClick = { navController.navigate("login") }
+                    onLoginClick = { navController.navigate("login") },
+                    authViewModel = authViewModel
                 )
             } else {
                 LoadingIndicator()
@@ -105,7 +107,8 @@ private fun LoadingIndicator() {
 @Composable
 private fun GuestGateScreen(
     section: String,
-    onLoginClick: () -> Unit
+    onLoginClick: () -> Unit,
+    authViewModel: com.example.fadebarber.data.AuthViewModel
 ) {
     val (title, description, icon) = when (section) {
         "account" -> Triple(
@@ -191,7 +194,10 @@ private fun GuestGateScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = onLoginClick,
+                    onClick = {
+                        authViewModel.resetAuthState()
+                        onLoginClick()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
