@@ -80,6 +80,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.fadebarber.utils.NotificationHelper
+import android.provider.Settings
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -105,7 +106,8 @@ fun AgendaCartForm(
     barbers: List<UserData>,
     userId: String,
     onConfirm: (Boolean, String) -> Unit,
-    user: UserData
+    user: UserData,
+    appointments: List<AppointmentClientData>
 ) {
 
     var selectedBarber by remember { mutableStateOf<String?>(null) }
@@ -127,6 +129,7 @@ fun AgendaCartForm(
     val displayFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
     var occupiedTimeStrings by remember { mutableStateOf<Set<String>>(emptySet()) }
     var currentAppts by remember { mutableStateOf<List<AppointmentClientData>>(emptyList()) }
@@ -212,7 +215,8 @@ fun AgendaCartForm(
                         totalPrice = servicePrice + promotionPrice,
                         statusAppointment = 1,
                         statusPayment = 2,
-                        durationTotal = totalDuration
+                        durationTotal = totalDuration,
+                        deviceId = deviceId
                     )
 
                     // Guardar en Firebase
@@ -305,25 +309,19 @@ fun AgendaCartForm(
     }
 
     // Cargar citas ocupadas
-    LaunchedEffect(selectedBarber, selectedDate) {
+    LaunchedEffect(selectedBarber, selectedDate, appointments) {
         if (selectedBarber != null && selectedDate != null) {
-            try {
-                currentAppts = FirebaseRepository.getAppointmentsByBarberAndDate(
-                    barberId = selectedBarber!!,
-                    date = selectedDate.toString()
-                )
-                occupiedTimeStrings = currentAppts.flatMap { appt ->
+            val dateStr = selectedDate.toString()
+            currentAppts = appointments.filter { it.idEmployee == selectedBarber && it.dateAppointment == dateStr }
+            occupiedTimeStrings = currentAppts.filter { (it.statusAppointment ?: 1) < 4 }
+                .flatMap { appt ->
                     val start = LocalTime.parse(appt.timeAppointment, dbFormatter)
                     val duration = appt.durationTotal ?: 0
                     generateSequence(start) { it.plusMinutes(30) }
                         .takeWhile { it.isBefore(start.plusMinutes(duration.toLong())) }
                         .map { it.format(dbFormatter) }
-                }.toSet()
-            } catch (e: Exception) {
-                occupiedTimeStrings = emptySet()
-                currentAppts = emptyList()
-                e.printStackTrace()
-            }
+                }
+                .toSet()
             selectedTime = null
         } else {
             occupiedTimeStrings = emptySet()
@@ -1368,6 +1366,30 @@ fun AgendaCartForm(
                         return@Button
                     }
 
+                    if (items.size > 4) {
+                        onConfirm(false, "Máximo 4 entre servicios y promociones por cita")
+                        return@Button
+                    }
+
+                    // Máximo 2 veces por servicio (validación defensiva)
+                    val serviceCounts = items.filterIsInstance<ServiceData>().groupingBy { it.id }.eachCount()
+                    if (serviceCounts.any { it.value > 2 }) {
+                        errorMessage = "Máximo 2 veces el mismo servicio"
+                        paymentState = PaymentState.ERROR
+                        return@Button
+                    }
+
+                    // Límite diario: máximo 2 citas HOY por cliente
+                    val targetDate = today.toString()
+                    val dailyCount = appointments.count { appt ->
+                        appt.dateAppointment == targetDate && appt.deviceId == deviceId
+                    }
+                    if (dailyCount >= 2) {
+                        errorMessage = "Solo puedes agendar 2 citas hoy"
+                        paymentState = PaymentState.ERROR
+                        return@Button
+                    }
+
                     // Prevenir múltiples clics
                     if (isProcessing) {
                         return@Button
@@ -1446,7 +1468,8 @@ fun AgendaCartForm(
                                     totalPrice = servicePrice + promotionPrice,
                                     statusAppointment = 1,
                                     statusPayment = 1,
-                                    durationTotal = totalDuration
+                                    durationTotal = totalDuration,
+                                    deviceId = deviceId
                                 )
 
                                 val appointmentId = withContext(Dispatchers.IO) {

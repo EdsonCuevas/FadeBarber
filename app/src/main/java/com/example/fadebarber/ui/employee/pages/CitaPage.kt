@@ -24,10 +24,13 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.HourglassBottom
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -58,7 +61,9 @@ import com.example.fadebarber.data.model.PromotionData
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalTime
+import org.threeten.bp.YearMonth
 import org.threeten.bp.format.DateTimeFormatter
+import org.threeten.bp.format.TextStyle
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,6 +75,10 @@ fun CitaPage(
 ) {
     var selectedAppointment by remember { mutableStateOf<AppointmentClientData?>(null) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var currentMonth by remember { mutableStateOf(YearMonth.from(LocalDate.now())) }
+    var calendarExpanded by remember { mutableStateOf(false) }
+    val allowedMinMonth = remember { YearMonth.from(LocalDate.now()).minusMonths(1) }
+    val allowedMaxMonth = remember { YearMonth.from(LocalDate.now()).plusMonths(1) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val appointments by viewModel.appointments.collectAsState(initial = emptyList())
@@ -279,6 +288,62 @@ fun CitaPage(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (!calendarExpanded) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 12.dp
+                ),
+                onClick = { calendarExpanded = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${currentMonth.month.toString().lowercase(Locale("es")).replaceFirstChar { it.uppercase() }} ${currentMonth.year}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Color(0xFF1E293B),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        } else {
+            MonthCalendarEmployee(
+                currentMonth = currentMonth,
+                selectedDate = selectedDate,
+                appointments = appointments,
+                currentEmployeeId = user.id,
+                enabledDates = days.toSet(),
+                onMonthChange = { newMonth ->
+                    if (newMonth >= allowedMinMonth && newMonth <= allowedMaxMonth) {
+                        currentMonth = newMonth
+                    }
+                },
+                onSelectDate = { date ->
+                    selectedDate = date
+                    calendarExpanded = false
+                },
+                allowedMinMonth = allowedMinMonth,
+                allowedMaxMonth = allowedMaxMonth,
+                onCollapse = { calendarExpanded = false },
+                isExpanded = calendarExpanded
+            )
+        }
 
         // LISTA DE CITAS
         LazyColumn(
@@ -844,6 +909,237 @@ fun AppointmentCard(
                         color = statusColor
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthCalendarEmployee(
+    currentMonth: YearMonth,
+    selectedDate: LocalDate,
+    appointments: List<AppointmentClientData>,
+    currentEmployeeId: String?,
+    enabledDates: Set<LocalDate>,
+    onMonthChange: (YearMonth) -> Unit,
+    onSelectDate: (LocalDate) -> Unit,
+    allowedMinMonth: YearMonth,
+    allowedMaxMonth: YearMonth,
+    onCollapse: () -> Unit,
+    isExpanded: Boolean
+) {
+    val locale = Locale("es", "ES")
+    val monthTitle = currentMonth.month
+        .getDisplayName(TextStyle.FULL, locale)
+        .replaceFirstChar { ch -> if (ch.isLowerCase()) ch.titlecase(locale) else ch.toString() } + " " + currentMonth.year
+
+    val appointmentDates = remember(appointments, currentEmployeeId) {
+        appointments
+            .filter { it.idEmployee == currentEmployeeId }
+            .mapNotNull { it.dateAppointment?.take(10) }
+            .toSet()
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = monthTitle,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { onMonthChange(currentMonth.minusMonths(1)) },
+                        modifier = Modifier.size(36.dp),
+                        enabled = currentMonth > allowedMinMonth
+                    ) {
+                        Icon(
+                            painter = painterResource(id = android.R.drawable.ic_media_previous),
+                            contentDescription = null,
+                            tint = if (currentMonth > allowedMinMonth) Color(0xFF2563EB) else Color(0xFF94A3B8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { onMonthChange(currentMonth.plusMonths(1)) },
+                        modifier = Modifier.size(36.dp),
+                        enabled = currentMonth < allowedMaxMonth
+                    ) {
+                        Icon(
+                            painter = painterResource(id = android.R.drawable.ic_media_next),
+                            contentDescription = null,
+                            tint = if (currentMonth < allowedMaxMonth) Color(0xFF2563EB) else Color(0xFF94A3B8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onCollapse,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowUp,
+                            contentDescription = null,
+                            tint = Color(0xFF2563EB),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val weekDays = listOf("D", "L", "M", "M", "J", "V", "S")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                weekDays.forEach { day ->
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = day,
+                            fontSize = 13.sp,
+                            color = Color(0xFF64748B),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            CalendarGridEmployee(
+                currentMonth = currentMonth,
+                selectedDate = selectedDate,
+                appointmentDates = appointmentDates,
+                enabledDates = enabledDates,
+                onDateClick = onSelectDate
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarGridEmployee(
+    currentMonth: YearMonth,
+    selectedDate: LocalDate,
+    appointmentDates: Set<String>,
+    enabledDates: Set<LocalDate>,
+    onDateClick: (LocalDate) -> Unit
+) {
+    val firstDayOfMonth = currentMonth.atDay(1)
+    val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
+    val daysInMonth = currentMonth.lengthOfMonth()
+
+    val cells = mutableListOf<LocalDate?>().apply {
+        repeat(firstDayOfWeek) { add(null) }
+        for (day in 1..daysInMonth) {
+            add(currentMonth.atDay(day))
+        }
+        while (size % 7 != 0) add(null)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (rowStart in cells.indices step 7) {
+            if (rowStart >= cells.size) break
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                for (i in 0 until 7) {
+                    val date = cells.getOrNull(rowStart + i)
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CalendarDayCellEmployee(
+                            date = date,
+                            isSelected = date == selectedDate,
+                            hasAppointments = date?.toString() in appointmentDates,
+                            enabled = date != null && enabledDates.contains(date),
+                            onClick = { date?.let { onDateClick(it) } }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarDayCellEmployee(
+    date: LocalDate?,
+    isSelected: Boolean,
+    hasAppointments: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    if (date == null) {
+        Box(modifier = Modifier.size(44.dp))
+        return
+    }
+
+    val today = LocalDate.now()
+    val isToday = date == today
+
+    val bg = when {
+        isSelected -> Color(0xFF2563EB)
+        isToday -> Color(0xFFE3F2FD)
+        else -> Color.Transparent
+    }
+
+    val fg = when {
+        !enabled -> Color(0xFF94A3B8)
+        isSelected -> Color.White
+        isToday -> Color(0xFF2563EB)
+        else -> Color(0xFF1E293B)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(bg)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = date.dayOfMonth.toString(),
+                fontSize = 15.sp,
+                color = fg,
+                fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+
+            if (enabled && hasAppointments && !isSelected) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF2563EB))
+                )
             }
         }
     }

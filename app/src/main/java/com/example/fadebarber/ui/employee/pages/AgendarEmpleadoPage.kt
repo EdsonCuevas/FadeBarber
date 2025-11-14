@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,13 +15,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -38,11 +35,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -70,6 +64,24 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.res.painterResource
 import com.example.fadebarber.R
 import com.example.fadebarber.ui.client.pages.CartPage
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.foundation.BorderStroke
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +95,8 @@ fun AgendarEmpleadoPage(
     val services by viewModel.services.collectAsState()
     val promotions by viewModel.promotions.collectAsState()
     val cartItems by viewModel.cartItems.collectAsState()
+    val appointments by viewModel.appointments.collectAsState()
+    val cartNotice by viewModel.cartNotice.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.startRealtimeListeners()
@@ -95,6 +109,7 @@ fun AgendarEmpleadoPage(
     var searchQuery by remember { mutableStateOf("") }
     var showCart by remember { mutableStateOf(false) }
     var showAgendaSheet by remember { mutableStateOf(false) }
+    var noticeText by remember { mutableStateOf<String?>(null) }
     val barbers by produceState<List<UserData>>(initialValue = emptyList()) {
         value = FirebaseRepository.getBarbers()
     }
@@ -114,6 +129,63 @@ fun AgendarEmpleadoPage(
             .fillMaxSize()
             .background(Color(0xFFF5F7FA))
     ) {
+        LaunchedEffect(cartNotice) {
+            if (cartNotice != null) {
+                noticeText = cartNotice
+                viewModel.clearCartNotice()
+            }
+        }
+
+        if (noticeText != null) {
+            Popup(
+                alignment = Alignment.BottomCenter,
+                properties = PopupProperties(
+                    focusable = false,
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
+                )
+            ) {
+                Card(
+                    modifier = Modifier.widthIn(max = 360.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFDBEAFE)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    border = BorderStroke(1.dp, Color(0xFF93C5FD))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Color(0xFF93C5FD).copy(alpha = 0.25f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_calendar_clock),
+                                contentDescription = null,
+                                tint = Color(0xFF2563EB),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = noticeText ?: "",
+                            fontSize = 12.sp,
+                            color = Color(0xFF1E3A8A)
+                        )
+                    }
+                }
+            }
+        }
+        LaunchedEffect(noticeText) {
+            if (noticeText != null) {
+                delay(3000)
+                noticeText = null
+            }
+        }
         // Header simplificado con carrito y buscador compacto
         Box(
             modifier = Modifier
@@ -403,7 +475,8 @@ fun AgendarEmpleadoPage(
                             viewModel.clearCart()
                         }
                     },
-                    user = user
+                    user = user,
+                    appointments = appointments
                 )
             }
         }

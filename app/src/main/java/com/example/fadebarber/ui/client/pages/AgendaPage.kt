@@ -67,9 +67,15 @@ import com.example.fadebarber.ui.client.components.AgendaCartForm
 import com.example.fadebarber.data.repository.FirebaseRepository
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.res.painterResource
 import com.example.fadebarber.R
+import kotlinx.coroutines.delay
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.widthIn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +89,8 @@ fun AgendaPage(
     val services by viewModel.services.collectAsState()
     val promotions by viewModel.promotions.collectAsState()
     val cartItems by viewModel.cartItems.collectAsState()
+    val cartNotice by viewModel.cartNotice.collectAsState()
+    val appointments by viewModel.appointments.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.startRealtimeListeners()
@@ -95,6 +103,7 @@ fun AgendaPage(
     var searchQuery by remember { mutableStateOf("") }
     var showCart by remember { mutableStateOf(false) }
     var showAgendaSheet by remember { mutableStateOf(false) }
+    var noticeText by remember { mutableStateOf<String?>(null) }
     val barbers by produceState<List<UserData>>(initialValue = emptyList()) {
         value = FirebaseRepository.getBarbers()
     }
@@ -114,6 +123,63 @@ fun AgendaPage(
             .fillMaxSize()
             .background(Color(0xFFF5F7FA))
     ) {
+        LaunchedEffect(cartNotice) {
+            if (cartNotice != null) {
+                noticeText = cartNotice
+                viewModel.clearCartNotice()
+            }
+        }
+
+        if (noticeText != null) {
+            Popup(
+                alignment = Alignment.BottomCenter,
+                properties = PopupProperties(
+                    focusable = false,
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
+                )
+            ) {
+                Card(
+                    modifier = Modifier.widthIn(max = 280.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFDBEAFE)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    border = BorderStroke(1.dp, Color(0xFF93C5FD))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Color(0xFF93C5FD).copy(alpha = 0.25f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_calendar_clock),
+                                contentDescription = null,
+                                tint = Color(0xFF2563EB),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = noticeText ?: "",
+                            fontSize = 12.sp,
+                            color = Color(0xFF1E3A8A)
+                        )
+                    }
+                }
+            }
+        }
+        LaunchedEffect(noticeText) {
+            if (noticeText != null) {
+                delay(2500)
+                noticeText = null
+            }
+        }
         // Header simplificado con carrito y buscador compacto
         Box(
             modifier = Modifier
@@ -403,7 +469,8 @@ fun AgendaPage(
                             viewModel.clearCart()
                         }
                     },
-                    user = user
+                    user = user,
+                    appointments = appointments
                 )
             }
         }
