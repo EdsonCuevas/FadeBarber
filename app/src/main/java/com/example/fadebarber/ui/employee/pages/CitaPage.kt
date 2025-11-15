@@ -41,6 +41,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,7 +70,7 @@ import org.threeten.bp.format.DateTimeFormatter
 import org.threeten.bp.format.TextStyle
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CitaPage(
     modifier: Modifier = Modifier,
@@ -80,6 +84,7 @@ fun CitaPage(
     val allowedMinMonth = remember { YearMonth.from(LocalDate.now()).minusMonths(1) }
     val allowedMaxMonth = remember { YearMonth.from(LocalDate.now()).plusMonths(1) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val rescheduleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val appointments by viewModel.appointments.collectAsState(initial = emptyList())
     val services by viewModel.services.collectAsState(initial = emptyList())
@@ -753,6 +758,179 @@ fun CitaPage(
 
                     // Espaciado adicional para el bottom sheet
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    val canReschedule = (appointment.methodPayment ?: "").equals("Tarjeta", ignoreCase = true)
+                    var showReschedule by remember { mutableStateOf(false) }
+                    if (canReschedule) {
+                        Button(
+                            onClick = { showReschedule = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                        ) {
+                            Text("Reagendar", color = Color.White)
+                        }
+                    }
+
+                    if (showReschedule) {
+                        var rescheduleDate by remember { mutableStateOf(LocalDate.parse(appointment.dateAppointment)) }
+                        var rescheduleTime by remember { mutableStateOf(LocalTime.parse(appointment.timeAppointment)) }
+                        var calendarExpanded by remember { mutableStateOf(false) }
+
+                        ModalBottomSheet(
+                            sheetState = rescheduleSheetState,
+                            containerColor = Color.White,
+                            onDismissRequest = { showReschedule = false }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White)
+                                    .padding(24.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text("Reagendar cita", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+
+                                // Selector de fecha (colapsable)
+                                if (!calendarExpanded) {
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth(),
+                                        shape = RoundedCornerShape(18.dp),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                                        onClick = { calendarExpanded = true }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color.White)
+                                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = rescheduleDate.toString(),
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF1E293B)
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Filled.KeyboardArrowDown,
+                                                contentDescription = null,
+                                                tint = Color(0xFF1E293B),
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    MonthCalendarEmployee(
+                                        currentMonth = YearMonth.from(rescheduleDate),
+                                        selectedDate = rescheduleDate,
+                                        appointments = appointments,
+                                        currentEmployeeId = user.id,
+                                        enabledDates = days.toSet(),
+                                        onMonthChange = { newMonth -> },
+                                        onSelectDate = { date ->
+                                            rescheduleDate = date
+                                            calendarExpanded = false
+                                        },
+                                        allowedMinMonth = YearMonth.from(today).minusMonths(1),
+                                        allowedMaxMonth = YearMonth.from(today).plusMonths(1),
+                                        onCollapse = { calendarExpanded = false },
+                                        isExpanded = true
+                                    )
+                                }
+
+                                // Selector de hora con slots disponibles
+                                val employeeSchedule = users.firstOrNull { it.id == user.id }?.schedule
+                                val dayKey = rescheduleDate.dayOfWeek.name.lowercase(Locale.ENGLISH)
+                                val daySchedule = employeeSchedule?.get(dayKey)
+
+                                val activeAppointments = appointments.filter {
+                                    it.idEmployee == user.id && it.dateAppointment == rescheduleDate.toString() && it.id != appointment.id && (it.statusAppointment ?: 1) < 4
+                                }
+                                val occupiedSlots = activeAppointments.flatMap { appt ->
+                                    val start = LocalTime.parse(appt.timeAppointment, DateTimeFormatter.ofPattern("HH:mm"))
+                                    val duration = appt.durationTotal ?: 0
+                                    generateSequence(start) { it.plusMinutes(30) }
+                                        .takeWhile { it.isBefore(start.plusMinutes(duration.toLong())) }
+                                        .map { it.format(DateTimeFormatter.ofPattern("HH:mm")) }
+                                }.toSet()
+
+                                if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
+                                    val start = LocalTime.parse(daySchedule.start, DateTimeFormatter.ofPattern("HH:mm"))
+                                    val end = LocalTime.parse(daySchedule.end, DateTimeFormatter.ofPattern("HH:mm"))
+
+                                    Text("Selecciona nueva hora", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E293B))
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        generateSequence(start) { it.plusMinutes(30) }
+                                            .takeWhile { !it.isAfter(end) }
+                                            .forEach { slot ->
+                                                val slotKey = slot.format(DateTimeFormatter.ofPattern("HH:mm"))
+                                                val isOccupied = occupiedSlots.contains(slotKey)
+                                                val isPastTime = rescheduleDate == LocalDate.now() && slot.isBefore(LocalTime.now())
+                                                val isSelected = rescheduleTime.format(DateTimeFormatter.ofPattern("HH:mm")) == slotKey
+
+                                                Button(
+                                                    onClick = { if (!isOccupied && !isPastTime) rescheduleTime = slot },
+                                                    enabled = !isOccupied && !isPastTime,
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = when {
+                                                            isSelected -> Color(0xFF2563EB)
+                                                            isOccupied || isPastTime -> Color(0xFFF1F5F9)
+                                                            else -> Color(0xFFF8FAFC)
+                                                        },
+                                                        contentColor = when {
+                                                            isSelected -> Color.White
+                                                            isOccupied || isPastTime -> Color(0xFF94A3B8)
+                                                            else -> Color(0xFF1E293B)
+                                                        }
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Text(slot.format(DateTimeFormatter.ofPattern("HH:mm")))
+                                                }
+                                            }
+                                    }
+                                }
+
+                                // Confirmar reagendar
+                                val dbFormatter = DateTimeFormatter.ofPattern("HH:mm")
+                                val totalDuration = appointment.durationTotal ?: 0
+                                val requestedSlots = generateSequence(rescheduleTime) { it.plusMinutes(30) }
+                                    .takeWhile { it.isBefore(rescheduleTime.plusMinutes(totalDuration.toLong())) }
+                                    .map { it.format(dbFormatter) }
+                                    .toSet()
+
+                                val conflict = requestedSlots.any { it in occupiedSlots }
+
+                                Button(
+                                    onClick = {
+                                        if (conflict) return@Button
+                                        val database = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("Appointment")
+                                        val updates: Map<String, Any> = mapOf(
+                                            "dateAppointment" to rescheduleDate.toString(),
+                                            "timeAppointment" to rescheduleTime.format(dbFormatter)
+                                        )
+                                        appointment.id?.let { id ->
+                                            database.child(id)
+                                                .updateChildren(updates)
+                                                .addOnSuccessListener {
+                                                    showReschedule = false
+                                                }
+                                        }
+                                    },
+                                    enabled = !conflict,
+                                    colors = ButtonDefaults.buttonColors(containerColor = if (!conflict) Color(0xFF2563EB) else Color(0xFFF1F5F9))
+                                ) {
+                                    Text("Confirmar nueva fecha y hora", color = if (!conflict) Color.White else Color(0xFF94A3B8))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -264,11 +264,11 @@ fun DashboardPage(
                                     .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape)
                                     .clickable(onClick = onNavigateToAccount),
                                 contentScale = ContentScale.Crop,
-                                error = painterResource(id = R.drawable.perfil)
+                                error = painterResource(id = R.drawable.logo)
                             )
                         } else {
                             Image(
-                                painter = painterResource(id = R.drawable.perfil),
+                                painter = painterResource(id = R.drawable.profilelogo),
                                 contentDescription = "Imagen de perfil",
                                 modifier = Modifier
                                     .size(64.dp)
