@@ -291,6 +291,44 @@ fun AgendaCartForm(
         }
     }
 
+    var enteredBarberIdsToday by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    DisposableEffect(Unit) {
+        val listener = FirebaseRepository.listenToReadings { readings ->
+            try {
+                val todayPrefix = today.toString()
+                val todayReadings = readings.filter { it.timestamp?.startsWith(todayPrefix) == true }
+                val sorted = todayReadings.sortedByDescending { it.timestamp ?: "" }
+                val lastByUser = mutableMapOf<String, String>()
+                sorted.forEach { r ->
+                    val uid = r.userId ?: return@forEach
+                    if (!lastByUser.containsKey(uid)) {
+                        lastByUser[uid] = r.tipo ?: ""
+                    }
+                }
+                enteredBarberIdsToday = lastByUser.filterValues { it.equals("entrada", true) }.keys.toSet()
+            } catch (_: Exception) {
+                enteredBarberIdsToday = emptySet()
+            }
+        }
+        onDispose { FirebaseRepository.stopListeningToReadings(listener) }
+    }
+
+    val visibleBarbers by remember(selectedDate, liveBarbers, enteredBarberIdsToday) {
+        derivedStateOf {
+            val isTodayTarget = selectedDate == null || selectedDate == today
+            if (isTodayTarget) liveBarbers.filter { enteredBarberIdsToday.contains(it.id) } else liveBarbers
+        }
+    }
+
+    LaunchedEffect(selectedDate, enteredBarberIdsToday) {
+        val isTodayTarget = selectedDate == null || selectedDate == today
+        if (isTodayTarget && selectedBarber != null && !enteredBarberIdsToday.contains(selectedBarber)) {
+            selectedBarber = null
+            currentStep = BookingStep.BARBER
+        }
+    }
+
     // Listener en tiempo real de barberos (foto, horarios y disponibilidad)
     DisposableEffect(Unit) {
         val listener = FirebaseRepository.listenToBarbers { updatedBarbers ->
@@ -680,90 +718,103 @@ fun AgendaCartForm(
                             }
                         }
                     } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            liveBarbers.chunked(2).forEach { rowBarbers ->
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    rowBarbers.forEach { barber ->
-                                        val isSelected = selectedBarber == barber.id
-                                        Card(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .clickable {
-                                                    selectedBarber = barber.id
-                                                    selectedDate = null
-                                                    selectedTime = null
-                                                    currentStep = BookingStep.DATE
-                                                },
-                                            colors = CardDefaults.cardColors(
-                                                containerColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFF8FAFC)
-                                            ),
-                                            shape = RoundedCornerShape(16.dp),
-                                            elevation = CardDefaults.cardElevation(
-                                                defaultElevation = if (isSelected) 6.dp else 0.dp
-                                            )
-                                        ) {
-                                            Column(
+                        if (visibleBarbers.isEmpty()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "No hay barberos disponibles",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                visibleBarbers.chunked(2).forEach { rowBarbers ->
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        rowBarbers.forEach { barber ->
+                                            val isSelected = selectedBarber == barber.id
+                                            Card(
                                                 modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(16.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally
+                                                    .weight(1f)
+                                                    .clickable {
+                                                        selectedBarber = barber.id
+                                                        selectedDate = null
+                                                        selectedTime = null
+                                                        currentStep = BookingStep.DATE
+                                                    },
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFF8FAFC)
+                                                ),
+                                                shape = RoundedCornerShape(16.dp),
+                                                elevation = CardDefaults.cardElevation(
+                                                    defaultElevation = if (isSelected) 6.dp else 0.dp
+                                                )
                                             ) {
-                                                val imageUrl = barber.photoURL
-                                                if (!imageUrl.isNullOrBlank()) {
-                                                    AsyncImage(
-                                                        model = imageUrl,
-                                                        contentDescription = "Foto del barbero",
-                                                        modifier = Modifier
-                                                            .size(48.dp)
-                                                            .clip(CircleShape),
-                                                        contentScale = ContentScale.Crop
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    val imageUrl = barber.photoURL
+                                                    if (!imageUrl.isNullOrBlank()) {
+                                                        AsyncImage(
+                                                            model = imageUrl,
+                                                            contentDescription = "Foto del barbero",
+                                                            modifier = Modifier
+                                                                .size(48.dp)
+                                                                .clip(CircleShape),
+                                                            contentScale = ContentScale.Crop
+                                                        )
+                                                    } else {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(48.dp)
+                                                                .clip(CircleShape)
+                                                                .background(Color(0xFF2196F3)),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Person,
+                                                                contentDescription = "Avatar por defecto",
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Text(
+                                                        barber.nameUser,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = if (isSelected) Color.White else Color(0xFF1E293B),
+                                                        textAlign = TextAlign.Center,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis
                                                     )
-                                                } else {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(48.dp)
-                                                            .clip(CircleShape)
-                                                            .background(Color(0xFF2196F3)),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
+                                                    if (isSelected) {
+                                                        Spacer(modifier = Modifier.height(4.dp))
                                                         Icon(
-                                                            imageVector = Icons.Default.Person,
-                                                            contentDescription = "Avatar por defecto",
+                                                            imageVector = Icons.Default.CheckCircle,
+                                                            contentDescription = "Seleccionado",
                                                             tint = Color.White,
-                                                            modifier = Modifier.size(24.dp)
+                                                            modifier = Modifier.size(16.dp)
                                                         )
                                                     }
                                                 }
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    barber.nameUser,
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = if (isSelected) Color.White else Color(0xFF1E293B),
-                                                    textAlign = TextAlign.Center,
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                if (isSelected) {
-                                                    Spacer(modifier = Modifier.height(4.dp))
-                                                    Icon(
-                                                        imageVector = Icons.Default.CheckCircle,
-                                                        contentDescription = "Seleccionado",
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
-                                                }
                                             }
                                         }
-                                    }
-                                    if (rowBarbers.size == 1) {
-                                        Spacer(modifier = Modifier.weight(1f))
+                                        if (rowBarbers.size == 1) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
                                     }
                                 }
                             }
