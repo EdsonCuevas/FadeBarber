@@ -269,71 +269,86 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Editar Cuenta Card
-            MenuItemWithArrow(
-                text = "Editar Cuenta",
-                onClick = { showCuenta = !showCuenta }
-            )
-
-            // Formulario de edición
-            AnimatedVisibility(
-                visible = showCuenta,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+            // Editar Cuenta - inputs siempre visibles
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            OutlinedTextField(
-                                value = editableName,
-                                onValueChange = { editableName = it },
-                                label = { Text("Nombre") },
-                                enabled = isEditingProfile && !isLoading,
-                                isError = isEditingProfile && editableName.isBlank(),
-                                supportingText = {
-                                    if (isEditingProfile && editableName.isBlank()) {
-                                        Text("El nombre es requerido", color = Color(0xFFEF4444))
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Datos personales",
+                        fontSize = 14.sp,
+                        color = Color(0xFF374151)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = editableName,
+                        onValueChange = { editableName = it },
+                        label = { Text("Nombre") },
+                        enabled = (!isLoading),
+                        isError = isEditingProfile && editableName.isBlank(),
+                        supportingText = {
+                            if (isEditingProfile && editableName.isBlank()) {
+                                Text("El nombre es requerido", color = Color(0xFFEF4444))
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedTextField(
                                 value = editableEmail,
                                 onValueChange = { editableEmail = it },
                                 label = { Text("Correo") },
-                                enabled = isEditingProfile && !isLoading,
-                                isError = isEditingProfile && !isEmailValid,
-                                supportingText = {
-                                    if (isEditingProfile && !isEmailValid) {
-                                        Text("Formato de correo inválido", color = Color(0xFFEF4444))
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
+                        enabled = (!isLoading),
+                        isError = isEditingProfile && !isEmailValid,
+                        supportingText = {
+                            if (isEditingProfile && !isEmailValid) {
+                                Text("Formato de correo inválido", color = Color(0xFFEF4444))
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Email,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedTextField(
                                 value = editablePhone,
                                 onValueChange = { editablePhone = it },
                                 label = { Text("Teléfono") },
-                                enabled = isEditingProfile && !isLoading,
-                                isError = isEditingProfile && !isPhoneValid,
-                                supportingText = {
-                                    if (isEditingProfile && !isPhoneValid) {
-                                        Text("Teléfono debe tener 7-15 dígitos", color = Color(0xFFEF4444))
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
+                        enabled = (!isLoading),
+                        isError = isEditingProfile && !isPhoneValid,
+                        supportingText = {
+                            if (isEditingProfile && !isPhoneValid) {
+                                Text("Teléfono debe tener 7-15 dígitos", color = Color(0xFFEF4444))
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Phone,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3)
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
                             // Botones de acción
                             if (!isEditingProfile) {
@@ -418,120 +433,134 @@ fun CuentaPage(
                                     }
                                 }
                             }
-                        }
-                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Cambiar Contraseña
-            MenuItemWithArrow(
-                text = "Cambiar Contraseña",
-                onClick = { showPassword = !showPassword }
-            )
-
-            AnimatedVisibility(
-                visible = showPassword,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+            // Cambiar Contraseña - inputs siempre visibles
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            var showCurrentPassword by remember { mutableStateOf(false) }
-                            var showNewPassword by remember { mutableStateOf(false) }
-                            var showConfirmPassword by remember { mutableStateOf(false) }
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Seguridad",
+                        fontSize = 14.sp,
+                        color = Color(0xFF374151)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    var showCurrentPassword by remember { mutableStateOf(false) }
+                    var showNewPassword by remember { mutableStateOf(false) }
+                    var showConfirmPassword by remember { mutableStateOf(false) }
 
-                            OutlinedTextField(
-                                value = currentPassword,
-                                onValueChange = { currentPassword = it },
-                                label = { Text("Contraseña Actual") },
-                                enabled = isEditingPassword && !isLoadingPassword,
-                                isError = isEditingPassword && currentPassword.isBlank(),
-                                supportingText = {
-                                    if (isEditingPassword && currentPassword.isBlank()) {
-                                        Text("La contraseña actual es requerida", color = Color(0xFFEF4444))
-                                    }
-                                },
-                                visualTransformation = if (showCurrentPassword)
-                                    VisualTransformation.None else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    IconButton(onClick = { showCurrentPassword = !showCurrentPassword }) {
-                                        Icon(
-                                            imageVector = if (showCurrentPassword)
-                                                Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                            contentDescription = if (showCurrentPassword)
-                                                "Ocultar contraseña" else "Mostrar contraseña"
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            OutlinedTextField(
-                                value = newPassword,
-                                onValueChange = { newPassword = it },
-                                label = { Text("Nueva Contraseña") },
-                                enabled = isEditingPassword && !isLoadingPassword,
-                                isError = isEditingPassword && !isNewPasswordValid && newPassword.isNotEmpty(),
-                                supportingText = {
-                                    if (isEditingPassword && newPassword.isNotEmpty() && !isNewPasswordValid) {
-                                        Text("Mínimo 8 caracteres y 1 número", color = Color(0xFFEF4444))
-                                    }
-                                },
-                                visualTransformation = if (showNewPassword)
-                                    VisualTransformation.None else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    IconButton(onClick = { showNewPassword = !showNewPassword }) {
-                                        Icon(
-                                            imageVector = if (showNewPassword)
-                                                Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                            contentDescription = if (showNewPassword)
-                                                "Ocultar contraseña" else "Mostrar contraseña"
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                        OutlinedTextField(
+                            value = currentPassword,
+                            onValueChange = { currentPassword = it },
+                            label = { Text("Contraseña Actual") },
+                            enabled = isEditingPassword && !isLoadingPassword,
+                            isError = isEditingPassword && currentPassword.isBlank(),
+                            supportingText = {
+                                if (isEditingPassword && currentPassword.isBlank()) {
+                                    Text("La contraseña actual es requerida", color = Color(0xFFEF4444))
+                                }
+                            },
+                            visualTransformation = if (showCurrentPassword)
+                                VisualTransformation.None else PasswordVisualTransformation(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2196F3)
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { showCurrentPassword = !showCurrentPassword }) {
+                                    Icon(
+                                        imageVector = if (showCurrentPassword)
+                                            Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        contentDescription = if (showCurrentPassword)
+                                            "Ocultar contraseña" else "Mostrar contraseña"
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            OutlinedTextField(
-                                value = confirmPassword,
-                                onValueChange = { confirmPassword = it },
-                                label = { Text("Confirmar Contraseña") },
-                                enabled = isEditingPassword && !isLoadingPassword,
-                                isError = isEditingPassword && confirmPassword.isNotEmpty() &&
-                                        newPassword != confirmPassword,
-                                supportingText = {
-                                    if (isEditingPassword && confirmPassword.isNotEmpty() &&
-                                        newPassword != confirmPassword) {
-                                        Text("Las contraseñas no coinciden", color = Color(0xFFEF4444))
-                                    }
-                                },
-                                visualTransformation = if (showConfirmPassword)
-                                    VisualTransformation.None else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
-                                        Icon(
-                                            imageVector = if (showConfirmPassword)
-                                                Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                            contentDescription = if (showConfirmPassword)
-                                                "Ocultar contraseña" else "Mostrar contraseña"
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                        OutlinedTextField(
+                            value = newPassword,
+                            onValueChange = { newPassword = it },
+                            label = { Text("Nueva Contraseña") },
+                            enabled = isEditingPassword && !isLoadingPassword,
+                            isError = isEditingPassword && !isNewPasswordValid && newPassword.isNotEmpty(),
+                            supportingText = {
+                                if (isEditingPassword && newPassword.isNotEmpty() && !isNewPasswordValid) {
+                                    Text("Mínimo 8 caracteres y 1 número", color = Color(0xFFEF4444))
+                                }
+                            },
+                            visualTransformation = if (showNewPassword)
+                                VisualTransformation.None else PasswordVisualTransformation(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2196F3)
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { showNewPassword = !showNewPassword }) {
+                                    Icon(
+                                        imageVector = if (showNewPassword)
+                                            Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        contentDescription = if (showNewPassword)
+                                            "Ocultar contraseña" else "Mostrar contraseña"
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it },
+                            label = { Text("Confirmar Contraseña") },
+                            enabled = isEditingPassword && !isLoadingPassword,
+                            isError = isEditingPassword && confirmPassword.isNotEmpty() &&
+                                    newPassword != confirmPassword,
+                            supportingText = {
+                                if (isEditingPassword && confirmPassword.isNotEmpty() &&
+                                    newPassword != confirmPassword) {
+                                    Text("Las contraseñas no coinciden", color = Color(0xFFEF4444))
+                                }
+                            },
+                            visualTransformation = if (showConfirmPassword)
+                                VisualTransformation.None else PasswordVisualTransformation(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2196F3)
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
+                                    Icon(
+                                        imageVector = if (showConfirmPassword)
+                                            Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        contentDescription = if (showConfirmPassword)
+                                            "Ocultar contraseña" else "Mostrar contraseña"
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
@@ -617,48 +646,28 @@ fun CuentaPage(
                                     }
                                 }
                             }
-                        }
-                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Cerrar Sesión
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        Log.d("CuentaPage", "Botón de logout presionado")
-                        authViewModel.logout()
-                    },
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                        contentDescription = "Cerrar Sesión",
-                        tint = Color(0xFFD32F2F),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Cerrar Sesión",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFFD32F2F)
-                    )
-                }
-            }
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Botón de cerrar sesión en esquina superior derecha
+        IconButton(
+            onClick = {
+                Log.d("CuentaPage", "Botón de logout presionado")
+                authViewModel.logout()
+            },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                contentDescription = "Cerrar Sesión",
+                tint = Color(0xFFD32F2F),
+                modifier = Modifier.size(24.dp)
+            )
         }
 
         // Alerta personalizada

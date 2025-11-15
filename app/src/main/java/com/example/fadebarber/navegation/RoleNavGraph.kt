@@ -179,7 +179,11 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
                             )
                         }
 
-                        UserRole.EMPLOYEE -> EmployeeScreens(item.route, authViewModel)
+                        UserRole.EMPLOYEE -> EmployeeScreens(
+                            route = item.route,
+                            authViewModel = authViewModel,
+                            onNavigate = { newRoute -> navController.navigate(newRoute) }
+                        )
                         UserRole.ADMIN -> AdminScreens(item.route, authViewModel, onNavigate = { newRoute -> navController.navigate(newRoute) }
                             )
                         else -> {}

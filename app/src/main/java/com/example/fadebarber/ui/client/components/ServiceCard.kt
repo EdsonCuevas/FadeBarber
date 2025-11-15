@@ -39,7 +39,7 @@ fun ServiceCard(
     Card (
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onIncrement(service) },
+            .clickable(enabled = quantity < 2) { onIncrement(service) },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(10.dp)
@@ -87,8 +87,8 @@ fun ServiceCard(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF0A66C2))
-                            .clickable { onIncrement(service) },
+                            .background(if (quantity < 2) Color(0xFF2563EB) else Color(0xFF94A3B8))
+                            .clickable(enabled = quantity < 2) { onIncrement(service) },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("+", color = Color.White, fontWeight = FontWeight.Bold)
@@ -99,7 +99,7 @@ fun ServiceCard(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF0A66C2))
+                        .background(Color(0xFF2563EB))
                         .clickable { onIncrement(service) },
                     contentAlignment = Alignment.Center
                 ) {
