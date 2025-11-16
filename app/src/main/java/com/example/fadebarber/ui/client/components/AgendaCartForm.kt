@@ -67,6 +67,7 @@ import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.data.model.ReadingData
 import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.services.generateQRCode
 import formatDate
@@ -82,7 +83,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.example.fadebarber.utils.NotificationHelper
 import android.provider.Settings
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -133,6 +137,7 @@ fun AgendaCartForm(
 
     var occupiedTimeStrings by remember { mutableStateOf<Set<String>>(emptySet()) }
     var currentAppts by remember { mutableStateOf<List<AppointmentClientData>>(emptyList()) }
+    var readings by remember { mutableStateOf<List<ReadingData>>(emptyList()) }
 
     // Datos de cliente para invitado/empleado
     val isEmployee = user.categoryUser == 2
@@ -305,6 +310,49 @@ fun AgendaCartForm(
         }
         onDispose {
             FirebaseRepository.stopListeningToBarbers(listener)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val listener = FirebaseRepository.listenToReadings { updatedReadings ->
+            readings = updatedReadings
+        }
+        onDispose {
+            FirebaseRepository.stopListeningToReadings(listener)
+        }
+    }
+
+    fun parseToLocalDateTime(ts: String?): LocalDateTime? {
+        if (ts.isNullOrBlank()) return null
+        return try {
+            if (ts.contains("T") && ts.endsWith("Z")) {
+                val inst = Instant.parse(ts)
+                LocalDateTime.ofInstant(inst, ZoneId.systemDefault())
+            } else {
+                LocalDateTime.parse(ts, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    val canBookTodayForSelectedBarber by remember(selectedBarber, readings) {
+        derivedStateOf {
+            val barberId = selectedBarber
+            if (barberId.isNullOrBlank()) return@derivedStateOf true
+            val lastToday = readings.mapNotNull { r ->
+                val dt = parseToLocalDateTime(r.timestamp)
+                if (r.userId == barberId && dt != null && dt.toLocalDate() == today) Pair(r, dt) else null
+            }.maxByOrNull { it.second }?.first
+            lastToday?.tipo == "entrada"
+        }
+    }
+
+    LaunchedEffect(selectedBarber, canBookTodayForSelectedBarber) {
+        if (!canBookTodayForSelectedBarber && selectedDate == today) {
+            selectedDate = null
+            selectedTime = null
+            currentStep = BookingStep.DATE
         }
     }
 
@@ -841,11 +889,12 @@ fun AgendaCartForm(
                                 items(availableDays) { day ->
                                     val isSelected = selectedDate == day
                                     val isToday = day == today
+                                    val isEnabled = !isToday || canBookTodayForSelectedBarber
 
                                     Card(
                                         modifier = Modifier
                                             .width(70.dp)
-                                            .clickable {
+                                            .clickable(enabled = isEnabled) {
                                                 selectedDate = day
                                                 selectedTime = null
                                                 currentStep = BookingStep.TIME
@@ -853,6 +902,7 @@ fun AgendaCartForm(
                                         colors = CardDefaults.cardColors(
                                             containerColor = when {
                                                 isSelected -> Color(0xFF2563EB)
+                                                !isEnabled -> Color(0xFFF1F5F9)
                                                 else -> Color(0xFFF8FAFC)
                                             }
                                         ),
@@ -877,6 +927,7 @@ fun AgendaCartForm(
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = when {
                                                     isSelected -> Color.White.copy(alpha = 0.9f)
+                                                    !isEnabled -> Color(0xFF94A3B8)
                                                     else -> Color(0xFF94A3B8)
                                                 }
                                             )
@@ -887,10 +938,11 @@ fun AgendaCartForm(
                                                 fontWeight = FontWeight.Bold,
                                                 color = when {
                                                     isSelected -> Color.White
+                                                    !isEnabled -> Color(0xFF1E293B)
                                                     else -> Color(0xFF1E293B)
                                                 }
                                             )
-                                            if (isToday && !isSelected) {
+                                            if (isToday && !isSelected && isEnabled) {
                                                 Box(
                                                     modifier = Modifier
                                                         .padding(top = 4.dp)
@@ -900,6 +952,27 @@ fun AgendaCartForm(
                                             }
                                         }
                                     }
+                                }
+                            }
+                            if (selectedBarber != null && !canBookTodayForSelectedBarber) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = Color(0xFFEF4444),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Hoy no disponible: el barbero aún no ha entrado",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFEF4444)
+                                    )
                                 }
                             }
                         }
