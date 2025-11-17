@@ -1064,8 +1064,11 @@ fun AgendaCartForm(
                                         val isSelected = selectedTime != null &&
                                                 selectedTime!!.format(dbFormatter) == slotKey
 
-                                        // Verificar si la hora ya pasó (para el día actual)
-                                        val isPastTime = selectedDate == LocalDate.now() && slot.isBefore(LocalTime.now())
+                                        // Verificar si la hora ya pasó (para el día actual) usando zona MX
+                                        val tz = ZoneId.of("America/Mexico_City")
+                                        val nowDateMx = LocalDate.now(tz)
+                                        val nowTimeMx = LocalDateTime.now(tz).toLocalTime()
+                                        val isPastTime = selectedDate == nowDateMx && slot.isBefore(nowTimeMx)
 
                                         Button(
                                             onClick = {
@@ -1077,14 +1080,14 @@ fun AgendaCartForm(
                                             enabled = !isOccupied && !isPastTime,
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = when {
-                                                    isSelected -> Color(0xFF2563EB)
+                                                    isSelected -> Color(0xFF1E40AF)
                                                     isOccupied || isPastTime -> Color(0xFFF1F5F9)
-                                                    else -> Color(0xFFF8FAFC)
+                                                    else -> Color(0xFF2563EB)
                                                 },
                                                 contentColor = when {
                                                     isSelected -> Color.White
                                                     isOccupied || isPastTime -> Color(0xFF94A3B8)
-                                                    else -> Color(0xFF1E293B)
+                                                    else -> Color.White
                                                 },
                                                 disabledContainerColor = Color(0xFFF1F5F9),
                                                 disabledContentColor = Color(0xFF94A3B8)
