@@ -46,7 +46,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun handleDataMessage(data: Map<String, String>) {
-        val title = data["title"] ?: "FadeBarber"
         val body = data["body"] ?: "Hay una nueva actualización"
         val type = data["type"] ?: "general"
 
@@ -95,7 +94,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 )
             }
             else -> {
-                sendNotification(title, body)
+                Log.d(TAG, "Message Notification Body: $body")
             }
         }
     }

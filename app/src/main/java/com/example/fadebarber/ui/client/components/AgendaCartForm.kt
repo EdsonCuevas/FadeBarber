@@ -67,6 +67,7 @@ import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.PromotionData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.data.model.ReadingData
 import com.example.fadebarber.data.repository.FirebaseRepository
 import com.example.fadebarber.services.generateQRCode
 import formatDate
@@ -82,7 +83,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.example.fadebarber.utils.NotificationHelper
 import android.provider.Settings
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -135,6 +139,7 @@ fun AgendaCartForm(
 
     var occupiedTimeStrings by remember { mutableStateOf<Set<String>>(emptySet()) }
     var currentAppts by remember { mutableStateOf<List<AppointmentClientData>>(emptyList()) }
+    var readings by remember { mutableStateOf<List<ReadingData>>(emptyList()) }
 
     // Datos de cliente para invitado/empleado
     val isEmployee = user.categoryUser == 2
@@ -339,6 +344,49 @@ fun AgendaCartForm(
         }
         onDispose {
             FirebaseRepository.stopListeningToBarbers(listener)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val listener = FirebaseRepository.listenToReadings { updatedReadings ->
+            readings = updatedReadings
+        }
+        onDispose {
+            FirebaseRepository.stopListeningToReadings(listener)
+        }
+    }
+
+    fun parseToLocalDateTime(ts: String?): LocalDateTime? {
+        if (ts.isNullOrBlank()) return null
+        return try {
+            if (ts.contains("T") && ts.endsWith("Z")) {
+                val inst = Instant.parse(ts)
+                LocalDateTime.ofInstant(inst, ZoneId.systemDefault())
+            } else {
+                LocalDateTime.parse(ts, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    val canBookTodayForSelectedBarber by remember(selectedBarber, readings) {
+        derivedStateOf {
+            val barberId = selectedBarber
+            if (barberId.isNullOrBlank()) return@derivedStateOf true
+            val lastToday = readings.mapNotNull { r ->
+                val dt = parseToLocalDateTime(r.timestamp)
+                if (r.userId == barberId && dt != null && dt.toLocalDate() == today) Pair(r, dt) else null
+            }.maxByOrNull { it.second }?.first
+            lastToday?.tipo == "entrada"
+        }
+    }
+
+    LaunchedEffect(selectedBarber, canBookTodayForSelectedBarber) {
+        if (!canBookTodayForSelectedBarber && selectedDate == today) {
+            selectedDate = null
+            selectedTime = null
+            currentStep = BookingStep.DATE
         }
     }
 
@@ -1046,81 +1094,243 @@ fun AgendaCartForm(
                                         )
                                     }
                                 }
-                            } else if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
-                                val start = LocalTime.parse(daySchedule.start, dbFormatter)
-                                val end = LocalTime.parse(daySchedule.end, dbFormatter)
+                            }
+                        } else {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                items(availableDays) { day ->
+                                    val isSelected = selectedDate == day
+                                    val isToday = day == today
+                                    val isEnabled = !isToday || canBookTodayForSelectedBarber
 
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    generateSequence(start) { it.plusMinutes(30) }
-                                        .takeWhile { !it.isAfter(end) }
-                                        .forEach { slot ->
-                                            val slotKey = slot.format(dbFormatter)
-                                            val isOccupied = occupiedTimeStrings.contains(slotKey)
-                                            val isSelected = selectedTime != null &&
-                                                    selectedTime!!.format(dbFormatter) == slotKey
-
-                                            // Verificar si la hora ya pasó (para el día actual)
-                                            val isPastTime =
-                                                selectedDate == LocalDate.now() && slot.isBefore(
-                                                    LocalTime.now()
-                                                )
-
-                                            Button(
-                                                onClick = {
-                                                    if (!isOccupied && !isPastTime) {
-                                                        selectedTime = slot
-                                                        currentStep =
-                                                            if (requiresManualInfo) BookingStep.CLIENT else BookingStep.PAYMENT
-                                                    }
-                                                },
-                                                enabled = !isOccupied && !isPastTime,
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = when {
-                                                        isSelected -> Color(0xFF2563EB)
-                                                        isOccupied || isPastTime -> Color(0xFFF1F5F9)
-                                                        else -> Color(0xFFF8FAFC)
-                                                    },
-                                                    contentColor = when {
-                                                        isSelected -> Color.White
-                                                        isOccupied || isPastTime -> Color(0xFF94A3B8)
-                                                        else -> Color(0xFF1E293B)
-                                                    },
-                                                    disabledContainerColor = Color(0xFFF1F5F9),
-                                                    disabledContentColor = Color(0xFF94A3B8)
-                                                ),
-                                                shape = RoundedCornerShape(12.dp),
-                                                elevation = ButtonDefaults.buttonElevation(
-                                                    defaultElevation = if (isSelected) 4.dp else 0.dp
-                                                ),
-                                                contentPadding = PaddingValues(
-                                                    horizontal = 16.dp,
-                                                    vertical = 10.dp
-                                                )
-                                            ) {
-                                                Text(
-                                                    slot.format(displayFormatter),
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    fontSize = 13.sp
+                                    Card(
+                                        modifier = Modifier
+                                            .width(70.dp)
+                                            .clickable(enabled = isEnabled) {
+                                                selectedDate = day
+                                                selectedTime = null
+                                                currentStep = BookingStep.TIME
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = when {
+                                                isSelected -> Color(0xFF2563EB)
+                                                !isEnabled -> Color(0xFFF1F5F9)
+                                                else -> Color(0xFFF8FAFC)
+                                            }
+                                        ),
+                                        shape = RoundedCornerShape(16.dp),
+                                        elevation = CardDefaults.cardElevation(
+                                            defaultElevation = if (isSelected) 6.dp else 0.dp
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .padding(vertical = 14.dp)
+                                                .fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = day.dayOfWeek.getDisplayName(
+                                                    TextStyle.SHORT,
+                                                    Locale("es")
+                                                ).uppercase(),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = when {
+                                                    isSelected -> Color.White.copy(alpha = 0.9f)
+                                                    !isEnabled -> Color(0xFF94A3B8)
+                                                    else -> Color(0xFF94A3B8)
+                                                }
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = day.dayOfMonth.toString(),
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = when {
+                                                    isSelected -> Color.White
+                                                    !isEnabled -> Color(0xFF1E293B)
+                                                    else -> Color(0xFF1E293B)
+                                                }
+                                            )
+                                            if (isToday && !isSelected && isEnabled) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .padding(top = 4.dp)
+                                                        .size(6.dp)
+                                                        .background(Color(0xFF2563EB), CircleShape)
                                                 )
                                             }
                                         }
                                 }
-                            } else {
-                                Box(
+                            }
+                            if (selectedBarber != null && !canBookTodayForSelectedBarber) {
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
+                                        .padding(top = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = Color(0xFFEF4444),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        "No hay horarios disponibles 🚫",
-                                        color = Color(0xFFEF4444),
-                                        fontWeight = FontWeight.Medium
+                                        text = "Hoy no disponible: el barbero aún no ha entrado",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFEF4444)
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // SELECCIÓN DE HORARIO
+        if (selectedDate != null && selectedBarber != null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(
+                                        Color(0xFF2563EB).copy(alpha = 0.1f),
+                                        RoundedCornerShape(8.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = "Hora",
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                "Selecciona la hora",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val schedule = liveBarbers.firstOrNull { it.id == selectedBarber }?.schedule
+                        val key = selectedDate!!.dayOfWeek.name.lowercase(Locale.ENGLISH)
+                        val daySchedule = schedule?.get(key)
+
+                        val isExpandedTime = currentStep == BookingStep.TIME
+                        if (!isExpandedTime && selectedTime != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Hora: ${selectedTime!!.format(displayFormatter)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                IconButton(onClick = { currentStep = BookingStep.TIME }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Editar hora",
+                                        tint = Color(0xFF2563EB)
+                                    )
+                                }
+                            }
+                        } else if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
+                            val start = LocalTime.parse(daySchedule.start, dbFormatter)
+                            val end = LocalTime.parse(daySchedule.end, dbFormatter)
+
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                generateSequence(start) { it.plusMinutes(30) }
+                                    .takeWhile { !it.isAfter(end) }
+                                    .forEach { slot ->
+                                        val slotKey = slot.format(dbFormatter)
+                                        val isOccupied = occupiedTimeStrings.contains(slotKey)
+                                        val isSelected = selectedTime != null &&
+                                                selectedTime!!.format(dbFormatter) == slotKey
+
+                                        // Verificar si la hora ya pasó (para el día actual) usando zona MX
+                                        val tz = ZoneId.of("America/Mexico_City")
+                                        val nowDateMx = LocalDate.now(tz)
+                                        val nowTimeMx = LocalDateTime.now(tz).toLocalTime()
+                                        val isPastTime = selectedDate == nowDateMx && slot.isBefore(nowTimeMx)
+
+                                        Button(
+                                            onClick = {
+                                                if (!isOccupied && !isPastTime) {
+                                                    selectedTime = slot
+                                                    currentStep = if (requiresManualInfo) BookingStep.CLIENT else BookingStep.PAYMENT
+                                                }
+                                            },
+                                            enabled = !isOccupied && !isPastTime,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = when {
+                                                    isSelected -> Color(0xFF1E40AF)
+                                                    isOccupied || isPastTime -> Color(0xFFF1F5F9)
+                                                    else -> Color(0xFF2563EB)
+                                                },
+                                                contentColor = when {
+                                                    isSelected -> Color.White
+                                                    isOccupied || isPastTime -> Color(0xFF94A3B8)
+                                                    else -> Color.White
+                                                },
+                                                disabledContainerColor = Color(0xFFF1F5F9),
+                                                disabledContentColor = Color(0xFF94A3B8)
+                                            ),
+                                            shape = RoundedCornerShape(12.dp),
+                                            elevation = ButtonDefaults.buttonElevation(
+                                                defaultElevation = if (isSelected) 4.dp else 0.dp
+                                            ),
+                                            contentPadding = PaddingValues(
+                                                horizontal = 16.dp,
+                                                vertical = 10.dp
+                                            )
+                                        ) {
+                                            Text(
+                                                slot.format(displayFormatter),
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 13.sp
+                                            )
+                                        }
+                                    }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No hay horarios disponibles 🚫",
+                                    color = Color(0xFFEF4444),
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                     }
