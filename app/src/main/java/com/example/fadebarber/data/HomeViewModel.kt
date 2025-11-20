@@ -26,6 +26,7 @@ class HomeViewModel : ViewModel() {
     private val _currentUser = MutableStateFlow<UserData?>(null)
     private val _cartItems = MutableStateFlow<List<Any>>(emptyList())
     private val _appointments = MutableStateFlow<List<com.example.fadebarber.data.model.AppointmentClientData>>(emptyList())
+    private val _cartNotice = MutableStateFlow<String?>(null)
 
     val services: StateFlow<List<ServiceData>> = _services
     val promotions: StateFlow<List<PromotionData>> = _promotions
@@ -34,6 +35,7 @@ class HomeViewModel : ViewModel() {
     val currentUser: StateFlow<UserData?> = _currentUser
     val cartItems: StateFlow<List<Any>> = _cartItems
     val appointments: StateFlow<List<com.example.fadebarber.data.model.AppointmentClientData>> = _appointments
+    val cartNotice: StateFlow<String?> = _cartNotice
 
     private val auth = FirebaseAuth.getInstance()
     private val database = FirebaseDatabase.getInstance().getReference("User")
@@ -206,6 +208,17 @@ class HomeViewModel : ViewModel() {
     // ========== CARRITO ==========
 
     fun addToCart(item: Any) {
+        if (item is ServiceData) {
+            val countSameService = _cartItems.value.count { it is ServiceData && it.id == item.id }
+            if (countSameService >= 2) {
+                _cartNotice.value = "Máximo 2 veces el mismo servicio"
+                return
+            }
+        }
+        if (_cartItems.value.size >= 4) {
+            _cartNotice.value = "Máximo 4 elementos por cita. Deselecciona uno para agregar otro."
+            return
+        }
         _cartItems.value = _cartItems.value + item
     }
 
@@ -218,6 +231,10 @@ class HomeViewModel : ViewModel() {
     }
 
     fun getCartItemsCount(): Int = _cartItems.value.size
+
+    fun clearCartNotice() {
+        _cartNotice.value = null
+    }
 
     override fun onCleared() {
         super.onCleared()

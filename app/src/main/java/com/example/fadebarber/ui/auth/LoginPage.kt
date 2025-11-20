@@ -138,6 +138,27 @@ fun LoginPage(
                 .verticalScroll(rememberScrollState())
                 .padding(top = 48.dp)
         ) {
+            Spacer(modifier = Modifier.height(24.dp))
+            // Logo con fondo circular (encabezado)
+            Box(
+                modifier = Modifier
+                    .background(
+                        Color.White.copy(alpha = 0.15f),
+                        shape = CircleShape
+                    )
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo_goku),
+                    contentDescription = "Logo",
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             /**Text(
                 text = "Bienvenido",

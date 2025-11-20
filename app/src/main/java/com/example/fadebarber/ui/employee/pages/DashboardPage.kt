@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -79,7 +80,8 @@ import coil.compose.AsyncImage
 fun DashboardPage(
     modifier: Modifier = Modifier,
     user: UserData,
-    viewModel: DashboardViewModel = viewModel()
+    viewModel: DashboardViewModel = viewModel(),
+    onNavigateToAccount: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -259,18 +261,20 @@ fun DashboardPage(
                                 modifier = Modifier
                                     .size(64.dp)
                                     .clip(CircleShape)
-                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                                    .clickable(onClick = onNavigateToAccount),
                                 contentScale = ContentScale.Crop,
-                                error = painterResource(id = R.drawable.perfil)
+                                error = painterResource(id = R.drawable.logo)
                             )
                         } else {
                             Image(
-                                painter = painterResource(id = R.drawable.perfil),
+                                painter = painterResource(id = R.drawable.profilelogo),
                                 contentDescription = "Imagen de perfil",
                                 modifier = Modifier
                                     .size(64.dp)
                                     .clip(CircleShape)
-                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                                    .clickable(onClick = onNavigateToAccount),
                                 contentScale = ContentScale.Crop
                             )
                         }
@@ -1016,11 +1020,10 @@ fun DashboardPage(
                 ) {
                     QRScannerView(
                         modifier = Modifier.fillMaxSize(),
-                        currentEmployeeId = user.id,
-                        onResult = { message ->
+                        onResult = { code ->
                             showScanner = false
-                            alertMessage = message
-                            alertColor = if (message.startsWith("Cita validada")) Color(0xFF10B981) else Color(0xFFEF4444)
+                            alertMessage = "QR detectado: $code"
+                            alertColor = Color(0xFF10B981)
                             showAlert = true
                         },
                         onClose = { showScanner = false }

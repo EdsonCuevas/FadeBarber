@@ -24,10 +24,13 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.HourglassBottom
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -38,6 +41,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,10 +65,12 @@ import com.example.fadebarber.data.model.PromotionData
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalTime
+import org.threeten.bp.YearMonth
 import org.threeten.bp.format.DateTimeFormatter
+import org.threeten.bp.format.TextStyle
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CitaPage(
     modifier: Modifier = Modifier,
@@ -70,7 +79,12 @@ fun CitaPage(
 ) {
     var selectedAppointment by remember { mutableStateOf<AppointmentClientData?>(null) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var currentMonth by remember { mutableStateOf(YearMonth.from(LocalDate.now())) }
+    var calendarExpanded by remember { mutableStateOf(false) }
+    val allowedMinMonth = remember { YearMonth.from(LocalDate.now()).minusMonths(1) }
+    val allowedMaxMonth = remember { YearMonth.from(LocalDate.now()).plusMonths(1) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val rescheduleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val appointments by viewModel.appointments.collectAsState(initial = emptyList())
     val services by viewModel.services.collectAsState(initial = emptyList())
@@ -279,6 +293,62 @@ fun CitaPage(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (!calendarExpanded) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 12.dp
+                ),
+                onClick = { calendarExpanded = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${currentMonth.month.toString().lowercase(Locale("es")).replaceFirstChar { it.uppercase() }} ${currentMonth.year}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Color(0xFF1E293B),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        } else {
+            MonthCalendarEmployee(
+                currentMonth = currentMonth,
+                selectedDate = selectedDate,
+                appointments = appointments,
+                currentEmployeeId = user.id,
+                enabledDates = days.toSet(),
+                onMonthChange = { newMonth ->
+                    if (newMonth >= allowedMinMonth && newMonth <= allowedMaxMonth) {
+                        currentMonth = newMonth
+                    }
+                },
+                onSelectDate = { date ->
+                    selectedDate = date
+                    calendarExpanded = false
+                },
+                allowedMinMonth = allowedMinMonth,
+                allowedMaxMonth = allowedMaxMonth,
+                onCollapse = { calendarExpanded = false },
+                isExpanded = calendarExpanded
+            )
+        }
 
         // LISTA DE CITAS
         LazyColumn(
@@ -688,6 +758,179 @@ fun CitaPage(
 
                     // Espaciado adicional para el bottom sheet
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    val canReschedule = (appointment.methodPayment ?: "").equals("Tarjeta", ignoreCase = true)
+                    var showReschedule by remember { mutableStateOf(false) }
+                    if (canReschedule) {
+                        Button(
+                            onClick = { showReschedule = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                        ) {
+                            Text("Reagendar", color = Color.White)
+                        }
+                    }
+
+                    if (showReschedule) {
+                        var rescheduleDate by remember { mutableStateOf(LocalDate.parse(appointment.dateAppointment)) }
+                        var rescheduleTime by remember { mutableStateOf(LocalTime.parse(appointment.timeAppointment)) }
+                        var calendarExpanded by remember { mutableStateOf(false) }
+
+                        ModalBottomSheet(
+                            sheetState = rescheduleSheetState,
+                            containerColor = Color.White,
+                            onDismissRequest = { showReschedule = false }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White)
+                                    .padding(24.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text("Reagendar cita", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+
+                                // Selector de fecha (colapsable)
+                                if (!calendarExpanded) {
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth(),
+                                        shape = RoundedCornerShape(18.dp),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                                        onClick = { calendarExpanded = true }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color.White)
+                                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = rescheduleDate.toString(),
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF1E293B)
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Filled.KeyboardArrowDown,
+                                                contentDescription = null,
+                                                tint = Color(0xFF1E293B),
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    MonthCalendarEmployee(
+                                        currentMonth = YearMonth.from(rescheduleDate),
+                                        selectedDate = rescheduleDate,
+                                        appointments = appointments,
+                                        currentEmployeeId = user.id,
+                                        enabledDates = days.toSet(),
+                                        onMonthChange = { newMonth -> },
+                                        onSelectDate = { date ->
+                                            rescheduleDate = date
+                                            calendarExpanded = false
+                                        },
+                                        allowedMinMonth = YearMonth.from(today).minusMonths(1),
+                                        allowedMaxMonth = YearMonth.from(today).plusMonths(1),
+                                        onCollapse = { calendarExpanded = false },
+                                        isExpanded = true
+                                    )
+                                }
+
+                                // Selector de hora con slots disponibles
+                                val employeeSchedule = users.firstOrNull { it.id == user.id }?.schedule
+                                val dayKey = rescheduleDate.dayOfWeek.name.lowercase(Locale.ENGLISH)
+                                val daySchedule = employeeSchedule?.get(dayKey)
+
+                                val activeAppointments = appointments.filter {
+                                    it.idEmployee == user.id && it.dateAppointment == rescheduleDate.toString() && it.id != appointment.id && (it.statusAppointment ?: 1) < 4
+                                }
+                                val occupiedSlots = activeAppointments.flatMap { appt ->
+                                    val start = LocalTime.parse(appt.timeAppointment, DateTimeFormatter.ofPattern("HH:mm"))
+                                    val duration = appt.durationTotal ?: 0
+                                    generateSequence(start) { it.plusMinutes(30) }
+                                        .takeWhile { it.isBefore(start.plusMinutes(duration.toLong())) }
+                                        .map { it.format(DateTimeFormatter.ofPattern("HH:mm")) }
+                                }.toSet()
+
+                                if (daySchedule != null && daySchedule.available && daySchedule.start != null && daySchedule.end != null) {
+                                    val start = LocalTime.parse(daySchedule.start, DateTimeFormatter.ofPattern("HH:mm"))
+                                    val end = LocalTime.parse(daySchedule.end, DateTimeFormatter.ofPattern("HH:mm"))
+
+                                    Text("Selecciona nueva hora", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E293B))
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        generateSequence(start) { it.plusMinutes(30) }
+                                            .takeWhile { !it.isAfter(end) }
+                                            .forEach { slot ->
+                                                val slotKey = slot.format(DateTimeFormatter.ofPattern("HH:mm"))
+                                                val isOccupied = occupiedSlots.contains(slotKey)
+                                                val isPastTime = rescheduleDate == LocalDate.now() && slot.isBefore(LocalTime.now())
+                                                val isSelected = rescheduleTime.format(DateTimeFormatter.ofPattern("HH:mm")) == slotKey
+
+                                                Button(
+                                                    onClick = { if (!isOccupied && !isPastTime) rescheduleTime = slot },
+                                                    enabled = !isOccupied && !isPastTime,
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = when {
+                                                            isSelected -> Color(0xFF2563EB)
+                                                            isOccupied || isPastTime -> Color(0xFFF1F5F9)
+                                                            else -> Color(0xFFF8FAFC)
+                                                        },
+                                                        contentColor = when {
+                                                            isSelected -> Color.White
+                                                            isOccupied || isPastTime -> Color(0xFF94A3B8)
+                                                            else -> Color(0xFF1E293B)
+                                                        }
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Text(slot.format(DateTimeFormatter.ofPattern("HH:mm")))
+                                                }
+                                            }
+                                    }
+                                }
+
+                                // Confirmar reagendar
+                                val dbFormatter = DateTimeFormatter.ofPattern("HH:mm")
+                                val totalDuration = appointment.durationTotal ?: 0
+                                val requestedSlots = generateSequence(rescheduleTime) { it.plusMinutes(30) }
+                                    .takeWhile { it.isBefore(rescheduleTime.plusMinutes(totalDuration.toLong())) }
+                                    .map { it.format(dbFormatter) }
+                                    .toSet()
+
+                                val conflict = requestedSlots.any { it in occupiedSlots }
+
+                                Button(
+                                    onClick = {
+                                        if (conflict) return@Button
+                                        val database = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("Appointment")
+                                        val updates: Map<String, Any> = mapOf(
+                                            "dateAppointment" to rescheduleDate.toString(),
+                                            "timeAppointment" to rescheduleTime.format(dbFormatter)
+                                        )
+                                        appointment.id?.let { id ->
+                                            database.child(id)
+                                                .updateChildren(updates)
+                                                .addOnSuccessListener {
+                                                    showReschedule = false
+                                                }
+                                        }
+                                    },
+                                    enabled = !conflict,
+                                    colors = ButtonDefaults.buttonColors(containerColor = if (!conflict) Color(0xFF2563EB) else Color(0xFFF1F5F9))
+                                ) {
+                                    Text("Confirmar nueva fecha y hora", color = if (!conflict) Color.White else Color(0xFF94A3B8))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -844,6 +1087,237 @@ fun AppointmentCard(
                         color = statusColor
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthCalendarEmployee(
+    currentMonth: YearMonth,
+    selectedDate: LocalDate,
+    appointments: List<AppointmentClientData>,
+    currentEmployeeId: String?,
+    enabledDates: Set<LocalDate>,
+    onMonthChange: (YearMonth) -> Unit,
+    onSelectDate: (LocalDate) -> Unit,
+    allowedMinMonth: YearMonth,
+    allowedMaxMonth: YearMonth,
+    onCollapse: () -> Unit,
+    isExpanded: Boolean
+) {
+    val locale = Locale("es", "ES")
+    val monthTitle = currentMonth.month
+        .getDisplayName(TextStyle.FULL, locale)
+        .replaceFirstChar { ch -> if (ch.isLowerCase()) ch.titlecase(locale) else ch.toString() } + " " + currentMonth.year
+
+    val appointmentDates = remember(appointments, currentEmployeeId) {
+        appointments
+            .filter { it.idEmployee == currentEmployeeId }
+            .mapNotNull { it.dateAppointment?.take(10) }
+            .toSet()
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = monthTitle,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { onMonthChange(currentMonth.minusMonths(1)) },
+                        modifier = Modifier.size(36.dp),
+                        enabled = currentMonth > allowedMinMonth
+                    ) {
+                        Icon(
+                            painter = painterResource(id = android.R.drawable.ic_media_previous),
+                            contentDescription = null,
+                            tint = if (currentMonth > allowedMinMonth) Color(0xFF2563EB) else Color(0xFF94A3B8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { onMonthChange(currentMonth.plusMonths(1)) },
+                        modifier = Modifier.size(36.dp),
+                        enabled = currentMonth < allowedMaxMonth
+                    ) {
+                        Icon(
+                            painter = painterResource(id = android.R.drawable.ic_media_next),
+                            contentDescription = null,
+                            tint = if (currentMonth < allowedMaxMonth) Color(0xFF2563EB) else Color(0xFF94A3B8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onCollapse,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowUp,
+                            contentDescription = null,
+                            tint = Color(0xFF2563EB),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val weekDays = listOf("D", "L", "M", "M", "J", "V", "S")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                weekDays.forEach { day ->
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = day,
+                            fontSize = 13.sp,
+                            color = Color(0xFF64748B),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            CalendarGridEmployee(
+                currentMonth = currentMonth,
+                selectedDate = selectedDate,
+                appointmentDates = appointmentDates,
+                enabledDates = enabledDates,
+                onDateClick = onSelectDate
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarGridEmployee(
+    currentMonth: YearMonth,
+    selectedDate: LocalDate,
+    appointmentDates: Set<String>,
+    enabledDates: Set<LocalDate>,
+    onDateClick: (LocalDate) -> Unit
+) {
+    val firstDayOfMonth = currentMonth.atDay(1)
+    val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
+    val daysInMonth = currentMonth.lengthOfMonth()
+
+    val cells = mutableListOf<LocalDate?>().apply {
+        repeat(firstDayOfWeek) { add(null) }
+        for (day in 1..daysInMonth) {
+            add(currentMonth.atDay(day))
+        }
+        while (size % 7 != 0) add(null)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (rowStart in cells.indices step 7) {
+            if (rowStart >= cells.size) break
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                for (i in 0 until 7) {
+                    val date = cells.getOrNull(rowStart + i)
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CalendarDayCellEmployee(
+                            date = date,
+                            isSelected = date == selectedDate,
+                            hasAppointments = date?.toString() in appointmentDates,
+                            enabled = date != null && enabledDates.contains(date),
+                            onClick = { date?.let { onDateClick(it) } }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarDayCellEmployee(
+    date: LocalDate?,
+    isSelected: Boolean,
+    hasAppointments: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    if (date == null) {
+        Box(modifier = Modifier.size(44.dp))
+        return
+    }
+
+    val today = LocalDate.now()
+    val isToday = date == today
+
+    val bg = when {
+        isSelected -> Color(0xFF2563EB)
+        isToday -> Color(0xFFE3F2FD)
+        else -> Color.Transparent
+    }
+
+    val fg = when {
+        !enabled -> Color(0xFF94A3B8)
+        isSelected -> Color.White
+        isToday -> Color(0xFF2563EB)
+        else -> Color(0xFF1E293B)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(bg)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = date.dayOfMonth.toString(),
+                fontSize = 15.sp,
+                color = fg,
+                fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+
+            if (enabled && hasAppointments && !isSelected) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF2563EB))
+                )
             }
         }
     }

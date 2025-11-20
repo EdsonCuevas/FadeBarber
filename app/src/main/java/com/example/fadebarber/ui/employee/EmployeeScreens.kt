@@ -23,7 +23,8 @@ fun EmployeeScreens(
     route: String,
     authViewModel: AuthViewModel,
     dashboardViewModel: DashboardViewModel = viewModel(),
-    homeViewModel: HomeViewModel = viewModel()
+    homeViewModel: HomeViewModel = viewModel(),
+    onNavigate: (String) -> Unit = {}
 ) {
     val userState = dashboardViewModel.currentUser.collectAsState()
     val user = userState.value
@@ -31,7 +32,11 @@ fun EmployeeScreens(
     when (route) {
         "dashboard" -> {
             if (user != null) {
-                DashboardPage(user = user, viewModel = dashboardViewModel)
+                DashboardPage(
+                    user = user,
+                    viewModel = dashboardViewModel,
+                    onNavigateToAccount = { onNavigate("account") }
+                )
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
