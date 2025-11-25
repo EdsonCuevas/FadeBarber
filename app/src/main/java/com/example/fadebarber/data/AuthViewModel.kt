@@ -1,11 +1,13 @@
 package com.example.fadebarber.data
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.fadebarber.data.model.UserData
+import com.example.fadebarber.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
@@ -118,6 +120,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                                 viewModelScope.launch {
                                     UserPreferences.saveUserRole(appContext, role)
+                                    NotificationHelper.saveUserToken()
                                 }
 
                                 _authState.value = AuthState.Authenticated(role)
@@ -208,6 +211,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
+        NotificationHelper.removeUserToken()
         auth.signOut()
         viewModelScope.launch {
             UserPreferences.saveUserRole(appContext, 0)

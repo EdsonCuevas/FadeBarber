@@ -53,6 +53,38 @@ object NotificationHelper {
         }
     }
 
+    // Eliminar token del usuario al cerrar sesión
+    fun removeUserToken(onComplete: ((Boolean) -> Unit)? = null) {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+        if (userId == null) {
+            Log.w(TAG, "No user logged in, cannot remove token")
+            onComplete?.invoke(false)
+            return
+        }
+
+        val database = FirebaseDatabase.getInstance().getReference("UserTokens")
+        database.child(userId).removeValue()
+            .addOnSuccessListener {
+                Log.d(TAG, "Token removed successfully for user: $userId")
+
+                // Opcional: Eliminar el token de FCM del dispositivo
+                FirebaseMessaging.getInstance().deleteToken()
+                    .addOnSuccessListener {
+                        Log.d(TAG, "FCM token deleted from device")
+                        onComplete?.invoke(true)
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e(TAG, "Failed to delete FCM token from device", e)
+                        onComplete?.invoke(true) // Aún así consideramos éxito si se eliminó de DB
+                    }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to remove token from database", e)
+                onComplete?.invoke(false)
+            }
+    }
+
     // Función helper para convertir drawable a bitmap
     private fun getBitmapFromDrawable(context: Context, drawableId: Int): Bitmap? {
         return try {

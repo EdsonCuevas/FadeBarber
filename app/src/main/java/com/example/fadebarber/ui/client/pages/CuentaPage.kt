@@ -161,9 +161,6 @@ fun CuentaPage(
             originalPhone = it.phoneNumberUser
         }
 
-        Log.d("EmployeeScreens", "Iniciando configuración FCM...")
-        NotificationHelper.saveUserToken()
-        Log.d("EmployeeScreens", "Token FCM configurado")
     }
 
     DisposableEffect(Unit) {
@@ -670,33 +667,6 @@ fun CuentaPage(
                 message = alertMessage,
                 color = alertColor,
                 onDismiss = { showAlert = false }
-            )
-        }
-    }
-}
-
-@Composable
-private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = text, fontSize = 16.sp, color = Color.Black)
-            Icon(
-                imageVector = Icons.Filled.KeyboardArrowRight,
-                contentDescription = "Ir a $text",
-                tint = Color.Gray
             )
         }
     }
