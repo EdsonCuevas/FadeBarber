@@ -752,14 +752,8 @@ private fun updateUserData(
         }
 
         // Validaciones
-        if (name.isBlank() || email.isBlank() || phone.isBlank()) {
+        if (name.isBlank() || phone.isBlank()) {
             onShowAlert("Por favor completa todos los campos", Color(0xFFEF4444))
-            onLoadingChange(false)
-            return
-        }
-
-        if (!emailRegex.matches(email)) {
-            onShowAlert("Correo electrónico inválido", Color(0xFFEF4444))
             onLoadingChange(false)
             return
         }
@@ -776,7 +770,6 @@ private fun updateUserData(
         // Actualizar datos en Realtime Database
         val updates: Map<String, Any> = mapOf(
             "nameUser" to name,
-            "correoUser" to email,
             "phoneNumberUser" to phone
         )
 
@@ -792,9 +785,6 @@ private fun updateUserData(
                         name != original.nameUser -> {
                             NotificationHelper.sendProfileUpdateNotification(context, name, "name_change")
                         }
-                        email != original.correoUser -> {
-                            NotificationHelper.sendProfileUpdateNotification(context, name, "email_change")
-                        }
                         phone != original.phoneNumberUser -> {
                             NotificationHelper.sendProfileUpdateNotification(context, name, "phone_change")
                         }
@@ -804,18 +794,7 @@ private fun updateUserData(
                     }
                 }
 
-                // Actualizar email en Firebase Auth si cambió
-                if (email != firebaseUser.email) {
-                    firebaseUser.verifyBeforeUpdateEmail(email)
-                        .addOnSuccessListener {
-                            Log.d("UpdateUser", "Verificación de email enviada")
-                            onShowAlert("Se ha enviado un email de verificación para cambiar el correo", Color(0xFF0EA5E9))
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("UpdateUser", "Error enviando verificación de email", e)
-                            onShowAlert("Error con verificación de email: ${e.message}", Color(0xFFEF4444))
-                        }
-                }
+                // No se permite modificar correo desde la app
 
                 // Recargar datos del usuario desde el ViewModel
                 viewModel.loadCurrentUser()

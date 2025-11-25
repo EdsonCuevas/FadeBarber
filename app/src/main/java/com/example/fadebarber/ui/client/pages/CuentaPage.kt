@@ -310,22 +310,17 @@ fun CuentaPage(
                                 value = editableEmail,
                                 onValueChange = { editableEmail = it },
                                 label = { Text("Correo") },
-                        enabled = (!isLoading),
-                        isError = isEditingProfile && !isEmailValid,
-                        supportingText = {
-                            if (isEditingProfile && !isEmailValid) {
-                                Text("Formato de correo inválido", color = Color(0xFFEF4444))
-                            }
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Email,
-                                contentDescription = null,
-                                tint = Color(0xFF2196F3)
+                                enabled = false,
+                                readOnly = true,
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Email,
+                                        contentDescription = null,
+                                        tint = Color(0xFF2196F3)
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth()
                             )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
                     Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedTextField(
@@ -416,7 +411,6 @@ fun CuentaPage(
                                         modifier = Modifier.weight(1f),
                                         enabled = !isLoading &&
                                                 editableName.isNotBlank() &&
-                                                isEmailValid &&
                                                 isPhoneValid,
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color(0xFF10B981)
@@ -819,14 +813,8 @@ private fun updateUserData(
         }
 
         // Validaciones
-        if (name.isBlank() || email.isBlank() || phone.isBlank()) {
+        if (name.isBlank() || phone.isBlank()) {
             onShowAlert("Por favor completa todos los campos", Color(0xFFEF4444))
-            onLoadingChange(false)
-            return
-        }
-
-        if (!emailRegex.matches(email)) {
-            onShowAlert("Correo electrónico inválido", Color(0xFFEF4444))
             onLoadingChange(false)
             return
         }
@@ -843,7 +831,6 @@ private fun updateUserData(
         // Actualizar datos en Realtime Database
         val updates: Map<String, Any> = mapOf(
             "nameUser" to name,
-            "correoUser" to email,
             "phoneNumberUser" to phone
         )
 
@@ -859,9 +846,6 @@ private fun updateUserData(
                         name != original.nameUser -> {
                             NotificationHelper.sendProfileUpdateNotification(context, name, "name_change")
                         }
-                        email != original.correoUser -> {
-                            NotificationHelper.sendProfileUpdateNotification(context, name, "email_change")
-                        }
                         phone != original.phoneNumberUser -> {
                             NotificationHelper.sendProfileUpdateNotification(context, name, "phone_change")
                         }
@@ -871,18 +855,7 @@ private fun updateUserData(
                     }
                 }
 
-                // Actualizar email en Firebase Auth si cambió
-                if (email != firebaseUser.email) {
-                    firebaseUser.verifyBeforeUpdateEmail(email)
-                        .addOnSuccessListener {
-                            Log.d("UpdateUser", "Verificación de email enviada")
-                            onShowAlert("Se ha enviado un email de verificación para cambiar el correo", Color(0xFF0EA5E9))
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("UpdateUser", "Error enviando verificación de email", e)
-                            onShowAlert("Error con verificación de email: ${e.message}", Color(0xFFEF4444))
-                        }
-                }
+                // No se permite modificar correo desde la app
 
                 // Recargar datos del usuario desde el ViewModel
                 viewModel.loadCurrentUser()
