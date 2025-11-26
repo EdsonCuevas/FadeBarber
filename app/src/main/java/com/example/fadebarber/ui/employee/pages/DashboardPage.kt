@@ -26,6 +26,9 @@ import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -77,6 +80,8 @@ import coil.compose.AsyncImage
 import com.example.fadebarber.utils.notificarClienteCambioEstado
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1048,10 +1053,16 @@ fun DashboardPage(
                 ) {
                     QRScannerView(
                         modifier = Modifier.fillMaxSize(),
-                        onResult = { code ->
+                        onResult = { msg ->
                             showScanner = false
-                            alertMessage = "QR detectado: $code"
-                            alertColor = Color(0xFF10B981)
+                            alertMessage = msg
+                            val isWarning = msg.contains("cita en curso", ignoreCase = true)
+                            val isSuccess = msg.contains("validada", ignoreCase = true)
+                            alertColor = when {
+                                isWarning -> Color(0xFFF59E0B)
+                                isSuccess -> Color(0xFF10B981)
+                                else -> Color(0xFFEF4444)
+                            }
                             showAlert = true
                         },
                         onClose = { showScanner = false }
@@ -1121,32 +1132,88 @@ fun DashboardPage(
                 )
             }
 
-            // Alerta de mensajes
             if (showAlert) {
-                AlertDialog(
+                Dialog(
                     onDismissRequest = { showAlert = false },
-                    title = {
-                        Text(
-                            text = if (alertColor == Color(0xFF10B981)) "Éxito" else "Error",
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    text = {
-                        Text(text = alertMessage)
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = { showAlert = false },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = alertColor
-                            )
+                    properties = DialogProperties(
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = true
+                    )
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            Text("Aceptar", color = Color.White)
+                            val success = alertColor == Color(0xFF10B981)
+                            val warning = alertColor == Color(0xFFF59E0B)
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .background(
+                                        alertColor.copy(alpha = 0.1f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = when {
+                                        success -> Icons.Filled.CheckCircle
+                                        warning -> Icons.Filled.Warning
+                                        else -> Icons.Filled.Error
+                                    },
+                                    contentDescription = null,
+                                    tint = alertColor,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text(
+                                text = when {
+                                    success -> "Validación exitosa"
+                                    warning -> "Acción requerida"
+                                    else -> "No se pudo validar"
+                                },
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = alertMessage,
+                                fontSize = 15.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Button(
+                                onClick = { showAlert = false },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = alertColor
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    "Entendido",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 16.sp
+                                )
+                            }
                         }
-                    },
-                    containerColor = Color.White,
-                    shape = RoundedCornerShape(16.dp)
-                )
+                    }
+                }
             }
         }
     }

@@ -176,7 +176,7 @@ private fun handleQrScan(
     val mainExecutor = ContextCompat.getMainExecutor(context)
     val appointmentId = code.trim()
     if (appointmentId.isEmpty()) {
-        onResult("Error: QR inválido")
+        onResult("QR inválido. Por favor intenta nuevamente.")
         return
     }
 
@@ -186,16 +186,19 @@ private fun handleQrScan(
         .addOnSuccessListener(mainExecutor) { snapshot ->
             val appt = snapshot.getValue(com.example.fadebarber.data.model.AppointmentClientData::class.java)
             if (appt == null) {
-                onResult("Error: cita no encontrada o datos inválidos")
+                onResult("No encontramos la cita asociada a este código.")
             } else {
                 val todayStr = LocalDate.now().toString()
                 val apptDateStr = appt.dateAppointment?.substring(0, 10)
                 val qrStat = appt.qrStatus ?: 1
+                val status = appt.statusAppointment ?: 1
 
-                if (apptDateStr != todayStr) {
-                    onResult("Error: QR caducado. Fecha de cita: ${apptDateStr ?: "desconocida"}")
+                if (status == 4) {
+                    onResult("No se puede validar: la cita fue cancelada.")
+                } else if (apptDateStr != todayStr) {
+                    onResult("Este QR pertenece a otra fecha: ${apptDateStr ?: "desconocida"}.")
                 } else if (qrStat == 2) {
-                    onResult("Error: QR ya utilizado")
+                    onResult("Este QR ya fue utilizado.")
                 } else {
                     // Verificar si hay alguna cita en curso para el empleado actual (hoy)
                     val query = if (!currentEmployeeId.isNullOrBlank()) {
@@ -222,7 +225,7 @@ private fun handleQrScan(
                             }
 
                             if (runningFound) {
-                                onResult("Ya hay una cita en curso. No puedes validar otra.")
+                                onResult("Ya tienes una cita en curso. Finaliza la actual antes de validar otra.")
                             } else {
                                 val updates = mapOf(
                                     "statusAppointment" to 2,
@@ -231,21 +234,21 @@ private fun handleQrScan(
                                 appointmentsRef.child(appointmentId)
                                     .updateChildren(updates)
                                     .addOnSuccessListener(mainExecutor) {
-                                        onResult("Cita validada. Estado actualizado a 'En curso'.")
+                                        onResult("Listo. Cita validada y marcada como 'En curso'.")
                                     }
                                     .addOnFailureListener(mainExecutor) { e ->
-                                        onResult("Error al actualizar la cita: ${e.message}")
+                                        onResult("No pudimos actualizar el estado de la cita: ${e.message}")
                                     }
                             }
                         }
                         .addOnFailureListener(mainExecutor) { e ->
-                            onResult("Error validando estado actual: ${e.message}")
+                            onResult("Hubo un problema al validar el estado actual: ${e.message}")
                         }
                 }
             }
         }
         .addOnFailureListener(mainExecutor) { e ->
-            onResult("Error al consultar cita: ${e.message}")
+            onResult("No pudimos consultar la cita: ${e.message}")
         }
 }
 
