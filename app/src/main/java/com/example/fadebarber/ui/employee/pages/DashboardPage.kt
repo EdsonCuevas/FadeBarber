@@ -74,6 +74,9 @@ import org.threeten.bp.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import coil.compose.AsyncImage
+import com.example.fadebarber.utils.notificarClienteCambioEstado
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,11 +112,12 @@ fun DashboardPage(
         systemUiController.setStatusBarColor(color = Color.Transparent, darkIcons = false)
     }
 
-    // Local helper to update appointment status (avoids unresolved reference issues)
-    fun updateAppointmentStatusLocal(
+    fun updateAppointmentStatusLocalConNotificacion(
         appointmentId: String,
         newStatus: Int,
+        employeeName: String,
         context: android.content.Context,
+        scope: kotlinx.coroutines.CoroutineScope,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
@@ -123,14 +127,30 @@ fun DashboardPage(
                 onError("ID de cita inválido")
                 return
             }
+
             val database = FirebaseDatabase.getInstance().getReference("Appointment")
             val updates: Map<String, Any> = mapOf(
                 "statusAppointment" to newStatus
             )
+
             database.child(appointmentId)
                 .updateChildren(updates)
                 .addOnSuccessListener {
                     Log.d("UpdateAppointment", "Estado actualizado correctamente")
+
+                    // 🆕 Enviar notificación al cliente (solo para estados 2, 3 y 4)
+                    if (newStatus in listOf(2, 3, 4)) {
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                notificarClienteCambioEstado(
+                                    appointmentId = appointmentId,
+                                    nuevoEstado = newStatus,
+                                    employeeName = employeeName,
+                                )
+                            }
+                        }
+                    }
+
                     onSuccess()
                 }
                 .addOnFailureListener { e ->
@@ -142,6 +162,7 @@ fun DashboardPage(
             onError("Error inesperado: ${e.message}")
         }
     }
+
     // === Lógica de próxima cita ===
     val currentTime = LocalTime.now()
     val formatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -803,13 +824,14 @@ fun DashboardPage(
                                                         alertColor = Color(0xFFEF4444)
                                                         showAlert = true
                                                     } else {
-                                                        updateAppointmentStatusLocal(
+                                                        updateAppointmentStatusLocalConNotificacion(
                                                             appointmentId = appointment.id ?: "",
-                                                            newStatus = 2,
+                                                            newStatus = 2, // En proceso
+                                                            employeeName = user.nameUser,
                                                             context = context,
+                                                            scope = scope, // 🆕 Necesario para lanzar la corrutina
                                                             onSuccess = {
-                                                                alertMessage =
-                                                                    "Cita iniciada correctamente"
+                                                                alertMessage = "Cita iniciada correctamente"
                                                                 alertColor = Color(0xFF10B981)
                                                                 showAlert = true
                                                                 selectedAppointment = null
@@ -854,13 +876,14 @@ fun DashboardPage(
                                         2 -> { // En Proceso - Mostrar Finalizar
                                             Button(
                                                 onClick = {
-                                                    updateAppointmentStatusLocal(
+                                                    updateAppointmentStatusLocalConNotificacion(
                                                         appointmentId = appointment.id ?: "",
-                                                        newStatus = 3, // Estado finalizado
+                                                        newStatus = 3, // Finalizada
+                                                        employeeName = user.nameUser,
                                                         context = context,
+                                                        scope = scope, // Necesario para lanzar la corrutina
                                                         onSuccess = {
-                                                            alertMessage =
-                                                                "Cita finalizada correctamente"
+                                                            alertMessage = "Cita finalizada correctamente"
                                                             alertColor = Color(0xFF10B981)
                                                             showAlert = true
                                                             selectedAppointment = null
@@ -904,24 +927,29 @@ fun DashboardPage(
                                         4 -> { // Cancelada - Mostrar Reactivar
                                             Button(
                                                 onClick = {
-                                                    updateAppointmentStatusLocal(
-                                                        appointmentId = appointment.id ?: "",
-                                                        newStatus = 1, // Reactivar a estado activo
-                                                        context = context,
-                                                        onSuccess = {
-                                                            alertMessage =
-                                                                "Cita reactivada correctamente"
-                                                            alertColor = Color(0xFF10B981)
-                                                            showAlert = true
-                                                            selectedAppointment = null
-                                                            scope.launch { sheetState.hide() }
-                                                        },
-                                                        onError = { error ->
-                                                            alertMessage = error
-                                                            alertColor = Color(0xFFEF4444)
-                                                            showAlert = true
-                                                        }
-                                                    )
+                                                    selectedAppointment?.let { appointment ->
+                                                        updateAppointmentStatusLocalConNotificacion(
+                                                            appointmentId = appointment.id ?: "",
+                                                            newStatus = 4, // Cancelada
+                                                            employeeName = user.nameUser,
+                                                            context = context,
+                                                            scope = scope, // Necesario para lanzar la corrutina
+                                                            onSuccess = {
+                                                                alertMessage = "Cita cancelada correctamente"
+                                                                alertColor = Color(0xFF10B981)
+                                                                showAlert = true
+                                                                showCancelDialog = false
+                                                                selectedAppointment = null
+                                                                scope.launch { sheetState.hide() }
+                                                            },
+                                                            onError = { error ->
+                                                                alertMessage = error
+                                                                alertColor = Color(0xFFEF4444)
+                                                                showAlert = true
+                                                                showCancelDialog = false
+                                                            }
+                                                        )
+                                                    }
                                                 },
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -1053,10 +1081,12 @@ fun DashboardPage(
                         Button(
                             onClick = {
                                 selectedAppointment?.let { appointment ->
-                                    updateAppointmentStatusLocal(
+                                    updateAppointmentStatusLocalConNotificacion(
                                         appointmentId = appointment.id ?: "",
-                                        newStatus = 4,
+                                        newStatus = 4, // Cancelada
+                                        employeeName = user.nameUser,
                                         context = context,
+                                        scope = scope, // Necesario para lanzar la corrutina
                                         onSuccess = {
                                             alertMessage = "Cita cancelada correctamente"
                                             alertColor = Color(0xFF10B981)
