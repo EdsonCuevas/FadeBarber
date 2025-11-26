@@ -43,8 +43,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,7 +64,11 @@ import com.example.fadebarber.data.model.AppointmentClientData
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.data.model.ServiceData
 import com.example.fadebarber.data.model.PromotionData
+import com.example.fadebarber.utils.notificarClienteReagendamiento
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalTime
 import org.threeten.bp.YearMonth
@@ -91,6 +97,8 @@ fun CitaPage(
     val users by viewModel.users.collectAsState(initial = emptyList())
     val promotions by viewModel.promotions.collectAsState(initial = emptyList())
 
+    val scope = rememberCoroutineScope()
+
     val systemUiController = rememberSystemUiController()
     SideEffect {
         systemUiController.setStatusBarColor(
@@ -98,6 +106,9 @@ fun CitaPage(
             darkIcons = true
         )
     }
+
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var successMessage by remember { mutableStateOf("") }
 
     val today = LocalDate.now()
     val days = (0..6).map { today.plusDays(it.toLong()) }
@@ -759,7 +770,7 @@ fun CitaPage(
                     // Espaciado adicional para el bottom sheet
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    val canReschedule = (appointment.methodPayment ?: "").equals("Tarjeta", ignoreCase = true)
+                    val canReschedule = appointment.statusAppointment != 4
                     var showReschedule by remember { mutableStateOf(false) }
                     if (canReschedule) {
                         Button(
@@ -910,23 +921,67 @@ fun CitaPage(
                                 Button(
                                     onClick = {
                                         if (conflict) return@Button
-                                        val database = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("Appointment")
+
+                                        // Mostrar loading o deshabilitar botón si quieres
+                                        val database = com.google.firebase.database.FirebaseDatabase.getInstance()
+                                            .getReference("Appointment")
+
                                         val updates: Map<String, Any> = mapOf(
                                             "dateAppointment" to rescheduleDate.toString(),
                                             "timeAppointment" to rescheduleTime.format(dbFormatter)
                                         )
+
                                         appointment.id?.let { id ->
                                             database.child(id)
                                                 .updateChildren(updates)
                                                 .addOnSuccessListener {
+                                                    println("✅ Cita reagendada en Firebase")
+
+                                                    // Enviar notificación al cliente
+                                                    scope.launch {
+                                                        try {
+                                                            val notificacionEnviada = withContext(Dispatchers.IO) {
+                                                                notificarClienteReagendamiento(
+                                                                    appointmentId = id,
+                                                                    nuevaFecha = rescheduleDate.toString(),
+                                                                    nuevaHora = rescheduleTime.format(dbFormatter),
+                                                                    employeeName = user.nameUser,
+                                                                )
+                                                            }
+
+                                                            successMessage = if (notificacionEnviada) {
+                                                                "Cita reagendada y cliente notificado ✅"
+                                                            } else {
+                                                                "Cita reagendada (notificación pendiente) ⚠️"
+                                                            }
+
+                                                            showSuccessDialog = true
+
+
+                                                        } catch (e: Exception) {
+                                                            println("❌ Error al notificar: ${e.message}")
+                                                        }
+                                                    }
+                                                    // Cerrar el modal
                                                     showReschedule = false
+                                                    selectedAppointment = null
+
+                                                }
+                                                .addOnFailureListener { error ->
+                                                    println("❌ Error al reagendar cita: ${error.message}")
+                                                    // Aquí podrías mostrar un Toast o Snackbar con el error
                                                 }
                                         }
                                     },
                                     enabled = !conflict,
-                                    colors = ButtonDefaults.buttonColors(containerColor = if (!conflict) Color(0xFF2563EB) else Color(0xFFF1F5F9))
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (!conflict) Color(0xFF2563EB) else Color(0xFFF1F5F9)
+                                    )
                                 ) {
-                                    Text("Confirmar nueva fecha y hora", color = if (!conflict) Color.White else Color(0xFF94A3B8))
+                                    Text(
+                                        "Confirmar nueva fecha y hora",
+                                        color = if (!conflict) Color.White else Color(0xFF94A3B8)
+                                    )
                                 }
                             }
                         }
@@ -934,6 +989,18 @@ fun CitaPage(
                 }
             }
         }
+    }
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showSuccessDialog = false },
+            title = { Text("Éxito") },
+            text = { Text(successMessage) },
+            confirmButton = {
+                Button(onClick = { showSuccessDialog = false }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))) {
+                    Text("Cerrar")
+                }
+            }
+        )
     }
 }
 
