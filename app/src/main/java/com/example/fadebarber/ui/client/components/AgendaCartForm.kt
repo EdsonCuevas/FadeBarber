@@ -82,6 +82,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.fadebarber.utils.NotificationHelper
 import android.provider.Settings
+import com.example.fadebarber.utils.notificarEmpleadoNuevaCita
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -236,6 +237,13 @@ fun AgendaCartForm(
                     }
 
                     if (appointmentId != null) {
+                        // Notificar al empleado
+                        withContext(Dispatchers.IO) {
+                            notificarEmpleadoNuevaCita(
+                                appointmentData = appointment
+                            )
+                        }
+
                         // Obtener nombre del barbero
                         val nameBarber =
                             barbers.firstOrNull { it.id == selectedBarber }?.nameUser ?: ""
@@ -1329,6 +1337,12 @@ fun AgendaCartForm(
                                                         }
 
                                                         if (appointmentId != null) {
+                                                            // Notificar al empleado
+                                                            withContext(Dispatchers.IO) {
+                                                                notificarEmpleadoNuevaCita(
+                                                                    appointmentData = appointment
+                                                                )
+                                                            }
                                                             val nameBarber =
                                                                 liveBarbers.firstOrNull { it.id == selectedBarber }?.nameUser
                                                                     ?: ""
@@ -2093,6 +2107,12 @@ fun AgendaCartForm(
                                             }
 
                                             if (appointmentId != null) {
+                                                // Notificar al empleado
+                                                withContext(Dispatchers.IO) {
+                                                    notificarEmpleadoNuevaCita(
+                                                        appointmentData = appointment
+                                                    )
+                                                }
                                                 val nameBarber =
                                                     liveBarbers.firstOrNull { it.id == selectedBarber }?.nameUser
                                                         ?: ""

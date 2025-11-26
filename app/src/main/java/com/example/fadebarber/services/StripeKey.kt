@@ -69,12 +69,12 @@ object SecretConfig {
         Log.d(TAG, "========== FIN INIT (secrets ${if (secrets == null) "NULL" else "OK"}) ==========")
     }
 
-    fun get(key: String): String? {
+    fun get(key: String): String {
         Log.d(TAG, "→ get('$key') llamado")
 
         if (secrets == null) {
             Log.e(TAG, "❌ secrets es NULL - init() falló o no se llamó")
-            return null
+            return ""
         }
 
         val value = secrets?.optString(key)
@@ -82,7 +82,7 @@ object SecretConfig {
         if (value.isNullOrBlank()) {
             Log.e(TAG, "❌ Key '$key' no encontrada o vacía")
             Log.d(TAG, "Keys disponibles: ${secrets?.keys()?.asSequence()?.toList()}")
-            return null
+            return ""
         }
 
         Log.d(TAG, "✅ Key '$key' = '${value.take(20)}...'")
