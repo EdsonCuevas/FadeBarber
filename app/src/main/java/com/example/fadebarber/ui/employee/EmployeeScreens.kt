@@ -12,7 +12,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.data.HomeViewModel
-import com.example.fadebarber.ui.client.pages.CuentaPage
+import com.example.fadebarber.ui.employee.pages.CuentaV2
 import com.example.fadebarber.ui.employee.pages.AgendarEmpleadoPage
 import com.example.fadebarber.ui.employee.pages.CitaPage
 import com.example.fadebarber.ui.employee.pages.DashboardPage
@@ -62,7 +62,14 @@ fun EmployeeScreens(
 
         "account" -> {
             if (user != null) {
-                CuentaPage(authViewModel = authViewModel)
+                CuentaV2(
+                    authViewModel = authViewModel,
+                    viewModel = dashboardViewModel,
+                    onNavigateToTerms = { onNavigate("terms") },
+                    onNavigateToPrivacy = { onNavigate("privacy") },
+                    onNavigateToFAQ = { onNavigate("faq") },
+                    onNavigateToAbout = { onNavigate("about") }
+                )
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),

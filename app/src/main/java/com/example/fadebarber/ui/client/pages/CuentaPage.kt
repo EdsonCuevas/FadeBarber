@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -37,6 +35,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.HomeViewModel
@@ -85,6 +84,7 @@ fun CuentaPage(
 
     var showCuenta by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
+    var showBarberSchedule by remember { mutableStateOf(false) }
 
     // Estados de carga y edición
     var isLoading by remember { mutableStateOf(false) }
@@ -98,6 +98,9 @@ fun CuentaPage(
     var alertMessage by remember { mutableStateOf("") }
     var alertColor by remember { mutableStateOf(Color(0xFF10B981)) }
     var showAlert by remember { mutableStateOf(false) }
+    var showReauthEmailDialog by remember { mutableStateOf(false) }
+    var emailChangePassword by remember { mutableStateOf("") }
+    var showEmailPassword by remember { mutableStateOf(false) }
 
     // Validaciones en tiempo real
     val isEmailValid = editableEmail.isEmpty() || emailRegex.matches(editableEmail)
@@ -167,6 +170,9 @@ fun CuentaPage(
             originalPhone = it.phoneNumberUser
         }
 
+        Log.d("EmployeeScreens", "Iniciando configuración FCM...")
+        NotificationHelper.saveUserToken()
+        Log.d("EmployeeScreens", "Token FCM configurado")
     }
 
     DisposableEffect(Unit) {
@@ -272,86 +278,71 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            // Editar Cuenta Card
+            MenuItemWithArrow(
+                text = "Editar Cuenta",
+                onClick = { showCuenta = !showCuenta }
+            )
+
+            // Formulario de edición
+            AnimatedVisibility(
+                visible = showCuenta,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showCuenta = !showCuenta },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Text(text = "Datos personales", fontSize = 14.sp, color = Color(0xFF374151))
-                        Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
-                    }
-                    AnimatedVisibility(visible = showCuenta, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                        Column {
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Column(modifier = Modifier.padding(16.dp)) {
                             OutlinedTextField(
-                        value = editableName,
-                        onValueChange = { editableName = it },
-                        label = { Text("Nombre") },
-                        enabled = (isEditingProfile && !isLoading),
-                        isError = isEditingProfile && editableName.isBlank(),
-                        supportingText = {
-                            if (isEditingProfile && editableName.isBlank()) {
-                                Text("El nombre es requerido", color = Color(0xFFEF4444))
-                            }
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Person,
-                                contentDescription = null,
-                                tint = Color(0xFF2196F3)
+                                value = editableName,
+                                onValueChange = { editableName = it },
+                                label = { Text("Nombre") },
+                                enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && editableName.isBlank(),
+                                supportingText = {
+                                    if (isEditingProfile && editableName.isBlank()) {
+                                        Text("El nombre es requerido", color = Color(0xFFEF4444))
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
                             )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedTextField(
                                 value = editableEmail,
                                 onValueChange = { editableEmail = it },
                                 label = { Text("Correo") },
-                                enabled = (isEditingProfile && !isLoading),
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.Email,
-                                        contentDescription = null,
-                                        tint = Color(0xFF2196F3)
-                                    )
+                                enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && !isEmailValid,
+                                supportingText = {
+                                    if (isEditingProfile && !isEmailValid) {
+                                        Text("Formato de correo inválido", color = Color(0xFFEF4444))
+                                    }
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             )
-                    Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedTextField(
                                 value = editablePhone,
                                 onValueChange = { editablePhone = it },
                                 label = { Text("Teléfono") },
-                        enabled = (isEditingProfile && !isLoading),
-                        isError = isEditingProfile && !isPhoneValid,
-                        supportingText = {
-                            if (isEditingProfile && !isPhoneValid) {
-                                Text("Teléfono debe tener 7-15 dígitos", color = Color(0xFFEF4444))
-                            }
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Phone,
-                                contentDescription = null,
-                                tint = Color(0xFF2196F3)
+                                enabled = isEditingProfile && !isLoading,
+                                isError = isEditingProfile && !isPhoneValid,
+                                supportingText = {
+                                    if (isEditingProfile && !isPhoneValid) {
+                                        Text("Teléfono debe tener 7-15 dígitos", color = Color(0xFFEF4444))
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
                             )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             // Botones de acción
                             if (!isEditingProfile) {
@@ -394,31 +385,37 @@ fun CuentaPage(
 
                                     Button(
                                         onClick = {
-                                            updateUserData(
-                                                name = editableName,
-                                                email = editableEmail,
-                                                phone = editablePhone,
-                                                context = context,
-                                                viewModel = viewModel,
-                                                emailRegex = emailRegex,
-                                                phoneRegex = phoneRegex,
-                                                onLoadingChange = { isLoading = it },
-                                                onSuccess = {
-                                                    originalName = editableName
-                                                    originalEmail = editableEmail
-                                                    originalPhone = editablePhone
-                                                    isEditingProfile = false
-                                                },
-                                                onShowAlert = { message, color ->
-                                                    alertMessage = message
-                                                    alertColor = color
-                                                    showAlert = true
-                                                }
-                                            )
+                                            val emailChanged = editableEmail != originalEmail
+                                            if (emailChanged) {
+                                                showReauthEmailDialog = true
+                                            } else {
+                                                updateUserData(
+                                                    name = editableName,
+                                                    email = editableEmail,
+                                                    phone = editablePhone,
+                                                    context = context,
+                                                    viewModel = viewModel,
+                                                    emailRegex = emailRegex,
+                                                    phoneRegex = phoneRegex,
+                                                    onLoadingChange = { isLoading = it },
+                                                    onSuccess = {
+                                                        originalName = editableName
+                                                        originalEmail = editableEmail
+                                                        originalPhone = editablePhone
+                                                        isEditingProfile = false
+                                                    },
+                                                    onShowAlert = { message, color ->
+                                                        alertMessage = message
+                                                        alertColor = color
+                                                        showAlert = true
+                                                    }
+                                                )
+                                            }
                                         },
                                         modifier = Modifier.weight(1f),
                                         enabled = !isLoading &&
                                                 editableName.isNotBlank() &&
+                                                isEmailValid &&
                                                 isPhoneValid,
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color(0xFF10B981)
@@ -442,135 +439,113 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            // Cambiar Contraseña
+            MenuItemWithArrow(
+                text = "Cambiar Contraseña",
+                onClick = { showPassword = !showPassword }
+            )
+
+            AnimatedVisibility(
+                visible = showPassword,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showPassword = !showPassword },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Text(text = "Seguridad", fontSize = 14.sp, color = Color(0xFF374151))
-                        Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
-                    }
-                    AnimatedVisibility(visible = showPassword, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                        Column {
-                            Spacer(modifier = Modifier.height(8.dp))
-                    var showCurrentPassword by remember { mutableStateOf(false) }
-                    var showNewPassword by remember { mutableStateOf(false) }
-                    var showConfirmPassword by remember { mutableStateOf(false) }
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            var showCurrentPassword by remember { mutableStateOf(false) }
+                            var showNewPassword by remember { mutableStateOf(false) }
+                            var showConfirmPassword by remember { mutableStateOf(false) }
 
-                        OutlinedTextField(
-                            value = currentPassword,
-                            onValueChange = { currentPassword = it },
-                            label = { Text("Contraseña Actual") },
-                            enabled = isEditingPassword && !isLoadingPassword,
-                            isError = isEditingPassword && currentPassword.isBlank(),
-                            supportingText = {
-                                if (isEditingPassword && currentPassword.isBlank()) {
-                                    Text("La contraseña actual es requerida", color = Color(0xFFEF4444))
-                                }
-                            },
-                            visualTransformation = if (showCurrentPassword)
-                                VisualTransformation.None else PasswordVisualTransformation(),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Filled.Lock,
-                                    contentDescription = null,
-                                    tint = Color(0xFF2196F3)
-                                )
-                            },
-                            trailingIcon = {
-                                IconButton(onClick = { showCurrentPassword = !showCurrentPassword }) {
-                                    Icon(
-                                        imageVector = if (showCurrentPassword)
-                                            Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                        contentDescription = if (showCurrentPassword)
-                                            "Ocultar contraseña" else "Mostrar contraseña"
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            OutlinedTextField(
+                                value = currentPassword,
+                                onValueChange = { currentPassword = it },
+                                label = { Text("Contraseña Actual") },
+                                enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && currentPassword.isBlank(),
+                                supportingText = {
+                                    if (isEditingPassword && currentPassword.isBlank()) {
+                                        Text("La contraseña actual es requerida", color = Color(0xFFEF4444))
+                                    }
+                                },
+                                visualTransformation = if (showCurrentPassword)
+                                    VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showCurrentPassword = !showCurrentPassword }) {
+                                        Icon(
+                                            imageVector = if (showCurrentPassword)
+                                                Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                            contentDescription = if (showCurrentPassword)
+                                                "Ocultar contraseña" else "Mostrar contraseña"
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                        OutlinedTextField(
-                            value = newPassword,
-                            onValueChange = { newPassword = it },
-                            label = { Text("Nueva Contraseña") },
-                            enabled = isEditingPassword && !isLoadingPassword,
-                            isError = isEditingPassword && !isNewPasswordValid && newPassword.isNotEmpty(),
-                            supportingText = {
-                                if (isEditingPassword && newPassword.isNotEmpty() && !isNewPasswordValid) {
-                                    Text("Mínimo 8 caracteres y 1 número", color = Color(0xFFEF4444))
-                                }
-                            },
-                            visualTransformation = if (showNewPassword)
-                                VisualTransformation.None else PasswordVisualTransformation(),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Filled.Lock,
-                                    contentDescription = null,
-                                    tint = Color(0xFF2196F3)
-                                )
-                            },
-                            trailingIcon = {
-                                IconButton(onClick = { showNewPassword = !showNewPassword }) {
-                                    Icon(
-                                        imageVector = if (showNewPassword)
-                                            Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                        contentDescription = if (showNewPassword)
-                                            "Ocultar contraseña" else "Mostrar contraseña"
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            OutlinedTextField(
+                                value = newPassword,
+                                onValueChange = { newPassword = it },
+                                label = { Text("Nueva Contraseña") },
+                                enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && !isNewPasswordValid && newPassword.isNotEmpty(),
+                                supportingText = {
+                                    if (isEditingPassword && newPassword.isNotEmpty() && !isNewPasswordValid) {
+                                        Text("Mínimo 8 caracteres y 1 número", color = Color(0xFFEF4444))
+                                    }
+                                },
+                                visualTransformation = if (showNewPassword)
+                                    VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showNewPassword = !showNewPassword }) {
+                                        Icon(
+                                            imageVector = if (showNewPassword)
+                                                Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                            contentDescription = if (showNewPassword)
+                                                "Ocultar contraseña" else "Mostrar contraseña"
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                        OutlinedTextField(
-                            value = confirmPassword,
-                            onValueChange = { confirmPassword = it },
-                            label = { Text("Confirmar Contraseña") },
-                            enabled = isEditingPassword && !isLoadingPassword,
-                            isError = isEditingPassword && confirmPassword.isNotEmpty() &&
-                                    newPassword != confirmPassword,
-                            supportingText = {
-                                if (isEditingPassword && confirmPassword.isNotEmpty() &&
-                                    newPassword != confirmPassword) {
-                                    Text("Las contraseñas no coinciden", color = Color(0xFFEF4444))
-                                }
-                            },
-                            visualTransformation = if (showConfirmPassword)
-                                VisualTransformation.None else PasswordVisualTransformation(),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Filled.Lock,
-                                    contentDescription = null,
-                                    tint = Color(0xFF2196F3)
-                                )
-                            },
-                            trailingIcon = {
-                                IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
-                                    Icon(
-                                        imageVector = if (showConfirmPassword)
-                                            Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                        contentDescription = if (showConfirmPassword)
-                                            "Ocultar contraseña" else "Mostrar contraseña"
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            OutlinedTextField(
+                                value = confirmPassword,
+                                onValueChange = { confirmPassword = it },
+                                label = { Text("Confirmar Contraseña") },
+                                enabled = isEditingPassword && !isLoadingPassword,
+                                isError = isEditingPassword && confirmPassword.isNotEmpty() &&
+                                        newPassword != confirmPassword,
+                                supportingText = {
+                                    if (isEditingPassword && confirmPassword.isNotEmpty() &&
+                                        newPassword != confirmPassword) {
+                                        Text("Las contraseñas no coinciden", color = Color(0xFFEF4444))
+                                    }
+                                },
+                                visualTransformation = if (showConfirmPassword)
+                                    VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
+                                        Icon(
+                                            imageVector = if (showConfirmPassword)
+                                                Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                            contentDescription = if (showConfirmPassword)
+                                                "Ocultar contraseña" else "Mostrar contraseña"
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
@@ -658,39 +633,217 @@ fun CuentaPage(
                             }
                         }
                     }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(text = "Información y ayuda", fontSize = 14.sp, color = Color(0xFF374151))
-                Spacer(modifier = Modifier.height(12.dp))
-                InfoItemCard(text = "Términos y Condiciones", onClick = { onNavigateToTerms() }, icon = Icons.Filled.Description)
-                Spacer(modifier = Modifier.height(8.dp))
-                InfoItemCard(text = "Política de Privacidad", onClick = { onNavigateToPrivacy() }, icon = Icons.Filled.Security)
-                Spacer(modifier = Modifier.height(8.dp))
-                InfoItemCard(text = "Preguntas Frecuentes", onClick = { onNavigateToFAQ() }, icon = Icons.Filled.Help)
-                Spacer(modifier = Modifier.height(8.dp))
-                InfoItemCard(text = "Sobre FadeBarber", onClick = { onNavigateToAbout() }, icon = Icons.Filled.Info)
             }
         }
 
-        // Botón de cerrar sesión en esquina superior derecha
-        IconButton(
-            onClick = {
-                Log.d("CuentaPage", "Botón de logout presionado")
-                authViewModel.logout()
-            },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                contentDescription = "Cerrar Sesión",
-                tint = Color(0xFFD32F2F),
-                modifier = Modifier.size(24.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+            MenuItemWithArrow(
+                text = "Horarios de la barbería",
+                onClick = { showBarberSchedule = !showBarberSchedule }
             )
+            AnimatedVisibility(
+                visible = showBarberSchedule,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        val infoState = viewModel.info.collectAsState()
+                        val barberInfo = infoState.value
+                        if (barberInfo != null) {
+                            val diasOrdenados = listOf(
+                                "monday" to "Lunes",
+                                "tuesday" to "Martes",
+                                "wednesday" to "Miércoles",
+                                "thursday" to "Jueves",
+                                "friday" to "Viernes",
+                                "saturday" to "Sábado",
+                                "sunday" to "Domingo"
+                            )
+                            diasOrdenados.forEachIndexed { index, (diaKey, diaNombre) ->
+                                val day = barberInfo.schedule[diaKey]
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = diaNombre,
+                                        fontSize = 15.sp,
+                                        color = Color(0xFF1E293B),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        text = if (day?.available == true) {
+                                            "${day.start ?: "--:--"} a ${day.end ?: "--:--"}"
+                                        } else {
+                                            "Cerrado"
+                                        },
+                                        fontSize = 13.sp,
+                                        color = if (day?.available == true) Color(0xFF334155) else Color(0xFF64748B)
+                                    )
+                                }
+                                if (index < diasOrdenados.size - 1) {
+                                    Divider(
+                                        modifier = Modifier.padding(vertical = 12.dp),
+                                        color = Color.LightGray.copy(alpha = 0.3f),
+                                        thickness = 1.dp
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(text = "Sin horarios disponibles", color = Color(0xFF64748B))
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(text = "Información y ayuda", fontSize = 14.sp, color = Color(0xFF374151))
+            Spacer(modifier = Modifier.height(12.dp))
+            InfoItemCard(text = "Política de Privacidad", onClick = onNavigateToPrivacy)
+            Spacer(modifier = Modifier.height(8.dp))
+            InfoItemCard(text = "Términos y Condiciones", onClick = onNavigateToTerms)
+            Spacer(modifier = Modifier.height(8.dp))
+            InfoItemCard(text = "Preguntas Frecuentes", onClick = onNavigateToFAQ)
+            Spacer(modifier = Modifier.height(8.dp))
+            InfoItemCard(text = "Sobre FadeBarber", onClick = onNavigateToAbout)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Cerrar Sesión
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        Log.d("CuentaPage", "Botón de logout presionado")
+                        authViewModel.logout()
+                    },
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                        contentDescription = "Cerrar Sesión",
+                        tint = Color(0xFFD32F2F),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Cerrar Sesión",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFD32F2F)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (showReauthEmailDialog) {
+            Dialog(onDismissRequest = { showReauthEmailDialog = false }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(Color(0xFF2563EB).copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Email,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2563EB)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(text = "Confirmar cambio de correo", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                                Text(text = "Ingresa tu contraseña actual", fontSize = 12.sp, color = Color(0xFF64748B))
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = emailChangePassword,
+                            onValueChange = { emailChangePassword = it },
+                            label = { Text("Contraseña") },
+                            visualTransformation = if (showEmailPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showEmailPassword = !showEmailPassword }) {
+                                    Icon(
+                                        imageVector = if (showEmailPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { showReauthEmailDialog = false },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B7280), contentColor = Color.White)
+                            ) { Text("Cancelar") }
+                            Button(
+                                onClick = {
+                                    updateEmailAndProfileClient(
+                                        originalEmail = originalEmail,
+                                        name = editableName,
+                                        email = editableEmail,
+                                        phone = editablePhone,
+                                        context = context,
+                                        viewModel = viewModel,
+                                        emailRegex = emailRegex,
+                                        phoneRegex = phoneRegex,
+                                        currentPasswordForEmail = emailChangePassword,
+                                        onLoadingChange = { isLoading = it },
+                                        onSuccess = {
+                                            originalName = editableName
+                                            originalEmail = editableEmail
+                                            originalPhone = editablePhone
+                                            isEditingProfile = false
+                                            showReauthEmailDialog = false
+                                            emailChangePassword = ""
+                                        },
+                                        onShowAlert = { message, color ->
+                                            alertMessage = message
+                                            alertColor = color
+                                            showAlert = true
+                                        }
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB), contentColor = Color.White)
+                            ) { Text("Confirmar") }
+                        }
+                    }
+                }
+            }
         }
 
         // Alerta personalizada
@@ -699,6 +852,33 @@ fun CuentaPage(
                 message = alertMessage,
                 color = alertColor,
                 onDismiss = { showAlert = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = text, fontSize = 16.sp, color = Color.Black)
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowRight,
+                contentDescription = "Ir a $text",
+                tint = Color.Gray
             )
         }
     }
@@ -790,49 +970,6 @@ private fun updateProfileImageUrl(
     }
 }
 
-@Composable
-private fun InfoItemCard(text: String, onClick: () -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.Info) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(14.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Color(0xFF1E3A8A), Color(0xFF2563EB))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(imageVector = icon, contentDescription = null, tint = Color.White)
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(text = text, fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Medium)
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFF94A3B8)
-            )
-        }
-    }
-}
-
 // Función para actualizar datos del usuario
 private fun updateUserData(
     name: String,
@@ -858,8 +995,14 @@ private fun updateUserData(
         }
 
         // Validaciones
-        if (name.isBlank() || phone.isBlank()) {
+        if (name.isBlank() || email.isBlank() || phone.isBlank()) {
             onShowAlert("Por favor completa todos los campos", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        if (!emailRegex.matches(email)) {
+            onShowAlert("Correo electrónico inválido", Color(0xFFEF4444))
             onLoadingChange(false)
             return
         }
@@ -876,6 +1019,7 @@ private fun updateUserData(
         // Actualizar datos en Realtime Database
         val updates: Map<String, Any> = mapOf(
             "nameUser" to name,
+            "correoUser" to email,
             "phoneNumberUser" to phone
         )
 
@@ -891,6 +1035,9 @@ private fun updateUserData(
                         name != original.nameUser -> {
                             NotificationHelper.sendProfileUpdateNotification(context, name, "name_change")
                         }
+                        email != original.correoUser -> {
+                            NotificationHelper.sendProfileUpdateNotification(context, name, "email_change")
+                        }
                         phone != original.phoneNumberUser -> {
                             NotificationHelper.sendProfileUpdateNotification(context, name, "phone_change")
                         }
@@ -900,7 +1047,18 @@ private fun updateUserData(
                     }
                 }
 
-                // No se permite modificar correo desde la app
+                // Actualizar email en Firebase Auth si cambió
+                if (email != firebaseUser.email) {
+                    firebaseUser.verifyBeforeUpdateEmail(email)
+                        .addOnSuccessListener {
+                            Log.d("UpdateUser", "Verificación de email enviada")
+                            onShowAlert("Hemos enviado un correo de verificación. Revisa tu bandeja de entrada o SPAM para confirmar tu nuevo correo.", Color(0xFF0EA5E9))
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("UpdateUser", "Error enviando verificación de email", e)
+                            onShowAlert("Error con verificación de email: ${e.message}", Color(0xFFEF4444))
+                        }
+                }
 
                 // Recargar datos del usuario desde el ViewModel
                 viewModel.loadCurrentUser()
@@ -917,6 +1075,133 @@ private fun updateUserData(
 
     } catch (e: Exception) {
         Log.e("UpdateUser", "Error general", e)
+        onShowAlert("Error inesperado: ${e.message}", Color(0xFFEF4444))
+        onLoadingChange(false)
+    }
+}
+
+private fun updateEmailAndProfileClient(
+    originalEmail: String,
+    name: String,
+    email: String,
+    phone: String,
+    context: android.content.Context,
+    viewModel: HomeViewModel,
+    emailRegex: Regex,
+    phoneRegex: Regex,
+    currentPasswordForEmail: String,
+    onLoadingChange: (Boolean) -> Unit,
+    onSuccess: () -> Unit,
+    onShowAlert: (String, Color) -> Unit
+) {
+    onLoadingChange(true)
+    try {
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        if (firebaseUser == null) {
+            onShowAlert("Usuario no autenticado", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        if (name.isBlank() || email.isBlank() || phone.isBlank()) {
+            onShowAlert("Por favor completa todos los campos", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+        if (!emailRegex.matches(email)) {
+            onShowAlert("Correo electrónico inválido", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+        if (!phoneRegex.matches(phone)) {
+            onShowAlert("Número de teléfono inválido (7-15 dígitos)", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        val emailChanged = email != originalEmail
+        val userId = firebaseUser.uid
+        val database = FirebaseDatabase.getInstance().getReference("User")
+
+        fun updateDbAndNotify() {
+            val updates: Map<String, Any> = mapOf(
+                "nameUser" to name,
+                "correoUser" to email,
+                "phoneNumberUser" to phone
+            )
+            database.child(userId)
+                .updateChildren(updates)
+                .addOnSuccessListener {
+                    val originalUser = viewModel.currentUser.value
+                    originalUser?.let { original ->
+                        when {
+                            name != original.nameUser -> NotificationHelper.sendProfileUpdateNotification(context, name, "name_change")
+                            email != original.correoUser -> NotificationHelper.sendProfileUpdateNotification(context, name, "email_change")
+                            phone != original.phoneNumberUser -> NotificationHelper.sendProfileUpdateNotification(context, name, "phone_change")
+                            else -> NotificationHelper.sendProfileUpdateNotification(context, name, "profile_update")
+                        }
+                    }
+                    viewModel.loadCurrentUser()
+                    onShowAlert("Datos actualizados correctamente", Color(0xFF10B981))
+                    onSuccess()
+                }
+                .addOnFailureListener { e ->
+                    onShowAlert("Error al actualizar datos: ${e.message}", Color(0xFFEF4444))
+                }
+                .addOnCompleteListener { onLoadingChange(false) }
+        }
+
+        if (!emailChanged) {
+            updateDbAndNotify()
+            return
+        }
+
+        if (currentPasswordForEmail.isBlank()) {
+            onShowAlert("Ingresa tu contraseña para cambiar el correo", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        FirebaseAuth.getInstance().fetchSignInMethodsForEmail(email)
+            .addOnSuccessListener { result ->
+                val methods = result.signInMethods
+                if (!methods.isNullOrEmpty()) {
+                    onShowAlert("El correo ya está en uso", Color(0xFFEF4444))
+                    onLoadingChange(false)
+                    return@addOnSuccessListener
+                }
+
+                val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(
+                    firebaseUser.email ?: "",
+                    currentPasswordForEmail
+                )
+
+                firebaseUser.reauthenticate(credential)
+                    .addOnSuccessListener {
+                        firebaseUser.verifyBeforeUpdateEmail(email)
+                            .addOnSuccessListener {
+                                onShowAlert("Hemos enviado un correo de verificación. Revisa tu bandeja de entrada o SPAM para confirmar tu nuevo correo.", Color(0xFF0EA5E9))
+                                updateDbAndNotify()
+                            }
+                            .addOnFailureListener { e ->
+                                val msg = when (e.message) {
+                                    null -> "Error con verificación de email"
+                                    else -> e.message!!
+                                }
+                                onShowAlert("Error con verificación de email: ${msg}", Color(0xFFEF4444))
+                                onLoadingChange(false)
+                            }
+                    }
+                    .addOnFailureListener { e ->
+                        onShowAlert("Contraseña actual incorrecta", Color(0xFFEF4444))
+                        onLoadingChange(false)
+                    }
+            }
+            .addOnFailureListener { e ->
+                onShowAlert("No se pudo validar el correo: ${e.message}", Color(0xFFEF4444))
+                onLoadingChange(false)
+            }
+    } catch (e: Exception) {
         onShowAlert("Error inesperado: ${e.message}", Color(0xFFEF4444))
         onLoadingChange(false)
     }
@@ -991,5 +1276,28 @@ private fun updatePassword(
         Log.e("UpdatePassword", "Error general", e)
         onShowAlert("Error inesperado: ${e.message}", Color(0xFFEF4444))
         onLoadingChange(false)
+    }
+}
+
+@Composable
+private fun InfoItemCard(text: String, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = text, fontSize = 16.sp, color = Color.Black)
+            Icon(imageVector = Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = Color(0xFF94A3B8))
+        }
     }
 }

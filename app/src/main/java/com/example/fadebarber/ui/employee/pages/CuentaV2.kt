@@ -26,8 +26,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Help
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -53,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +68,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.window.Dialog
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.ui.client.components.HorarioItem
@@ -74,7 +82,11 @@ import com.google.firebase.database.FirebaseDatabase
 fun CuentaV2(
     modifier: Modifier = Modifier,
     viewModel: DashboardViewModel = viewModel(),
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    onNavigateToTerms: () -> Unit = {},
+    onNavigateToPrivacy: () -> Unit = {},
+    onNavigateToFAQ: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {}
 ) {
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
@@ -108,6 +120,9 @@ fun CuentaV2(
     var isLoading by remember { mutableStateOf(false) }
     var isLoadingPassword by remember { mutableStateOf(false) }
     var isEditingProfile by remember { mutableStateOf(false) }
+    var showReauthEmailDialog by remember { mutableStateOf(false) }
+    var emailChangePassword by remember { mutableStateOf("") }
+    var showEmailPassword by remember { mutableStateOf(false) }
     var isEditingPassword by remember { mutableStateOf(false) }
 
     // Estados para alertas
@@ -283,27 +298,32 @@ fun CuentaV2(
 
                                     Button(
                                         onClick = {
-                                            updateUserData(
-                                                name = editableName,
-                                                email = editableEmail,
-                                                phone = editablePhone,
-                                                context = context,
-                                                viewModel = viewModel,
-                                                emailRegex = emailRegex,
-                                                phoneRegex = phoneRegex,
-                                                onLoadingChange = { isLoading = it },
-                                                onSuccess = {
-                                                    originalName = editableName
-                                                    originalEmail = editableEmail
-                                                    originalPhone = editablePhone
-                                                    isEditingProfile = false
-                                                },
-                                                onShowAlert = { message, color ->
-                                                    alertMessage = message
-                                                    alertColor = color
-                                                    showAlert = true
-                                                }
-                                            )
+                                            val emailChanged = editableEmail != originalEmail
+                                            if (emailChanged) {
+                                                showReauthEmailDialog = true
+                                            } else {
+                                                updateUserData(
+                                                    name = editableName,
+                                                    email = editableEmail,
+                                                    phone = editablePhone,
+                                                    context = context,
+                                                    viewModel = viewModel,
+                                                    emailRegex = emailRegex,
+                                                    phoneRegex = phoneRegex,
+                                                    onLoadingChange = { isLoading = it },
+                                                    onSuccess = {
+                                                        originalName = editableName
+                                                        originalEmail = editableEmail
+                                                        originalPhone = editablePhone
+                                                        isEditingProfile = false
+                                                    },
+                                                    onShowAlert = { message, color ->
+                                                        alertMessage = message
+                                                        alertColor = color
+                                                        showAlert = true
+                                                    }
+                                                )
+                                            }
                                         },
                                         modifier = Modifier.weight(1f),
                                         enabled = !isLoading &&
@@ -331,6 +351,97 @@ fun CuentaV2(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+            if (showReauthEmailDialog) {
+                Dialog(onDismissRequest = { showReauthEmailDialog = false }) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color(0xFF2563EB).copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Email,
+                                        contentDescription = null,
+                                        tint = Color(0xFF2563EB)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(text = "Confirmar cambio de correo", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                                    Text(text = "Ingresa tu contraseña actual", fontSize = 12.sp, color = Color(0xFF64748B))
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            OutlinedTextField(
+                                value = emailChangePassword,
+                                onValueChange = { emailChangePassword = it },
+                                label = { Text("Contraseña") },
+                                visualTransformation = if (showEmailPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showEmailPassword = !showEmailPassword }) {
+                                        Icon(
+                                            imageVector = if (showEmailPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                            contentDescription = null
+                                        )
+                                    }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = { showReauthEmailDialog = false },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B7280), contentColor = Color.White)
+                                ) { Text("Cancelar") }
+                                Button(
+                                    onClick = {
+                                        updateEmailAndProfileEmployee(
+                                            originalEmail = originalEmail,
+                                            name = editableName,
+                                            email = editableEmail,
+                                            phone = editablePhone,
+                                            context = context,
+                                            viewModel = viewModel,
+                                            emailRegex = emailRegex,
+                                            phoneRegex = phoneRegex,
+                                            currentPasswordForEmail = emailChangePassword,
+                                            onLoadingChange = { isLoading = it },
+                                            onSuccess = {
+                                                originalName = editableName
+                                                originalEmail = editableEmail
+                                                originalPhone = editablePhone
+                                                isEditingProfile = false
+                                                showReauthEmailDialog = false
+                                                emailChangePassword = ""
+                                            },
+                                            onShowAlert = { message, color ->
+                                                alertMessage = message
+                                                alertColor = color
+                                                showAlert = true
+                                            }
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB), contentColor = Color.White)
+                                ) { Text("Confirmar") }
+                            }
+                        }
+                    }
+                }
+            }
 
             // Cambiar Contraseña
             MenuItemWithArrow(
@@ -528,35 +639,24 @@ fun CuentaV2(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Gestionar Horario
-            Text(
-                text = "Horarios laborales",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            MenuItemWithArrow(text = "Horarios laborales", onClick = { showHorario = !showHorario })
 
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
+            AnimatedVisibility(
+                visible = showHorario,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
             ) {
-                AnimatedVisibility(
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(),
-                    visible = showHorario,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
                 ) {
                     if (user == null) {
-                        // Skeleton Loading
                         Column(modifier = Modifier.padding(20.dp)) {
                             repeat(7) { index ->
                                 SkeletonHorarioItem()
@@ -601,6 +701,20 @@ fun CuentaV2(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            // Información y ayuda
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "Información y ayuda", fontSize = 14.sp, color = Color(0xFF374151))
+            Spacer(modifier = Modifier.height(12.dp))
+            InfoItemCard(text = "Política de Privacidad", onClick = onNavigateToPrivacy)
+            Spacer(modifier = Modifier.height(8.dp))
+            InfoItemCard(text = "Términos y Condiciones", onClick = onNavigateToTerms)
+            Spacer(modifier = Modifier.height(8.dp))
+            InfoItemCard(text = "Preguntas Frecuentes", onClick = onNavigateToFAQ)
+            Spacer(modifier = Modifier.height(8.dp))
+            InfoItemCard(text = "Sobre FadeBarber", onClick = onNavigateToAbout)
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Cerrar Sesión
             Card(
@@ -658,7 +772,7 @@ private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
             .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -669,9 +783,36 @@ private fun MenuItemWithArrow(text: String, onClick: () -> Unit) {
         ) {
             Text(text = text, fontSize = 16.sp, color = Color.Black)
             Icon(
-                imageVector = Icons.Filled.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "Ir a $text",
                 tint = Color.Gray
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoItemCard(text: String, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = text, fontSize = 16.sp, color = Color.Black)
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF94A3B8)
             )
         }
     }
@@ -767,7 +908,7 @@ private fun updateUserData(
         val userId = firebaseUser.uid
         val database = FirebaseDatabase.getInstance().getReference("User")
 
-        // Actualizar datos en Realtime Database
+        // Actualizar datos en Realtime Database (sin cambio de correo)
         val updates: Map<String, Any> = mapOf(
             "nameUser" to name,
             "phoneNumberUser" to phone
@@ -793,8 +934,6 @@ private fun updateUserData(
                         }
                     }
                 }
-
-                // No se permite modificar correo desde la app
 
                 // Recargar datos del usuario desde el ViewModel
                 viewModel.loadCurrentUser()
@@ -882,6 +1021,130 @@ private fun updatePassword(
 
     } catch (e: Exception) {
         Log.e("UpdatePassword", "Error general", e)
+        onShowAlert("Error inesperado: ${e.message}", Color(0xFFEF4444))
+        onLoadingChange(false)
+    }
+}
+
+private fun updateEmailAndProfileEmployee(
+    originalEmail: String,
+    name: String,
+    email: String,
+    phone: String,
+    context: android.content.Context,
+    viewModel: DashboardViewModel,
+    emailRegex: Regex,
+    phoneRegex: Regex,
+    currentPasswordForEmail: String,
+    onLoadingChange: (Boolean) -> Unit,
+    onSuccess: () -> Unit,
+    onShowAlert: (String, Color) -> Unit
+) {
+    onLoadingChange(true)
+    try {
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        if (firebaseUser == null) {
+            onShowAlert("Usuario no autenticado", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        if (name.isBlank() || email.isBlank() || phone.isBlank()) {
+            onShowAlert("Por favor completa todos los campos", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+        if (!emailRegex.matches(email)) {
+            onShowAlert("Correo electrónico inválido", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+        if (!phoneRegex.matches(phone)) {
+            onShowAlert("Número de teléfono inválido (7-15 dígitos)", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        val emailChanged = email != originalEmail
+        val userId = firebaseUser.uid
+        val database = FirebaseDatabase.getInstance().getReference("User")
+
+        fun updateDbAndNotify() {
+            val updates: Map<String, Any> = mapOf(
+                "nameUser" to name,
+                "correoUser" to email,
+                "phoneNumberUser" to phone
+            )
+            database.child(userId)
+                .updateChildren(updates)
+                .addOnSuccessListener {
+                    val originalUser = viewModel.currentUser.value
+                    originalUser?.let { original ->
+                        when {
+                            name != original.nameUser -> NotificationHelper.sendProfileUpdateNotification(context, name, "name_change")
+                            email != original.correoUser -> NotificationHelper.sendProfileUpdateNotification(context, name, "email_change")
+                            phone != original.phoneNumberUser -> NotificationHelper.sendProfileUpdateNotification(context, name, "phone_change")
+                            else -> NotificationHelper.sendProfileUpdateNotification(context, name, "profile_update")
+                        }
+                    }
+                    viewModel.loadCurrentUser()
+                    onShowAlert("Datos actualizados correctamente", Color(0xFF10B981))
+                    onSuccess()
+                }
+                .addOnFailureListener { e ->
+                    onShowAlert("Error al actualizar datos: ${e.message}", Color(0xFFEF4444))
+                }
+                .addOnCompleteListener { onLoadingChange(false) }
+        }
+
+        if (!emailChanged) {
+            updateDbAndNotify()
+            return
+        }
+
+        if (currentPasswordForEmail.isBlank()) {
+            onShowAlert("Ingresa tu contraseña para cambiar el correo", Color(0xFFEF4444))
+            onLoadingChange(false)
+            return
+        }
+
+        FirebaseAuth.getInstance().fetchSignInMethodsForEmail(email)
+            .addOnSuccessListener { result ->
+                val methods = result.signInMethods
+                if (!methods.isNullOrEmpty()) {
+                    onShowAlert("El correo ya está en uso", Color(0xFFEF4444))
+                    onLoadingChange(false)
+                    return@addOnSuccessListener
+                }
+
+                val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(
+                    firebaseUser.email ?: "",
+                    currentPasswordForEmail
+                )
+
+                firebaseUser.reauthenticate(credential)
+                    .addOnSuccessListener {
+                        firebaseUser.verifyBeforeUpdateEmail(email)
+                            .addOnSuccessListener {
+                                onShowAlert("Hemos enviado un correo de verificación. Revisa tu bandeja de entrada o SPAM para confirmar tu nuevo correo.", Color(0xFF0EA5E9))
+                                updateDbAndNotify()
+                            }
+                            .addOnFailureListener { e ->
+                                val msg = e.message ?: "Error con verificación de email"
+                                onShowAlert("Error con verificación de email: ${msg}", Color(0xFFEF4444))
+                                onLoadingChange(false)
+                            }
+                    }
+                    .addOnFailureListener { e ->
+                        onShowAlert("Contraseña actual incorrecta", Color(0xFFEF4444))
+                        onLoadingChange(false)
+                    }
+            }
+            .addOnFailureListener { e ->
+                onShowAlert("No se pudo validar el correo: ${e.message}", Color(0xFFEF4444))
+                onLoadingChange(false)
+            }
+    } catch (e: Exception) {
         onShowAlert("Error inesperado: ${e.message}", Color(0xFFEF4444))
         onLoadingChange(false)
     }

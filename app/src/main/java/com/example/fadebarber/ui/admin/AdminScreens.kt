@@ -19,6 +19,12 @@ fun AdminScreens(
         "employee" -> AsistenciaScreen(
             onNavigateToAccount = { onNavigate("account") }
         )
-        "account" -> CuentaPage(authViewModel = authViewModel)
+        "account" -> CuentaPage(
+            authViewModel = authViewModel,
+            onNavigateToTerms = { onNavigate("terms") },
+            onNavigateToPrivacy = { onNavigate("privacy") },
+            onNavigateToFAQ = { onNavigate("faq") },
+            onNavigateToAbout = { onNavigate("about") }
+        )
     }
 }

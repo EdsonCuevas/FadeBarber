@@ -59,6 +59,7 @@ fun ClientScreens(
         "account" -> {
             if (user != null) {
                 CuentaPage(
+                    viewModel = homeViewModel,
                     authViewModel = authViewModel,
                     onNavigateToTerms = { navController.navigate("terms") },
                     onNavigateToPrivacy = { navController.navigate("privacy") },
