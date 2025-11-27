@@ -770,7 +770,7 @@ fun CitaPage(
                     // Espaciado adicional para el bottom sheet
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    val canReschedule = appointment.statusAppointment != 4
+                    val canReschedule = appointment.statusAppointment == 1
                     var showReschedule by remember { mutableStateOf(false) }
                     if (canReschedule) {
                         Button(
