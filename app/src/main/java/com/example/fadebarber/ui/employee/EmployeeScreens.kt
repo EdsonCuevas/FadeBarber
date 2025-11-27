@@ -12,6 +12,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fadebarber.data.AuthViewModel
 import com.example.fadebarber.data.DashboardViewModel
 import com.example.fadebarber.data.HomeViewModel
+import com.example.fadebarber.ui.client.pages.CuentaPage
 import com.example.fadebarber.ui.employee.pages.CuentaV2
 import com.example.fadebarber.ui.employee.pages.AgendarEmpleadoPage
 import com.example.fadebarber.ui.employee.pages.CitaPage
@@ -62,9 +63,8 @@ fun EmployeeScreens(
 
         "account" -> {
             if (user != null) {
-                CuentaV2(
+                CuentaPage(
                     authViewModel = authViewModel,
-                    viewModel = dashboardViewModel,
                     onNavigateToTerms = { onNavigate("terms") },
                     onNavigateToPrivacy = { onNavigate("privacy") },
                     onNavigateToFAQ = { onNavigate("faq") },
