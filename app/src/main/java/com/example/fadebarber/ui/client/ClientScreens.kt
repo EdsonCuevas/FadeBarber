@@ -58,7 +58,13 @@ fun ClientScreens(
         }
         "account" -> {
             if (user != null) {
-                CuentaPage(authViewModel = authViewModel)
+                CuentaPage(
+                    authViewModel = authViewModel,
+                    onNavigateToTerms = { navController.navigate("terms") },
+                    onNavigateToPrivacy = { navController.navigate("privacy") },
+                    onNavigateToFAQ = { navController.navigate("faq") },
+                    onNavigateToAbout = { navController.navigate("about") }
+                )
             } else if (isGuest) {
                 GuestGateScreen(
                     section = "account",

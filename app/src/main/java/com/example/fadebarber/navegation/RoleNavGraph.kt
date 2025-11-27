@@ -71,7 +71,7 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
     // Ocultar barra inferior en rutas de autenticación
     val backStackEntry = navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry.value?.destination?.route
-    val authRoutes = setOf("login", "signup", "resetpassword", "terms", "privacy")
+    val authRoutes = setOf("login", "signup", "resetpassword", "terms", "privacy", "faq", "about")
 
     Scaffold(
         bottomBar = {
@@ -122,6 +122,18 @@ fun RoleNavGraph(role: UserRole, authViewModel: AuthViewModel, navController: Na
             // Política de Privacidad
             composable("privacy") {
                 PrivacyPolicyScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("faq") {
+                com.example.fadebarber.ui.auth.FAQScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("about") {
+                com.example.fadebarber.ui.auth.AboutFadeBarberScreen(
                     onBack = { navController.popBackStack() }
                 )
             }

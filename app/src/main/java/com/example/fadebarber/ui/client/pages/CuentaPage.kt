@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -48,7 +50,11 @@ import com.google.firebase.database.FirebaseDatabase
 fun CuentaPage(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(),
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    onNavigateToTerms: () -> Unit = {},
+    onNavigateToPrivacy: () -> Unit = {},
+    onNavigateToFAQ: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {}
 ) {
     val userState = viewModel.currentUser.collectAsState()
     val user = userState.value
@@ -266,7 +272,6 @@ fun CuentaPage(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Editar Cuenta - inputs siempre visibles
             Spacer(modifier = Modifier.height(16.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -275,17 +280,24 @@ fun CuentaPage(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Datos personales",
-                        fontSize = 14.sp,
-                        color = Color(0xFF374151)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showCuenta = !showCuenta },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "Datos personales", fontSize = 14.sp, color = Color(0xFF374151))
+                        Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
+                    }
+                    AnimatedVisibility(visible = showCuenta, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
                         value = editableName,
                         onValueChange = { editableName = it },
                         label = { Text("Nombre") },
-                        enabled = (!isLoading),
+                        enabled = (isEditingProfile && !isLoading),
                         isError = isEditingProfile && editableName.isBlank(),
                         supportingText = {
                             if (isEditingProfile && editableName.isBlank()) {
@@ -307,8 +319,7 @@ fun CuentaPage(
                                 value = editableEmail,
                                 onValueChange = { editableEmail = it },
                                 label = { Text("Correo") },
-                                enabled = false,
-                                readOnly = true,
+                                enabled = (isEditingProfile && !isLoading),
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Filled.Email,
@@ -324,7 +335,7 @@ fun CuentaPage(
                                 value = editablePhone,
                                 onValueChange = { editablePhone = it },
                                 label = { Text("Teléfono") },
-                        enabled = (!isLoading),
+                        enabled = (isEditingProfile && !isLoading),
                         isError = isEditingProfile && !isPhoneValid,
                         supportingText = {
                             if (isEditingProfile && !isPhoneValid) {
@@ -424,12 +435,13 @@ fun CuentaPage(
                                     }
                                 }
                             }
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Cambiar Contraseña - inputs siempre visibles
             Spacer(modifier = Modifier.height(16.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -438,12 +450,19 @@ fun CuentaPage(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Seguridad",
-                        fontSize = 14.sp,
-                        color = Color(0xFF374151)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showPassword = !showPassword },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "Seguridad", fontSize = 14.sp, color = Color(0xFF374151))
+                        Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
+                    }
+                    AnimatedVisibility(visible = showPassword, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
                     var showCurrentPassword by remember { mutableStateOf(false) }
                     var showNewPassword by remember { mutableStateOf(false) }
                     var showConfirmPassword by remember { mutableStateOf(false) }
@@ -637,10 +656,23 @@ fun CuentaPage(
                                     }
                                 }
                             }
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(text = "Información y ayuda", fontSize = 14.sp, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(12.dp))
+                InfoItemCard(text = "Términos y Condiciones", onClick = { onNavigateToTerms() }, icon = Icons.Filled.Description)
+                Spacer(modifier = Modifier.height(8.dp))
+                InfoItemCard(text = "Política de Privacidad", onClick = { onNavigateToPrivacy() }, icon = Icons.Filled.Security)
+                Spacer(modifier = Modifier.height(8.dp))
+                InfoItemCard(text = "Preguntas Frecuentes", onClick = { onNavigateToFAQ() }, icon = Icons.Filled.Help)
+                Spacer(modifier = Modifier.height(8.dp))
+                InfoItemCard(text = "Sobre FadeBarber", onClick = { onNavigateToAbout() }, icon = Icons.Filled.Info)
+            }
         }
 
         // Botón de cerrar sesión en esquina superior derecha
@@ -755,6 +787,49 @@ private fun updateProfileImageUrl(
     } catch (e: Exception) {
         Log.e("UpdateImage", "Error general", e)
         onShowAlert("Error inesperado: ${e.message}", Color(0xFFEF4444))
+    }
+}
+
+@Composable
+private fun InfoItemCard(text: String, onClick: () -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.Info) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF1E3A8A), Color(0xFF2563EB))
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = icon, contentDescription = null, tint = Color.White)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = text, fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF94A3B8)
+            )
+        }
     }
 }
 
