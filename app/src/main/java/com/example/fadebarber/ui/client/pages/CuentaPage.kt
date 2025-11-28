@@ -818,6 +818,7 @@ fun CuentaPage(
                                         phone = editablePhone,
                                         context = context,
                                         viewModel = viewModel,
+                                        authViewModel = authViewModel,
                                         emailRegex = emailRegex,
                                         phoneRegex = phoneRegex,
                                         currentPasswordForEmail = emailChangePassword,
@@ -1087,6 +1088,7 @@ private fun updateEmailAndProfileClient(
     phone: String,
     context: android.content.Context,
     viewModel: HomeViewModel,
+    authViewModel: AuthViewModel,
     emailRegex: Regex,
     phoneRegex: Regex,
     currentPasswordForEmail: String,
@@ -1180,8 +1182,18 @@ private fun updateEmailAndProfileClient(
                     .addOnSuccessListener {
                         firebaseUser.verifyBeforeUpdateEmail(email)
                             .addOnSuccessListener {
-                                onShowAlert("Hemos enviado un correo de verificación. Revisa tu bandeja de entrada o SPAM para confirmar tu nuevo correo.", Color(0xFF0EA5E9))
-                                updateDbAndNotify()
+                                val userIdAfter = firebaseUser.uid
+                                val updatesFlags: Map<String, Any> = mapOf(
+                                    "emailChangePending" to true,
+                                    "pendingEmail" to email
+                                )
+                                database.child(userIdAfter)
+                                    .updateChildren(updatesFlags)
+                                    .addOnCompleteListener {
+                                        onShowAlert("Hemos enviado un correo de verificación. Revisa tu bandeja de entrada o SPAM para confirmar tu nuevo correo. Cerramos tu sesión hasta que confirmes.", Color(0xFF0EA5E9))
+                                        updateDbAndNotify()
+                                        authViewModel.logout()
+                                    }
                             }
                             .addOnFailureListener { e ->
                                 val msg = when (e.message) {

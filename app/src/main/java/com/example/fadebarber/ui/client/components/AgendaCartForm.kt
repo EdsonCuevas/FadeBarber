@@ -264,8 +264,8 @@ fun AgendaCartForm(
                                 date = formatDate(selectedDate.toString()),
                                 time = requestedStart.format(dbFormatter),
                                 qrBitmap = qrBitmap,
-                                fromEmail = "elizaldiromero14@gmail.com",
-                                fromPassword = "rvemlhzgtkzcqjnv"
+                                fromEmail = "appfadebarber@gmail.com",
+                                fromPassword = "nxmtnqrhvpwohnwe",
                             )
                         }
 
@@ -1441,8 +1441,8 @@ fun AgendaCartForm(
                                                 date = formatDate(selectedDate.toString()),
                                                 time = requestedStart.format(dbFormatter),
                                                 qrBitmap = qrBitmap,
-                                                fromEmail = "elizaldiromero14@gmail.com",
-                                                fromPassword = "rvemlhzgtkzcqjnv"
+                                                fromEmail = "appfadebarber@gmail.com",
+                                                fromPassword = "nxmtnqrhvpwohnwe"
                                             )
                                         }
 
@@ -2139,8 +2139,8 @@ fun AgendaCartForm(
                                             date = formatDate(selectedDate.toString()),
                                             time = requestedStart.format(dbFormatter),
                                             qrBitmap = qrBitmap,
-                                            fromEmail = "elizaldiromero14@gmail.com",
-                                            fromPassword = "rvemlhzgtkzcqjnv"
+                                            fromEmail = "appfadebarber@gmail.com",
+                                            fromPassword = "nxmtnqrhvpwohnwe"
                                         )
                                     }
 

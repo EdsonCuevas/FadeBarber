@@ -117,13 +117,39 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         database.child(uid).get()
                             .addOnSuccessListener { snapshot ->
                                 val role = snapshot.child("categoryUser").getValue(Int::class.java) ?: 0
+                                val emailChangePending = snapshot.child("emailChangePending").getValue(Boolean::class.java) ?: false
+                                val pendingEmail = snapshot.child("pendingEmail").getValue(String::class.java)
 
-                                viewModelScope.launch {
-                                    UserPreferences.saveUserRole(appContext, role)
-                                    NotificationHelper.saveUserToken()
+                                if (emailChangePending) {
+                                    val isNewEmailVerified = user.isEmailVerified && pendingEmail != null && pendingEmail == user.email
+                                    if (isNewEmailVerified) {
+                                        val newCorreo = user.email ?: pendingEmail ?: ""
+                                        database.child(uid)
+                                            .updateChildren(
+                                                mapOf(
+                                                    "correoUser" to newCorreo,
+                                                    "emailChangePending" to false,
+                                                    "pendingEmail" to ""
+                                                )
+                                            )
+                                            .addOnCompleteListener {
+                                                viewModelScope.launch {
+                                                    UserPreferences.saveUserRole(appContext, role)
+                                                    NotificationHelper.saveUserToken()
+                                                }
+                                                _authState.value = AuthState.Authenticated(role)
+                                            }
+                                    } else {
+                                        auth.signOut()
+                                        _authState.value = AuthState.Error("Debes confirmar tu nuevo correo para iniciar sesión")
+                                    }
+                                } else {
+                                    viewModelScope.launch {
+                                        UserPreferences.saveUserRole(appContext, role)
+                                        NotificationHelper.saveUserToken()
+                                    }
+                                    _authState.value = AuthState.Authenticated(role)
                                 }
-
-                                _authState.value = AuthState.Authenticated(role)
                             }
                             .addOnFailureListener { e ->
                                 _authState.value = AuthState.Error("Error al obtener rol: ${e.message}")

@@ -279,7 +279,7 @@ fun SignUpPage(
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.logo_goku),
+                            painter = painterResource(id = R.drawable.logo),
                             contentDescription = "Logo",
                             modifier = Modifier
                                 .size(120.dp)
