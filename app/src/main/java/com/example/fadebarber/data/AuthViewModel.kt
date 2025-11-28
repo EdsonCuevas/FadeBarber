@@ -9,7 +9,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.fadebarber.data.model.UserData
 import com.example.fadebarber.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +34,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _errorEvent = MutableSharedFlow<Event<String>>()
     val errorEvent = _errorEvent.asSharedFlow()
+
+    // Listener para monitorear cambios en statusUser
+    private var statusUserListener: ValueEventListener? = null
+    private var currentUserId: String? = null
 
     //Variables de signup
     private val _registerName = MutableStateFlow("")
@@ -69,29 +76,79 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _termsAccepted.value = false
     }
 
+    // Configurar listener para monitorear statusUser en tiempo real
+    private fun setupStatusUserListener(userId: String) {
+        // Remover listener previo si existe
+        removeStatusUserListener()
+
+        currentUserId = userId
+        statusUserListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val statusUser = snapshot.child("statusUser").getValue(Int::class.java) ?: 0
+
+                if (statusUser != 1) {
+                    // Usuario desactivado, cerrar sesión inmediatamente
+                    Log.d("AuthViewModel", "Usuario desactivado detectado, cerrando sesión")
+                    viewModelScope.launch {
+                        _errorEvent.emit(Event("Tu cuenta ha sido desactivada. Contacta al administrador."))
+                    }
+                    logout()
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("AuthViewModel", "Error al monitorear statusUser: ${error.message}")
+            }
+        }
+
+        // Agregar listener a Firebase
+        database.child(userId).addValueEventListener(statusUserListener!!)
+    }
+
+    // Remover listener
+    private fun removeStatusUserListener() {
+        currentUserId?.let { userId ->
+            statusUserListener?.let { listener ->
+                database.child(userId).removeEventListener(listener)
+            }
+        }
+        statusUserListener = null
+        currentUserId = null
+    }
+
     fun checkAuthStatus() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
             _authState.value = AuthState.Unauthenticated
+            removeStatusUserListener()
         } else {
             viewModelScope.launch {
                 try {
-                    // 1. Revisar si ya hay un rol guardado en DataStore
+                    // Obtener datos del usuario desde Firebase
+                    val snapshot = database.child(currentUser.uid).get().await()
+
+                    val statusUser = snapshot.child("statusUser").getValue(Int::class.java) ?: 0
+                    val role = snapshot.child("categoryUser").getValue(Int::class.java) ?: 0
+
+                    // Verificar si el usuario está activo (statusUser = 1)
+                    if (statusUser != 1) {
+                        // Usuario inactivo o bloqueado, cerrar sesión
+                        logout()
+                        _authState.postValue(AuthState.Error("Tu cuenta ha sido desactivada. Contacta al administrador."))
+                        return@launch
+                    }
+
+                    // Usuario activo, configurar listener para monitorear cambios
+                    setupStatusUserListener(currentUser.uid)
+
+                    // Usuario activo, verificar rol guardado
                     val savedRole = UserPreferences.getUserRole(appContext).firstOrNull()
 
-                    if (savedRole != null) {
-                        _authState.postValue(AuthState.Authenticated(savedRole))
+                    if (savedRole != null && savedRole == role) {
+                        _authState.postValue(AuthState.Authenticated(role))
                     } else {
-                        // 2. Si no existe en DataStore, obtener de Firebase
-                        val role = database.child(currentUser.uid)
-                            .get()
-                            .await()
-                            .child("categoryUser")
-                            .getValue(Int::class.java) ?: 0
-
-                        // Guardar en DataStore
+                        // Actualizar rol en DataStore
                         UserPreferences.saveUserRole(appContext, role)
-
                         _authState.postValue(AuthState.Authenticated(role))
                     }
                 } catch (e: Exception) {
@@ -116,9 +173,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val uid = user.uid
                         database.child(uid).get()
                             .addOnSuccessListener { snapshot ->
+                                val statusUser = snapshot.child("statusUser").getValue(Int::class.java) ?: 0
+
+                                // Verificar si el usuario está activo
+                                if (statusUser != 1) {
+                                    auth.signOut()
+                                    _authState.value = AuthState.Error("Tu cuenta ha sido desactivada. Contacta al administrador.")
+                                    return@addOnSuccessListener
+                                }
+
                                 val role = snapshot.child("categoryUser").getValue(Int::class.java) ?: 0
                                 val emailChangePending = snapshot.child("emailChangePending").getValue(Boolean::class.java) ?: false
                                 val pendingEmail = snapshot.child("pendingEmail").getValue(String::class.java)
+
+                                // Configurar listener para monitorear cambios en statusUser
+                                setupStatusUserListener(uid)
 
                                 if (emailChangePending) {
                                     val isNewEmailVerified = user.isEmailVerified && pendingEmail != null && pendingEmail == user.email
@@ -141,6 +210,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                             }
                                     } else {
                                         auth.signOut()
+                                        removeStatusUserListener()
                                         _authState.value = AuthState.Error("Debes confirmar tu nuevo correo para iniciar sesión")
                                     }
                                 } else {
@@ -237,6 +307,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
+        removeStatusUserListener()
         NotificationHelper.removeUserToken()
         auth.signOut()
         viewModelScope.launch {
@@ -256,6 +327,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     // Invitado
     fun loginAsGuest() {
         _authState.value = AuthState.Guest
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        removeStatusUserListener()
     }
 }
 
